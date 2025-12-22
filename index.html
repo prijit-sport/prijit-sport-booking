@@ -487,7 +487,7 @@
       @media (max-width: 768px) {
         .hero-logo-left {
           width: 130px;
-          height: 10px;
+          height: 130px;
           left: 3%;
         }
       }
@@ -1051,7 +1051,7 @@
             <p><strong>🏟️ มีทั้งหมด 6 สนาม</strong></p>
             <p>💡 มีสปอตไลท์ สนามละ 6 จุด</p>
             <p>🌱 สนามหญ้าเทียม</p>
-            <p>0-0 ที่ปรับผลสกอร์</p>
+            <p>📊 ที่ปรับผลสกอร์ (Scoreboard)</p>
             <p>⚽ ลูกฟุตบอล สนามละ 2 ใบ</p>
             <p>🚻 มีห้องน้ำ 2 จุด</p>
           </div>
@@ -1461,6 +1461,16 @@ function handleRegister(event) {
   const fullname = document.getElementById("regFullname").value;
   const phone = document.getElementById("regPhone").value;
   const password = document.getElementById("regPassword").value;
+  const phoneRegex = /^0[0-9]{9}$/;
+if (!phoneRegex.test(phone)) {
+  alert("❌ กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง\n(10 หลัก เริ่มต้นด้วย 0)");
+  return;
+}
+const usernameRegex = /^[a-zA-Z0-9_]+$/;
+if (!usernameRegex.test(username)) {
+  alert("❌ ชื่อผู้ใช้ต้องเป็นภาษาอังกฤษ ตัวเลข หรือ _ เท่านั้น\n(ไม่มีช่องว่างหรืออักขระพิเศษ)");
+  return;
+}
   const email = username + "@prijitsport.com";
 
   auth.createUserWithEmailAndPassword(email, password)
@@ -1540,19 +1550,15 @@ function confirmBooking() {
     return;
   }
 
-  // ตรวจสอบว่าซ้ำหรือไม่
-  database.ref('bookings')
-    .orderByChild('field_date_time')
-    .equalTo(`${field}_${date}_${selectedTimeSlot}`)
-    .once('value')
-    .then((snapshot) => {
-      if (snapshot.exists()) {
-        alert("❌ ช่วงเวลานี้ถูกจองแล้ว");
-        checkAvailability();
-        return Promise.reject('already_booked');
-      }
+    const selectedDate = new Date(date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-      // คำนวณราคา
+  if (selectedDate < today) {
+    alert("❌ ไม่สามารถจองย้อนหลังได้");
+    return;
+  }
+ // คำนวณราคา
       let price = 0;
       const hour = parseInt(selectedTimeSlot.split(":")[0]);
 
@@ -1564,6 +1570,40 @@ function confirmBooking() {
         price = hour >= 18 ? 1100 : 900;
       } else if (field.includes("สนาม 6")) {
         price = hour >= 18 ? 900 : 700;
+      }
+      
+ // ✅ #3: Confirmation Dialog
+  const confirmMsg = `📋 กรุณาตรวจสอบข้อมูลการจอง:
+
+📍 สนาม: ${field}
+📅 วันที่: ${date}
+⏰ เวลา: ${selectedTimeSlot}
+💰 ราคา: ${price} บาท
+👤 ผู้จอง: ${currentUser.fullname}
+📞 เบอร์: ${currentUser.phone}
+
+ต้องการยืนยันการจองใช่หรือไม่?`;
+
+  if (!confirm(confirmMsg)) {
+    return;
+  }
+
+  // ✅ #4: Loading State
+  const submitBtn = document.querySelector('#bookingPage .submit-btn');
+  const originalText = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = "⏳ กำลังจอง...";
+
+  // ตรวจสอบว่าซ้ำหรือไม่
+  database.ref('bookings')
+    .orderByChild('field_date_time')
+    .equalTo(`${field}_${date}_${selectedTimeSlot}`)
+    .once('value')
+    .then((snapshot) => {
+      if (snapshot.exists()) {
+        alert("❌ ช่วงเวลานี้ถูกจองแล้ว");
+        checkAvailability();
+        return Promise.reject('already_booked');
       }
 
       // บันทึกการจอง
@@ -1593,6 +1633,11 @@ function confirmBooking() {
       if (error !== 'already_booked') {
         alert("❌ เกิดข้อผิดพลาด: " + error.message);
       }
+    })
+    .finally(() => {
+      // ✅ คืนสถานะปุ่ม
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
     });
 }
 
@@ -1634,6 +1679,7 @@ function updateBookingList() {
             </button>
           </div>
         `;
+        
         index++;
       });
 
