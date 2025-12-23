@@ -13,15 +13,15 @@
     <meta property="og:type" content="website">
     <meta property="og:title" content="จองสนามฟุตบอล PRIJIT SPORT">
     <meta property="og:description" content="จองสนามฟุตบอล 7 คน ระบบออนไลน์ 24 ชั่วโมง มี 6 สนาม ราคาถูก จองง่าย">
-    <meta property="og:image" content="https://0658562149za-blip.github.io/prijit-sport-booking/f4.jpg">
-    <meta property="og:url" content="https://0658562149za-blip.github.io/prijit-sport-booking/">
+   <meta property="og:image" content="https://prijit-sport.github.io/prijit-sport-booking/f4.jpg">
+<meta property="og:url" content="https://prijit-sport.github.io/prijit-sport-booking/">
     <meta property="og:site_name" content="PRIJIT SPORT">
     <meta property="og:locale" content="th_TH">
      <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="จองสนามฟุตบอล PRIJIT SPORT">
     <meta name="twitter:description" content="จองสนามฟุตบอล 7 คน ระบบออนไลน์ 24 ชั่วโมง">
-    <meta name="twitter:image" content="https://0658562149za-blip.github.io/prijit-sport-booking/f4.jpg">
+    <meta name="twitter:image" content="https://prijit-sport.github.io/prijit-sport-booking/f4.jpg">
     
     <!-- Structured Data (JSON-LD) สำหรับ Google -->
     <script type="application/ld+json">
@@ -30,8 +30,9 @@
       "@type": "SportsActivityLocation",
       "name": "PRIJIT SPORT",
       "description": "สนามฟุตบอล 7 คน จองออนไลน์ 24 ชั่วโมง มี 6 สนาม",
-      "url": "https://0658562149za-blip.github.io/prijit-sport-booking/",
-      "image": "https://0658562149za-blip.github.io/prijit-sport-booking/f4.jpg",
+     "url": "https://prijit-sport.github.io/prijit-sport-booking/",
+"image": "https://prijit-sport.github.io/prijit-sport-booking/f4.jpg",
+
       "address": {
         "@type": "PostalAddress",
         "addressLocality": "กรุงเทพมหานคร",
@@ -154,7 +155,7 @@
           ),
           url("f7.jpg");
         background-size:cover;
-        background-position: 80%center;
+        background-position: 80% center;
         background-repeat: no-repeat;
       }
       .auth-box {
@@ -275,6 +276,14 @@
         animation: floatLogoLeft 4s ease-in-out infinite;
         z-index: 1;
       }
+      @keyframes floatLogoLeft {
+  0%, 100% {
+    transform: translateY(-50%) translateX(0);
+  }
+  50% {
+    transform: translateY(-50%) translateX(-10px);
+  }
+}
       /* ===== IMAGE SLIDER - เพิ่มส่วนนี้ ===== */
       .slider-section {
         position: relative;
@@ -1125,6 +1134,20 @@
           letter-spacing: 5px;
         }
       }
+      @keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-left: 8px;
+}
     </style>
   </head>
   <body>
@@ -1539,6 +1562,13 @@ let currentBookingData = null;
 let uploadedSlipFile = null;
 let paymentTimer = null;
 
+const DEPOSIT_PERCENTAGE = 0.3;
+const MAX_BOOKING_DAYS = 30;
+const MAX_FILE_SIZE_MB = 5;
+const PAYMENT_TIMEOUT_MINUTES = 15;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+
 
 
 function startSlider() {
@@ -1593,6 +1623,11 @@ function showPage(pageId) {
   pages.forEach((page) => page.classList.remove("active"));
   document.getElementById(pageId).classList.add("active");
 
+  if (paymentTimer) {
+    clearInterval(paymentTimer);
+    paymentTimer = null;
+  }
+
   if (pageId === "homePage") {
     startSlider();
   } else {
@@ -1645,16 +1680,22 @@ function checkAvailability() {
   statusDiv.className = 'availability-notice checking';
   statusDiv.innerHTML = '<strong>⏳ กำลังตรวจสอบสถานะสนาม...</strong>';
 
+   const timeoutId = setTimeout(() => {
+    statusDiv.innerHTML = '<strong style="color: #ef4444;">⚠️ การเชื่อมต่อล่าช้า กรุณาลองใหม่อีกครั้ง</strong>';
+  }, 10000);
+
   // ดึงข้อมูลจาก Firebase
   database.ref('bookings')
     .orderByChild('field')
     .equalTo(field)
     .once('value')
     .then((snapshot) => {
+       clearTimeout(timeoutId);
+
       const bookedTimes = [];
       snapshot.forEach((child) => {
         const booking = child.val();
-        if (booking.date === date) {
+        if (booking.date === date && booking.bookingStatus !== 'cancelled') {
           bookedTimes.push(booking.time);
         }
       });
@@ -1663,8 +1704,11 @@ function checkAvailability() {
       statusDiv.style.display = 'none';
     })
     .catch((error) => {
+      clearTimeout(timeoutId); 
       console.error("Error checking availability:", error);
-      statusDiv.style.display = 'none';
+      statusDiv.className = 'availability-notice';
+      statusDiv.style.display = 'block';
+      statusDiv.innerHTML = '<strong style="color: #ef4444;">❌ เกิดข้อผิดพลาดในการตรวจสอบ กรุณาลองใหม่อีกครั้ง</strong>';
     });
 }
 
@@ -1790,6 +1834,12 @@ function handleLogin(event) {
 
 function handleLogout() {
   if (confirm("ต้องการออกจากระบบ?")) {
+    
+      if (paymentTimer) {
+      clearInterval(paymentTimer);
+        paymentTimer = null;
+    }
+
     auth.signOut().then(() => {
       currentUser = null;
       document.getElementById("mainNav").style.display = "none";
@@ -1818,6 +1868,12 @@ function confirmBooking() {
     alert("❌ ไม่สามารถจองย้อนหลังได้");
     return;
   }
+  const maxDate = new Date(today);
+  maxDate.setDate(maxDate.getDate() + 30);
+  if (selectedDate > maxDate) {
+    alert("❌ สามารถจองได้สูงสุด 30 วันล่วงหน้าเท่านั้น");
+    return;
+  }
 
  // คำนวณราคา
       let totalPrice = 0;
@@ -1834,7 +1890,7 @@ function confirmBooking() {
       }
 
        // ✅ คำนวณค่ามัดจำ 30%
-  const depositAmount = Math.round(totalPrice * 0.3);
+ const depositAmount = Math.round(totalPrice * DEPOSIT_PERCENTAGE);
   const remainingAmount = totalPrice - depositAmount;
 
   // ✅ เก็บข้อมูลการจองไว้ใช้ภายหลัง
@@ -1915,8 +1971,9 @@ function showPaymentModal() {
 
 <div class="qr-code-container">
   <div class="qr-code-image">
-    <img id="qrCodeCanvas" src="qr-promptpay.png" alt="QR Code PromptPay" 
-         style="width: 100%; height: 100%; object-fit: contain;">
+ <img id="qrCodeCanvas" src="qr-promptpay.png" alt="QR Code PromptPay" 
+     style="width: 100%; height: 100%; object-fit: contain;"
+     onerror="handleQRError(this)">
   </div>
 </div>
         <div class="payment-info">
@@ -1967,39 +2024,71 @@ function showPaymentModal() {
   startPaymentTimer();
   setupDragDrop();
   }
-  function generateQRCode(data) {
-  
+  function generateQRCode(data) { 
   console.log('✅ QR Code loaded for deposit:', data.depositAmount, 'บาท');
+}
+
+function handleQRError(img) {
+  img.style.display = 'none';
+  const container = img.parentElement;
+  container.innerHTML = `
+    <div style="padding: 20px; text-align: center; color: #ef4444;">
+      <p style="font-size: 1.2em; margin-bottom: 10px;">⚠️ ไม่พบ QR Code</p>
+      <p style="font-size: 0.9em; color: #6b7280;">
+        กรุณาโอนเงินไปที่:<br>
+        <strong style="color: #1f2937;">เลขพร้อมเพย์: 1103100835163</strong><br>
+        <strong style="color: #1f2937;">ชื่อบัญชี: นาย พัสกร ราชชมภู</strong>
+      </p>
+    </div>
+  `;
+  console.error('QR Code image not found: qr-promptpay.png');
 }
 
 function handleSlipUpload(event) {
   const file = event.target.files[0];
-  if (file) {
-    uploadedSlipFile = file;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      const preview = document.getElementById('slipPreview');
-      preview.src = e.target.result;
-      preview.style.display = 'block';
-      document.getElementById('confirmPaymentBtn').disabled = false;
-    };
-    reader.readAsDataURL(file);
+  
+  if (!file) return;
+  
+  const validTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+  if (!validTypes.includes(file.type)) {
+    alert('❌ กรุณาอัพโหลดไฟล์ภาพเท่านั้น (JPG, PNG)');
+    event.target.value = '';
+    return;
   }
+  
+  // ✅ ใช้ constant แทน
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    alert('❌ ไฟล์ใหญ่เกินไป! กรุณาเลือกไฟล์ขนาดไม่เกิน ' + MAX_FILE_SIZE_MB + ' MB\n' + 
+          'ขนาดไฟล์ของคุณ: ' + (file.size / 1024 / 1024).toFixed(2) + ' MB');
+    event.target.value = '';
+    return;
+  }
+  
+  uploadedSlipFile = file;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const preview = document.getElementById('slipPreview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    document.getElementById('confirmPaymentBtn').disabled = false;
+  };
+  reader.readAsDataURL(file);
 }
 
 function setupDragDrop() {
   const uploadArea = document.getElementById('uploadArea');
   
-  uploadArea.addEventListener('dragover', (e) => {
+  // ✅ สร้าง handler functions
+  const handleDragOver = (e) => {
     e.preventDefault();
     uploadArea.classList.add('dragover');
-  });
+  };
   
-  uploadArea.addEventListener('dragleave', () => {
+  const handleDragLeave = () => {
     uploadArea.classList.remove('dragover');
-  });
+  };
   
-  uploadArea.addEventListener('drop', (e) => {
+  const handleDrop = (e) => {
     e.preventDefault();
     uploadArea.classList.remove('dragover');
     
@@ -2011,11 +2100,19 @@ function setupDragDrop() {
       input.files = dataTransfer.files;
       handleSlipUpload({ target: input });
     }
-  });
+  };
+  
+  // ✅ เพิ่ม listeners
+  uploadArea.addEventListener('dragover', handleDragOver);
+  uploadArea.addEventListener('dragleave', handleDragLeave);
+  uploadArea.addEventListener('drop', handleDrop);
+  
+  // ✅ เก็บ handlers 
+  uploadArea._dragHandlers = { handleDragOver, handleDragLeave, handleDrop };
 }
 
 function startPaymentTimer() {
-  let timeLeft = 15 * 60;
+let timeLeft = PAYMENT_TIMEOUT_MINUTES * 60;
   const timerDiv = document.getElementById('paymentTimer');
   
   paymentTimer = setInterval(() => {
@@ -2035,6 +2132,16 @@ function startPaymentTimer() {
 
 function closePaymentModal() {
   clearInterval(paymentTimer);
+  cleanupBookingLock();
+  
+  // ✅ ลบ drag drop listeners
+  const uploadArea = document.getElementById('uploadArea');
+  if (uploadArea && uploadArea._dragHandlers) {
+    uploadArea.removeEventListener('dragover', uploadArea._dragHandlers.handleDragOver);
+    uploadArea.removeEventListener('dragleave', uploadArea._dragHandlers.handleDragLeave);
+    uploadArea.removeEventListener('drop', uploadArea._dragHandlers.handleDrop);
+  }
+
   const modal = document.getElementById('paymentModal');
   if (modal) {
     modal.remove();
@@ -2043,6 +2150,17 @@ function closePaymentModal() {
   uploadedSlipFile = null;
 }
 
+function cleanupBookingLock() {
+  if (currentBookingData) {
+    const uniqueKey = `${currentBookingData.field}_${currentBookingData.date}_${currentBookingData.time}`;
+    database.ref('booking_locks/' + uniqueKey).remove();
+  }
+}
+
+window.addEventListener('beforeunload', () => {
+  cleanupBookingLock();
+});
+
 function submitPayment() {
   if (!uploadedSlipFile) {
     alert('❌ กรุณาอัพโหลดสลิปการโอนเงิน');
@@ -2050,12 +2168,14 @@ function submitPayment() {
   }
 
   const btn = document.getElementById('confirmPaymentBtn');
-  const originalText = btn.textContent;
   btn.disabled = true;
-  btn.textContent = '⏳ กำลังตรวจสอบ...';
-
+  
+  // ✅ เพิ่ม Loading Animation
+  btn.innerHTML = '⏳ กำลังอัพโหลด... <span class="spinner"></span>';
+  
   uploadSlipAndCreateBooking();
 }
+
 
 function uploadSlipAndCreateBooking() {
   const data = currentBookingData;
@@ -2064,53 +2184,62 @@ function uploadSlipAndCreateBooking() {
   reader.onload = function(e) {
     const slipBase64 = e.target.result;
     
-    database.ref('bookings')
-      .orderByChild('field_date_time')
-      .equalTo(`${data.field}_${data.date}_${data.time}`)
-      .once('value')
-      .then((snapshot) => {
-        if (snapshot.exists()) {
-          alert('❌ ช่วงเวลานี้ถูกจองไปแล้ว');
-          closePaymentModal();
-          checkAvailability();
-          return Promise.reject('already_booked');
-        }
+  const bookingRef = database.ref('bookings').push();
+    const uniqueKey = `${data.field}_${data.date}_${data.time}`;
 
-        const bookingData = {
-          userId: currentUser.uid,
-          username: currentUser.fullname,
-          phone: currentUser.phone,
-          field: data.field,
-          date: data.date,
-          time: data.time,
-          totalPrice: data.totalPrice,
-          depositAmount: data.depositAmount,
-          remainingAmount: data.remainingAmount,
-          depositStatus: 'pending',
-          depositSlipUrl: slipBase64,
-          depositPaidAt: new Date().toISOString(),
-          remainingStatus: 'unpaid',
-          remainingPaidAt: null,
-          bookingStatus: 'pending_payment',
-          checkedInAt: null,
-          completedAt: null,
-          depositRefunded: false,
-          depositRefundedAt: null,
-          depositForfeited: false,
-          depositForfeitedAt: null,
-          field_date_time: `${data.field}_${data.date}_${data.time}`,
-          createdAt: new Date().toISOString()
-        };
+          const bookingData = {
+      userId: currentUser.uid,
+      username: currentUser.fullname,
+      phone: currentUser.phone,
+      field: data.field,
+      date: data.date,
+      time: data.time,
+      totalPrice: data.totalPrice,
+      depositAmount: data.depositAmount,
+      remainingAmount: data.remainingAmount,
+      depositStatus: 'pending',
+      depositSlipUrl: slipBase64,
+      depositPaidAt: new Date().toISOString(),
+      remainingStatus: 'unpaid',
+      remainingPaidAt: null,
+      bookingStatus: 'pending_payment',
+      checkedInAt: null,
+      completedAt: null,
+      depositRefunded: false,
+      depositRefundedAt: null,
+      depositForfeited: false,
+      depositForfeitedAt: null,
+      field_date_time: uniqueKey,
+      createdAt: new Date().toISOString()
+    };
 
-        return database.ref('bookings').push(bookingData);
-      })
-      .then((ref) => {
-        if (ref) {
-          clearInterval(paymentTimer);
-          
-          alert(`✅ อัพโหลดสลิปสำเร็จ!
+       // ✅ ใช้ transaction เพื่อป้องกัน race condition
+    database.ref('booking_locks/' + uniqueKey).transaction((currentData) => {
+      if (currentData === null) {
+        // ไม่มีคนจองอยู่ ให้จองได้
+        return { locked: true, timestamp: Date.now() };
+      } else {
+        // มีคนจองอยู่แล้ว
+        return undefined; // ยกเลิก transaction
+      }
+    }, (error, committed, snapshot) => {
+      if (error) {
+        alert('❌ เกิดข้อผิดพลาด: ' + error.message);
+        document.getElementById('confirmPaymentBtn').disabled = false;
+        document.getElementById('confirmPaymentBtn').textContent = '⬆️ อัพโหลดสลิป';
+      } else if (!committed) {
+        alert('❌ ช่วงเวลานี้ถูกจองไปแล้ว กรุณาเลือกช่วงเวลาอื่น');
+        closePaymentModal();
+        checkAvailability();
+      } else {
+        // สำเร็จ! สร้าง booking
+        bookingRef.set(bookingData)
+          .then(() => {
+            clearInterval(paymentTimer);
+            
+            alert(`✅ อัพโหลดสลิปสำเร็จ!
 
-📋 เลขที่การจอง: #${ref.key.substr(-6).toUpperCase()}
+📋 เลขที่การจอง: #${bookingRef.key.substr(-6).toUpperCase()}
 
 ระบบจะตรวจสอบการชำระเงินภายใน 5 นาที
 คุณจะได้รับการยืนยันผ่าน SMS
@@ -2126,16 +2255,18 @@ function uploadSlipAndCreateBooking() {
           closePaymentModal();
           resetBookingForm();
           showPage('checkBookingPage');
-        }
       })
-      .catch((error) => {
-        if (error !== 'already_booked') {
-          alert('❌ เกิดข้อผิดพลาด: ' + error.message);
-        }
-        document.getElementById('confirmPaymentBtn').disabled = false;
-        document.getElementById('confirmPaymentBtn').textContent = '⬆️ อัพโหลดสลิป';
+    .catch((error) => {
+            // ถ้าสร้าง booking ไม่สำเร็จ ลบ lock ออก
+            database.ref('booking_locks/' + uniqueKey).remove();
+            alert('❌ เกิดข้อผิดพลาด: ' + error.message);
+            document.getElementById('confirmPaymentBtn').disabled = false;
+            document.getElementById('confirmPaymentBtn').textContent = '⬆️ อัพโหลดสลิป';
       });
-  };
+    }
+  });
+};
+
   reader.readAsDataURL(uploadedSlipFile);
 }
 
@@ -2230,7 +2361,20 @@ function updateBookingList() {
 
 function cancelBooking(bookingId) {
   if (confirm("⚠️ ต้องการยกเลิกการจองนี้ใช่หรือไม่?")) {
-    database.ref('bookings/' + bookingId).remove()
+    // ✅ ดึงข้อมูล booking ก่อนลบ
+    database.ref('bookings/' + bookingId).once('value')
+      .then((snapshot) => {
+        const booking = snapshot.val();
+        if (booking) {
+          // ✅ สร้าง uniqueKey
+          const uniqueKey = `${booking.field}_${booking.date}_${booking.time}`;
+          const updates = {};
+          updates[`bookings/${bookingId}`] = null;
+          updates[`booking_locks/${uniqueKey}`] = null;
+          
+          return database.ref().update(updates);
+        }
+      })
       .then(() => {
         alert("✅ ยกเลิกการจองเรียบร้อยแล้ว");
         updateBookingList();
@@ -2247,10 +2391,14 @@ document.addEventListener("DOMContentLoaded", () => {
     startSlider();        
   }
 
-  const dateInput = document.getElementById("dateSelect");
+   const dateInput = document.getElementById("dateSelect");
   if (dateInput) {
-    const today = new Date().toISOString().split("T")[0];
-    dateInput.min = today;
+    const today = new Date();
+    const maxDate = new Date(today);
+    maxDate.setDate(maxDate.getDate() + 30);
+    
+    dateInput.min = today.toISOString().split("T")[0];
+    dateInput.max = maxDate.toISOString().split("T")[0];
   }
 
   initializeTimeSlots();
