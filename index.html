@@ -119,6 +119,97 @@
         background: rgba(255, 255, 255, 0.3);
       }
 
+      #loginNavBtn {
+  background: white !important;
+  color: #22c55e !important;
+  font-weight: bold;
+  border: 2px solid white;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+#loginNavBtn:hover {
+  background: #f0fdf4 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* ซ่อน/แสดงตามสถานะ login */
+#userInfo {
+  display: none;
+}
+
+#userInfo.active {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.modal-overlay {
+  display: none;              /* ซ่อนไว้ตอนเริ่มต้น */
+  position: fixed;            /* ติดกับหน้าจอ */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);  /* พื้นหลังมืด 70% */
+  z-index: 2000;              /* อยู่เหนือทุกอย่าง */
+  justify-content: center;    /* จัดกลางแนวนอน */
+  align-items: center;        /* จัดกลางแนวตั้ง */
+  animation: fadeIn 0.3s ease;
+}
+
+.modal-overlay.active {
+  display: flex;              /* แสดงเมื่อมี class active */
+}
+
+.auth-modal {
+  background: white;
+  border-radius: 20px;
+  padding: 50px;
+  max-width: 450px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideDown 0.3s ease;
+  max-height: 90vh;           /* ไม่เกิน 90% ของหน้าจอ */
+  overflow-y: auto;           /* เลื่อนได้ถ้าเนื้อหายาว */
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-50px);  /* เริ่มจากด้านบน */
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);      /* เลื่อนลงมา */
+    opacity: 1;
+  }
+}
+
+.modal-close-btn {
+  position: absolute;         /* วางบนกล่อง */
+  top: 15px;
+  right: 20px;
+  font-size: 28px;
+  cursor: pointer;
+  color: #666;
+  background: none;
+  border: none;
+  transition: all 0.3s ease;
+  width: 35px;
+  height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.modal-close-btn:hover {
+  background: #f3f4f6;
+  color: #22c55e;
+  transform: rotate(90deg);   /* หมุน 90 องศาเมื่อ hover */
+}
+
       /* Page Container */
       .page {
         display: none;
@@ -139,32 +230,6 @@
           opacity: 1;
           transform: translateY(0);
         }
-      }
-
-      .auth-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: 100vh;
-        padding: 20px;
-        position: relative;
-
-        background-image: linear-gradient(
-            rgba(0, 40, 10, 0.5),
-            rgba(22, 163, 74, 0.6)
-          ),
-          url("f7.jpg");
-        background-size:cover;
-        background-position: 80% center;
-        background-repeat: no-repeat;
-      }
-      .auth-box {
-        background: white;
-        border-radius: 20px;
-        padding: 50px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-        max-width: 450px;
-        width: 100%;
       }
 
       .auth-title {
@@ -1102,7 +1167,7 @@
           grid-template-columns: repeat(2, 1fr);
         }
 
-        .auth-box {
+        .auth-modal {
           padding: 30px;
         }
 
@@ -1141,99 +1206,99 @@
     </style>
   </head>
   <body>
-    <!-- Login Page -->
-    <div id="loginPage" class="page active">
-      <div class="auth-container">
-        <div class="auth-box">
-          <h1 class="auth-title">⚽ เข้าสู่ระบบ</h1>
-          <form onsubmit="handleLogin(event)">
-            <div class="form-group">
-              <label class="form-label">ชื่อผู้ใช้</label>
-              <input
-                type="text"
-                id="loginUsername"
-                class="form-input"
-                placeholder="กรอกชื่อผู้ใช้"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">รหัสผ่าน</label>
-              <input
-                type="password"
-                id="loginPassword"
-                class="form-input"
-                placeholder="กรอกรหัสผ่าน"
-                required
-              />
-            </div>
-            <button type="submit" class="submit-btn">เข้าสู่ระบบ</button>
-          </form>
-          <div class="auth-switch">
-            ยังไม่มีบัญชี? <a onclick="showPage('registerPage')">สมัครสมาชิก</a>
-          </div>
+    <!-- Login/Register Modal -->
+    <div id="loginModal" class="modal-overlay">
+  <div class="auth-modal">
+    <!-- ปุ่มปิด X -->
+    <button class="modal-close-btn" onclick="closeLoginModal()">&times;</button>
+    
+    <!-- ฟอร์ม Login -->
+    <div id="modalLoginForm">
+      <h1 class="auth-title">⚽ เข้าสู่ระบบ</h1>
+      <form onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label">ชื่อผู้ใช้</label>
+          <input
+            type="text"
+            id="modalLoginUsername"
+            class="form-input"
+            placeholder="กรอกชื่อผู้ใช้"
+            required
+          />
         </div>
+        <div class="form-group">
+          <label class="form-label">รหัสผ่าน</label>
+          <input
+            type="password"
+            id="modalLoginPassword"
+            class="form-input"
+            placeholder="กรอกรหัสผ่าน"
+            required
+          />
+        </div>
+        <button type="submit" class="submit-btn">เข้าสู่ระบบ</button>
+      </form>
+      <div class="auth-switch">
+        ยังไม่มีบัญชี? <a onclick="showRegisterInModal()">สมัครสมาชิก</a>
       </div>
     </div>
 
-    <!-- Register Page -->
-    <div id="registerPage" class="page">
-      <div class="auth-container">
-        <div class="auth-box">
-          <h1 class="auth-title">📝 สมัครสมาชิก</h1>
-          <form onsubmit="handleRegister(event)">
-            <div class="form-group">
-              <label class="form-label">ชื่อผู้ใช้</label>
-              <input
-                type="text"
-                id="regUsername"
-                class="form-input"
-                placeholder="กรอกชื่อผู้ใช้"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">ชื่อ-นามสกุล</label>
-              <input
-                type="text"
-                id="regFullname"
-                class="form-input"
-                placeholder="กรอกชื่อ-นามสกุล"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">เบอร์โทร</label>
-              <input
-                type="tel"
-                id="regPhone"
-                class="form-input"
-                placeholder="กรอกเบอร์โทรศัพท์"
-                required
-              />
-            </div>
-            <div class="form-group">
-              <label class="form-label">รหัสผ่าน</label>
-              <input
-                type="password"
-                id="regPassword"
-                class="form-input"
-                placeholder="กรอกรหัสผ่าน"
-                required
-              />
-            </div>
-            <button type="submit" class="submit-btn">สมัครสมาชิก</button>
-          </form>
-          <div class="auth-switch">
-            มีบัญชีแล้ว? <a onclick="showPage('loginPage')">เข้าสู่ระบบ</a>
-          </div>
+    <!-- ฟอร์ม Register (ซ่อนไว้ตอนเริ่มต้น) -->
+    <div id="modalRegisterForm" style="display: none;">
+      <h1 class="auth-title">📝 สมัครสมาชิก</h1>
+      <form onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label class="form-label">ชื่อผู้ใช้</label>
+          <input
+            type="text"
+            id="modalRegUsername"
+            class="form-input"
+            placeholder="กรอกชื่อผู้ใช้"
+            required
+          />
         </div>
+        <div class="form-group">
+          <label class="form-label">ชื่อ-นามสกุล</label>
+          <input
+            type="text"
+            id="modalRegFullname"
+            class="form-input"
+            placeholder="กรอกชื่อ-นามสกุล"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">เบอร์โทร</label>
+          <input
+            type="tel"
+            id="modalRegPhone"
+            class="form-input"
+            placeholder="กรอกเบอร์โทรศัพท์"
+            required
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label">รหัสผ่าน</label>
+          <input
+            type="password"
+            id="modalRegPassword"
+            class="form-input"
+            placeholder="กรอกรหัสผ่าน"
+            required
+          />
+        </div>
+        <button type="submit" class="submit-btn">สมัครสมาชิก</button>
+      </form>
+      <div class="auth-switch">
+        มีบัญชีแล้ว? <a onclick="showLoginInModal()">เข้าสู่ระบบ</a>
       </div>
     </div>
+  </div>
+</div>
 
     <!-- Main Navigation (Hidden until logged in) -->
-    <nav id="mainNav" class="navbar" style="display: none">
-      <div class="nav-container">
+  <nav id="mainNav" class="navbar">
+  <div class="nav-container">
         <div class="nav-links">
           <span class="nav-item" onclick="showPage('homePage')">หน้าแรก</span>
           <span class="nav-item" onclick="showPage('fieldInfoPage')"
@@ -1252,15 +1317,23 @@
             >ติดต่อสอบถาม</span
           >
         </div>
+
         <div class="user-section">
-          <span>👤 <span id="currentUser"></span></span>
-          <span class="logout-btn" onclick="handleLogout()">ออกจากระบบ</span>
-        </div>
-      </div>
-    </nav>
+  <span class="nav-item" id="loginNavBtn" onclick="openLoginModal()" 
+        style="background: white; color: #22c55e; padding: 10px 25px; border-radius: 25px;">
+    🔐 เข้าสู่ระบบ
+  </span>
+  <div id="userInfo" style="display: none;">
+    <span>👤 <span id="currentUser"></span></span>
+    <span class="logout-btn" onclick="handleLogout()">ออกจากระบบ</span>
+  </div>
+</div>
+  </div>
+  </nav>
 
     <!-- Home Page -->
-    <div id="homePage" class="page">
+    <div id="homePage" class="page active">
+
       <div class="hero">
         <!-- โลโก้มุมซ้าย - เพิ่มบรรทัดนี้ -->
         <img src="f6.jpg" alt="Logo" class="hero-logo-left" />
@@ -1579,6 +1652,40 @@ let slideInterval;
 let currentBookingData = null;
 let uploadedSlipFile = null;
 let paymentTimer = null;
+
+function openLoginModal() {
+  document.getElementById('loginModal').classList.add('active');
+  showLoginInModal();  
+}
+
+function closeLoginModal() {
+  document.getElementById('loginModal').classList.remove('active');
+}
+
+function showLoginInModal() {
+  document.getElementById('modalLoginForm').style.display = 'block';
+  document.getElementById('modalRegisterForm').style.display = 'none';
+}
+
+function showRegisterInModal() {
+  document.getElementById('modalLoginForm').style.display = 'none';
+  document.getElementById('modalRegisterForm').style.display = 'block';
+}
+
+// ปิด modal เมื่อคลิกนอก modal
+window.addEventListener('click', function(e) {
+  const modal = document.getElementById('loginModal');
+  if (e.target === modal) {
+    closeLoginModal();
+  }
+});
+
+// ปิด modal เมื่อกด ESC
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeLoginModal();
+  }
+});
 let currentAvailabilityCheck = null;
 
 const DEPOSIT_PERCENTAGE = 0.3;
@@ -1797,15 +1904,17 @@ function resetBookingForm() {
   resetTimeSlots();
 }
 
-// ===== AUTHENTICATION FUNCTIONS =====
+
 function handleRegister(event) {
   event.preventDefault();
 
-  const username = document.getElementById("regUsername").value;
-  const fullname = document.getElementById("regFullname").value;
-  const phone = document.getElementById("regPhone").value;
-  const password = document.getElementById("regPassword").value;
-  const phoneRegex = /^0[0-9]{9}$/;
+ const username = document.getElementById("modalRegUsername").value;
+  const fullname = document.getElementById("modalRegFullname").value;
+  const phone = document.getElementById("modalRegPhone").value;
+  const password = document.getElementById("modalRegPassword").value;
+  
+  // ตรวจสอบเบอร์โทร
+const phoneRegex = /^0[0-9]{9}$/;
 if (!phoneRegex.test(phone)) {
   alert("❌ กรุณากรอกเบอร์โทรศัพท์ให้ถูกต้อง\n(10 หลัก เริ่มต้นด้วย 0)");
   return;
@@ -1829,10 +1938,10 @@ if (!usernameRegex.test(username)) {
       });
     })
     .then(() => {
-      alert("✅ สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
-      event.target.reset();
-      showPage("loginPage");
-    })
+  alert("✅ สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
+  event.target.reset();
+  showLoginInModal(); 
+})
     .catch((error) => {
       if (error.code === 'auth/email-already-in-use') {
         alert("❌ ชื่อผู้ใช้นี้มีอยู่แล้ว");
@@ -1847,8 +1956,8 @@ if (!usernameRegex.test(username)) {
 function handleLogin(event) {
   event.preventDefault();
 
-  const username = document.getElementById("loginUsername").value;
-  const password = document.getElementById("loginPassword").value;
+ const username = document.getElementById("modalLoginUsername").value;
+const password = document.getElementById("modalLoginPassword").value;
   const email = username + "@prijitsport.com";
 
   auth.signInWithEmailAndPassword(email, password)
@@ -1857,16 +1966,19 @@ function handleLogin(event) {
       return database.ref('users/' + user.uid).once('value');
     })
     .then((snapshot) => {
-      currentUser = {
-        uid: auth.currentUser.uid,
-        ...snapshot.val()
-      };
+  currentUser = {
+    uid: auth.currentUser.uid,
+    ...snapshot.val()
+  };
       
-      document.getElementById("currentUser").textContent = currentUser.fullname;
-      document.getElementById("mainNav").style.display = "block";
-      showPage("homePage");
-      alert("✅ เข้าสู่ระบบสำเร็จ!");
-    })
+    document.getElementById("currentUser").textContent = currentUser.fullname;
+  document.getElementById("loginNavBtn").style.display = "none";      // ซ่อนปุ่ม Login
+  document.getElementById("userInfo").style.display = "flex";         // แสดงชื่อผู้ใช้
+  document.getElementById("mainNav").style.display = "block";
+     closeLoginModal();  // ปิด Modal
+  showPage("homePage");
+  alert("✅ เข้าสู่ระบบสำเร็จ!");
+})
     .catch((error) => {
       alert("❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
     });
@@ -1882,10 +1994,10 @@ function handleLogout() {
 
     auth.signOut().then(() => {
       currentUser = null;
-      document.getElementById("mainNav").style.display = "none";
-      showPage("loginPage");
-      document.getElementById("loginUsername").value = "";
-      document.getElementById("loginPassword").value = "";
+     document.getElementById("loginNavBtn").style.display = "inline-block";
+       document.getElementById("userInfo").style.display = "none";
+        showPage("homePage");
+       alert("✅ ออกจากระบบเรียบร้อยแล้ว");
     });
   }
 }
