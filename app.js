@@ -62,7 +62,7 @@ function showRegisterInModal() {
 const registerForm = document.getElementById('modalRegisterForm');
 
 if (!loginForm || !registerForm) {
-  console.error('❌ ไม่เจอ from elements');
+  console.error('❌ ไม่เจอ form elements');
 return;}
 
 
@@ -674,7 +674,7 @@ function closeStaffModal() {
 // ========================================
 // TIME SLOTS FUNCTIONS
 // ========================================
-function  initializeTimeSlots() {
+function initializeTimeSlots() {
   const timeSlots = document.querySelectorAll('.time-slot-btn');
   
   timeSlots.forEach(btn => {
@@ -1569,9 +1569,7 @@ function cleanupBookingLock() {
   }
 }
 
-window.addEventListener('beforeunload', () => {
-  cleanupBookingLock();
-});
+// cleanup เมื่อปิดหน้า ถูกจัดการโดย beforeunload listener ที่ด้านล่าง
 
 function submitPayment() {
   if (!uploadedSlipFile) {
@@ -1916,6 +1914,7 @@ function generateBookingCard(booking) {
     // ใช้ data attribute แทน inline onclick
     cancelButton = `
       <button class="cancel-btn" 
+              id="cancel-btn-${safeBooking.id}"
               data-booking-id="${safeBooking.id}"
               style="background: #ef4444; color: white; padding: 8px 16px; 
                      border: none; border-radius: 6px; cursor: pointer; 
@@ -1962,7 +1961,7 @@ function generateBookingCard(booking) {
       <!-- Payment Status -->
       <div style="background: #f9fafb; padding: 12px; border-radius: 8px; margin-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-          <span style="color: #6b7280; font-size: 13px;">💵 ค่าม่วน 30%</span>
+          <span style="color: #6b7280; font-size: 13px;">💵 ค่ามัดจำ 30%</span>
           <span style="font-weight: 600; color: ${safeBooking.depositStatus === 'approved' ? '#10b981' : '#f59e0b'}">
             ${safeBooking.depositAmount.toLocaleString()} บาท 
             ${safeBooking.depositStatus === 'approved' ? '✅' : '⏳'}
@@ -2075,12 +2074,12 @@ function cancelBooking(bookingId) {
         throw new Error('ไม่พบข้อมูลการจอง');
       }
 
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser) {
         throw new Error('กรุณา Login ก่อนยกเลิกการจอง');
       }
         
-      if (booking.userId !== currentUser.uid) {
+      if (booking.userId !== firebaseUser.uid) {
         throw new Error('คุณไม่มีสิทธิ์ยกเลิกการจองนี้');
       }
 
@@ -2124,7 +2123,39 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // ✅ Start slider
   startSlider();
+
+  // ✅ Mobile Swipe Support for Slider (passive: true - ไม่บล็อก scroll)
+  const sliderWrapper = document.querySelector('.slider-container');
+  if (sliderWrapper) {
+    let sliderTouchStartX = 0;
+    let sliderTouchEndX = 0;
+
+    sliderWrapper.addEventListener('touchstart', function(e) {
+      sliderTouchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    sliderWrapper.addEventListener('touchend', function(e) {
+      sliderTouchEndX = e.changedTouches[0].screenX;
+      const swipeDist = sliderTouchEndX - sliderTouchStartX;
+      if (swipeDist < -50) changeSlide(1);  // swipe left → next
+      if (swipeDist > 50)  changeSlide(-1); // swipe right → prev
+    }, { passive: true });
+  }
   
+  // ✅ Staff Gallery Modal - Mobile Swipe to Close
+  const staffModal = document.getElementById('staffGalleryModal');
+  if (staffModal) {
+    let touchStartY = 0;
+    staffModal.addEventListener('touchstart', function(e) {
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+    staffModal.addEventListener('touchend', function(e) {
+      const swipeDistance = e.changedTouches[0].screenY - touchStartY;
+      if (swipeDistance > 100) closeStaffModal();
+    }, { passive: true });
+    console.log('✅ Mobile touch events initialized');
+  }
+
   // Close modal on background click
   const loginModal = document.getElementById('loginModal');
   if (loginModal) {
@@ -2307,6 +2338,109 @@ function hideLoading() {
 
 
 // ========================================
+// STAFF GALLERY FUNCTIONS (Global)
+// ========================================
+function loadStaffGallery() {
+  const container = document.getElementById('staffGalleryContainer');
+  if (!container) return;
+
+  database.ref('gallery').orderByChild('order').on('value', (snapshot) => {
+    container.innerHTML = '';
+
+    if (!snapshot.exists()) {
+      container.innerHTML = '<div class="content-loading-state">📷 ยังไม่มีรูปภาพ</div>';
+      return;
+    }
+
+    const items = [];
+    snapshot.forEach((child) => {
+      items.push({ id: child.key, ...child.val() });
+    });
+
+    items.sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    items.forEach(item => {
+      const safeTitle = SecurityUtils.escapeHtml(item.title || 'ไม่มีชื่อ');
+      const safeUrl = (item.url || '').replace(/[<>\"'`]/g, '');
+
+      const card = document.createElement('div');
+      card.className = 'staff-gallery-card';
+      card.setAttribute('data-image-url', safeUrl);
+      card.addEventListener('click', function() {
+        const url = this.getAttribute('data-image-url');
+        if (url) openStaffModal(url);
+      });
+
+      card.innerHTML = `
+        <img src="${safeUrl}" alt="${safeTitle}" loading="lazy"
+             onerror="this.src='placeholder.jpg'">
+        <div class="staff-gallery-card-title">${safeTitle}</div>
+      `;
+      container.appendChild(card);
+    });
+  });
+}
+
+// ========================================
+// ACTIVITIES FUNCTIONS (Global)
+// ========================================
+function loadActivities() {
+  const container = document.getElementById('activitiesContainer');
+  if (!container) return;
+
+  database.ref('activities').orderByChild('createdAt').on('value', (snapshot) => {
+    container.innerHTML = '';
+
+    if (!snapshot.exists()) {
+      container.innerHTML = '<div class="content-loading-state">📝 ยังไม่มีข่าวสาร</div>';
+      return;
+    }
+
+    const items = [];
+    snapshot.forEach((child) => {
+      items.push({ id: child.key, ...child.val() });
+    });
+
+    items.reverse();
+
+    items.forEach(item => {
+      const safeTitle = SecurityUtils.escapeHtml(item.title || 'ไม่มีหัวข้อ');
+      const safeContent = SecurityUtils.escapeHtml(item.content || '');
+
+      const card = document.createElement('div');
+      card.className = 'activity-card';
+      card.innerHTML = `
+        <div class="activity-header">
+          <div class="activity-title">${safeTitle}</div>
+          <div class="activity-date">${formatDate(item.createdAt)}</div>
+        </div>
+        <div class="activity-content">${safeContent}</div>
+      `;
+      container.appendChild(card);
+    });
+  });
+}
+
+function formatDate(iso) {
+  if (!iso) return '-';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('th-TH', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (e) {
+    return '-';
+  }
+}
+
+console.log('✅ XSS Protection Patches loaded successfully');
+
+// ========================================
 // FIREBASE INITIALIZATION
 // ========================================
 let firebaseInitRetryCount = 0;
@@ -2392,52 +2526,7 @@ if (dateInput) {
   const today = new Date().toISOString().split('T')[0];
   dateInput.setAttribute('min', today);
 }
-    // ========================================
-    // STAFF GALLERY FUNCTIONS
-    // ========================================
- function loadStaffGallery() {
-  const container = document.getElementById('staffGalleryContainer');
-  if (!container) return;
-  
-  database.ref('gallery').orderByChild('order').on('value', (snapshot) => {
-    container.innerHTML = '';
-    
-    if (!snapshot.exists()) {
-      container.innerHTML = '<div class="content-loading-state">📷 ยังไม่มีรูปภาพ</div>';
-      return;
-    }
-
-    const items = [];
-    snapshot.forEach((child) => {
-      items.push({ id: child.key, ...child.val() });
-    });
-
-    items.sort((a, b) => (a.order || 0) - (b.order || 0));
-
-    items.forEach(item => {
-      // ✅ XSS Protection: Sanitize title and URL
-      const safeTitle = SecurityUtils.escapeHtml(item.title || 'ไม่มีชื่อ');
-      const safeUrl = (item.url || '').replace(/[<>\"'`]/g, ''); // ลบตัวอักษรอันตราย
-      
-      const card = document.createElement('div');
-      card.className = 'staff-gallery-card';
-      
-      // ใช้ data attribute แทน inline onclick
-      card.setAttribute('data-image-url', safeUrl);
-      card.addEventListener('click', function() {
-        const url = this.getAttribute('data-image-url');
-        if (url) openStaffModal(url);
-      });
-      
-      card.innerHTML = `
-        <img src="${safeUrl}" alt="${safeTitle}" loading="lazy" 
-             onerror="this.src='placeholder.jpg'">
-        <div class="staff-gallery-card-title">${safeTitle}</div>
-      `;
-      container.appendChild(card);
-    });
-  });
-}
+    // ✅ loadStaffGallery ถูกย้ายเป็น global function แล้ว (ด้านบน initializeFirebase)
 
     // ✅ Modal functions ถูกย้ายไปเป็น global แล้ว (ดูด้านบน)
 
@@ -2469,93 +2558,9 @@ if (dateInput) {
       });
     }
 
-    // เพิ่ม Touch Support สำหรับ Mobile
-    window.addEventListener('load', function() {
-      const modal = document.getElementById('staffGalleryModal');
-      const modalImg = document.getElementById('staffGalleryModalImg');
-      
-      if (modal && modalImg) {
-        let touchStartY = 0;
-        let touchEndY = 0;
-        
-        // Swipe down เพื่อปิด Modal (Mobile UX)
-        modal.addEventListener('touchstart', function(e) {
-          touchStartY = e.changedTouches[0].screenY;
-        }, { passive: true });
-        
-        modal.addEventListener('touchend', function(e) {
-          touchEndY = e.changedTouches[0].screenY;
-          const swipeDistance = touchEndY - touchStartY;
-          
-          // ถ้า swipe down มากกว่า 100px ให้ปิด Modal
-          if (swipeDistance > 100) {
-            closeStaffModal();
-          }
-        }, { passive: true });
-        
-        console.log('✅ Mobile touch events initialized');
-      }
-    });
+    // Touch Support ถูกย้ายไปไว้ใน DOMContentLoaded แล้ว (ด้านล่าง)
 
-    // ========================================
-    // ACTIVITIES FUNCTIONS
-    // ========================================
-   function loadActivities() {
-  const container = document.getElementById('activitiesContainer');
-  if (!container) return;
-  
-  database.ref('activities').orderByChild('createdAt').on('value', (snapshot) => {
-    container.innerHTML = '';
-    
-    if (!snapshot.exists()) {
-      container.innerHTML = '<div class="content-loading-state">📝 ยังไม่มีข่าวสาร</div>';
-      return;
-    }
-
-    const items = [];
-    snapshot.forEach((child) => {
-      items.push({ id: child.key, ...child.val() });
-    });
-
-    items.reverse();
-
-    items.forEach(item => {
-      // ✅ XSS Protection: Sanitize all text content
-      const safeTitle = SecurityUtils.escapeHtml(item.title || 'ไม่มีหัวข้อ');
-      const safeContent = SecurityUtils.escapeHtml(item.content || '');
-      
-      const card = document.createElement('div');
-      card.className = 'activity-card';
-      card.innerHTML = `
-        <div class="activity-header">
-          <div class="activity-title">${safeTitle}</div>
-          <div class="activity-date">${formatDate(item.createdAt)}</div>
-        </div>
-        <div class="activity-content">${safeContent}</div>
-      `;
-      container.appendChild(card);
-    });
-  });
-}
-
-function formatDate(iso) {
-  if (!iso) return '-';
-  try {
-    const d = new Date(iso);
-    if (isNaN(d.getTime())) return '-';
-    return d.toLocaleDateString('th-TH', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  } catch (e) {
-    return '-';
-  }
-}
-
-console.log('✅ XSS Protection Patches loaded successfully');
+    // ✅ loadActivities และ formatDate ถูกย้ายเป็น global function แล้ว (ด้านบน initializeFirebase)
 
     // โหลด Staff Gallery
     loadStaffGallery();
@@ -3052,5 +3057,3 @@ window.addEventListener('beforeunload', () => {
     database.ref('booking_locks/' + uniqueKey).remove().catch(() => {});
   }
 });
-
-initializeFirebase();

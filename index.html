@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="th">
   <head>
 <!-- 
@@ -86,7 +86,7 @@
   <h1 class="auth-title">⚽ เข้าสู่ระบบ</h1>
   <form onsubmit="handleLogin(event)">
     <div class="form-group">
-      <label class="">ชื่อผู้ใช้</label>
+      <label class="" for="modalLoginUsername">ชื่อผู้ใช้</label>
       <input type="text" id="modalLoginUsername" class="form-input" 
              placeholder="กรอกชื่อผู้ใช้" 
              autocomplete="username" 
@@ -94,7 +94,7 @@
     </div>  <!-- ✅ ปิด form-group ของ username -->
     
     <div class="form-group">  <!-- ✅ form-group ใหม่สำหรับ password -->
-      <label class="">รหัสผ่าน</label>
+      <label class="" for="modalLoginPassword">รหัสผ่าน</label>
       <div style="position: relative;">
         <input type="password" id="modalLoginPassword" class="form-input" 
                placeholder="กรอกรหัสผ่าน" 
@@ -126,7 +126,7 @@
   <h1 class="auth-title">📝 สมัครสมาชิก</h1>
   <form onsubmit="handleRegister(event)">
     <div class="form-group">
-      <label class="form-label">ชื่อผู้ใช้</label>
+      <label class="form-label" for="modalRegUsername">ชื่อผู้ใช้</label>
       <input type="text" id="modalRegUsername" class="form-input" 
              placeholder="กรอกชื่อผู้ใช้" 
              autocomplete="username" 
@@ -134,7 +134,7 @@
     </div>
     
     <div class="form-group">
-      <label class="form-label">ชื่อ-นามสกุล</label>
+      <label class="form-label" for="modalRegFullname">ชื่อ-นามสกุล</label>
       <input type="text" id="modalRegFullname" class="form-input" 
              placeholder="กรอกชื่อ-นามสกุล" 
              autocomplete="name" 
@@ -142,7 +142,7 @@
     </div>
     
     <div class="form-group">
-      <label class="form-label">เบอร์โทร</label>
+      <label class="form-label" for="modalRegPhone">เบอร์โทร</label>
       <input type="tel" id="modalRegPhone" class="form-input" 
              placeholder="กรอกเบอร์โทรศัพท์" 
              autocomplete="tel" 
@@ -150,7 +150,7 @@
     </div>
     
     <div class="form-group">
-      <label class="form-label">รหัสผ่าน</label>
+      <label class="form-label" for="modalRegPassword">รหัสผ่าน</label>
       <div style="position: relative;">
         <input type="password" id="modalRegPassword" class="form-input" 
                placeholder="กรอกรหัสผ่าน" 
@@ -361,7 +361,7 @@
         </div>
         
         <div class="form-group">
-          <label class="form-label">เลือกสนาม</label>
+          <label class="form-label" for="fieldSelect">เลือกสนาม</label>
           <select id="fieldSelect" class="form-input" onchange="checkAvailability()">
             <option value="">เลือกสนามที่ต้องการ</option>
             <option value="สนาม 1">สนาม 1 (35×54m) - 1,000/1,200 บาท</option>
@@ -374,7 +374,7 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">เลือกวันที่</label>
+          <label class="form-label" for="dateSelect">เลือกวันที่</label>
           <input type="date" id="dateSelect" class="form-input" onchange="checkAvailability()" />
         </div>
         <div id="availabilityStatus" class="availability-notice" style="display: none">
