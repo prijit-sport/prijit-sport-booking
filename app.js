@@ -201,7 +201,7 @@ let currentSlideIndex = 0;
 let slideInterval = null;
 
 // Gallery
-const galleryImages = ['f11.jpg', 'f8.jpg', 'f9.jpg', 'f1.jpg', 'f10.jpg', 'f2.jpg', 'f3.jpg'];
+const galleryImages = ['f11.jpg', 'f8.jpg', 'f9.jpg', 'f1.jpg', 'f10.jpg', '2.jpg', 'f3.jpg'];
 let currentGalleryIndex = 0;
 
 // Payment
