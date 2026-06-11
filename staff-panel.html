@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PRIJIT SPORT - ระบบพนักงาน</title>
+  <title>PRIJIT SPORT - ระบบ Admin</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2790%27>⚽</text></svg>">
   <style>
     * {
@@ -889,7 +889,9 @@
       <button class="tab-btn" onclick="switchTab('refunds')">💰 คืนมัดจำ</button>
       <button class="tab-btn" onclick="switchTab('images')">🖼️ จัดการรูปภาพ</button>
       <button class="tab-btn" onclick="switchTab('activities')">📢 จัดการกิจกรรม</button>
+      <button class="tab-btn" onclick="switchTab('report')">📊 รายงาน</button>
     </div>  
+
  
     <div class="tab-content active" id="bookingsTab">
       <div class="stats-grid">
@@ -1044,6 +1046,44 @@
           </div>
       </div>
     </div>
+
+    <!-- Report Tab (NEW) -->
+    <div class="tab-content" id="reportTab">
+      <div class="bookings-section">
+        <h2>📊 รายงานสรุปยอด</h2>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom: 15px;">
+          <span style="font-weight:600; color:#374151;">ช่วงเวลา:</span>
+          <button class="btn-add" style="margin:0;" onclick="setReportRange(1)">1 วัน</button>
+          <button class="btn-add" style="margin:0;" onclick="setReportRange(7)">7 วัน</button>
+          <button class="btn-add" style="margin:0;" onclick="setReportRange(30)">30 วัน</button>
+          <button class="btn-secondary" style="margin:0;" onclick="setReportRange(90)">90 วัน</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h3>ยอดรวม (รับมัดจำ)</h3>
+            <div class="stat-value" id="reportTotalReceived">฿0</div>
+          </div>
+          <div class="stat-card">
+            <h3>ยอดคืนแล้ว</h3>
+            <div class="stat-value" id="reportRefunded">฿0</div>
+          </div>
+          <div class="stat-card">
+            <h3>ยอดริบมัดจำ</h3>
+            <div class="stat-value" id="reportForfeit">฿0</div>
+          </div>
+        </div>
+
+        <div class="filter-section" style="margin-top: 20px;">
+          <h2 style="margin-bottom: 10px;">ตารางสรุป</h2>
+          <div id="reportTableContainer" style="overflow-x:auto;">
+            <p style="text-align:center; color:#666; padding: 20px 0;">กำลังโหลดรายงาน...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
   <div class="modal" id="bookingModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -1137,10 +1177,7 @@
           <label>ยอดมัดจำ (บาท):</label>
           <input type="number" id="refundDeposit" value="300" min="0">
         </div>
-        <div class="form-group">
-          <label>เหตุผล:</label>
-          <input type="text" id="refundReason" placeholder="เช่น ยกเลิกการจอง">
-        </div>
+
         <div class="form-actions">
           <button type="button" class="btn-secondary" onclick="closeRefundModal()">ยกเลิก</button>
           <button type="submit" class="btn-primary">บันทึก</button>
@@ -1176,8 +1213,8 @@
     const DEPOSIT_AMOUNT = 300;            // ยอดมัดจำสำรอง (กรณีข้อมูลเก่าไม่มีทั้ง depositAmount และ totalPrice)
     const DEPOSIT_PERCENTAGE = 0.30;       // มัดจำ 30% ของราคา (ตรงกับฝั่งหน้าจอง app.js)
     const SCHEDULE_FIELDS = [1, 2, 3, 4, 5, 6];  // จำนวนสนาม
-    const SCHEDULE_START_HOUR = 6;         // เวลาเปิด (06:00)
-    const SCHEDULE_END_HOUR = 22;          // ช่องสุดท้าย 22:00-23:00
+    const SCHEDULE_START_HOUR = 7;         // เวลาเปิด (07:00)
+    const SCHEDULE_END_HOUR = 19;          // ช่องสุดท้าย 19:00-20:00
  
     // คืนค่ามัดจำที่ถูกต้องของการจอง: ใช้ค่าจริงก่อน ถ้าไม่มีให้คำนวณ 30% จากราคา
     function getBookingDeposit(b) {
@@ -1263,8 +1300,101 @@
   } else if (tabName === 'activities') {
     document.getElementById('activitiesTab').classList.add('active');
     loadActivities();
+  } else if (tabName === 'report') {            // NEW
+    document.getElementById('reportTab').classList.add('active');
+    renderReport();
   }
 }
+
+    // =========================
+    // REPORT TAB (NEW)
+    // =========================
+    let REPORT_RANGE_DAYS = 1;
+
+    function setReportRange(days) {
+      REPORT_RANGE_DAYS = Number(days) || 1;
+      renderReport();
+    }
+
+    function renderReport() {
+      const container = document.getElementById('reportTableContainer');
+      if (!container) return;
+
+      // ensure refunds are loaded (allRefunds is filled by loadRefunds())
+      const now = new Date();
+      const start = new Date(now);
+      start.setDate(start.getDate() - REPORT_RANGE_DAYS);
+
+      const isInRange = (iso) => {
+        if (!iso) return false;
+        const d = new Date(iso);
+        return !isNaN(d.getTime()) && d >= start && d <= now;
+      };
+
+      const refundsInRange = allRefunds.filter(r => isInRange(r.createdAt));
+
+      // Aggregate using refund records
+      let totalReceived = 0;
+      let refunded = 0;
+      let forfeit = 0;
+
+      refundsInRange.forEach(r => {
+        const amt = r.deposit || 0;
+        totalReceived += amt;
+        if (r.status === 'refunded') refunded += amt;
+        if (r.status === 'forfeit') forfeit += amt;
+      });
+
+      const setTxt = (id, v) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = v;
+      };
+
+      setTxt('reportTotalReceived', '฿' + totalReceived.toLocaleString());
+      setTxt('reportRefunded', '฿' + refunded.toLocaleString());
+      setTxt('reportForfeit', '฿' + forfeit.toLocaleString());
+
+      if (!refundsInRange.length) {
+        container.innerHTML = '<p style="text-align:center; color:#666; padding: 20px 0;">ยังไม่มีข้อมูลในช่วงนี้</p>';
+        return;
+      }
+
+      let html = `
+        <table class="bookings-table">
+          <thead>
+            <tr>
+              <th>วันที่</th>
+              <th>ชื่อ-นามสกุล</th>
+              <th>เบอร์โทร</th>
+              <th>สนาม</th>
+              <th>เวลา</th>
+              <th>มัดจำ</th>
+              <th>เหตุผล</th>
+              <th>สถานะ</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      refundsInRange.forEach(r => {
+        const st = refundStatusInfo(r.status);
+        html += `
+          <tr>
+            <td>${r.date ? formatDate(r.date) : '-'}</td>
+            <td>${r.fullname || '-'}</td>
+            <td>${r.phone || '-'}</td>
+            <td>${r.field || '-'}</td>
+            <td>${r.time || '-'}</td>
+            <td>฿${(r.deposit || 0).toLocaleString()}</td>
+            <td>${r.reason || '-'}</td>
+            <td><span class="status-badge ${st.cls}">${st.text}</span></td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
     // =========================
     // BOOKINGS MANAGEMENT
     // =========================
@@ -1331,19 +1461,20 @@
         return;
       }
  
-      // Desktop Table
+      let runNo = 1;
       let tableHtml = `
         <table class="bookings-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>ผู้จอง</th>
+              <th>#</th>
+              <th>ชื่อ-นามสกุล</th>
               <th>เบอร์โทร</th>
               <th>สนาม</th>
               <th>วันที่</th>
               <th>เวลา</th>
               <th>ราคา</th>
               <th>มัดจำ</th>
+              <th>ค่าคงค้าง</th>
               <th>สถานะ</th>
               <th>จัดการ</th>
             </tr>
@@ -1351,7 +1482,6 @@
           <tbody>
       `;
  
-      // Mobile Cards
       let mobileHtml = '<div class="mobile-bookings">';
  
       filteredBookings.forEach(booking => {
@@ -1369,14 +1499,17 @@
         // Desktop Row
         tableHtml += `
           <tr>
-            <td>#${booking.id.substring(0, 8)}</td>
+            <td>${String(runNo++).padStart(2,'0')}</td>
             <td>${bookerName}</td>
             <td>${booking.phone || '-'}</td>
+
             <td>${booking.field}</td>
             <td>${formatDate(booking.date)}</td>
             <td>${booking.time}</td>
             <td>฿${(booking.totalPrice || 0).toLocaleString()}</td>
             <td style="color:#10b981; font-weight:600;">฿${depositVal.toLocaleString()}</td>
+            <td style="color:#ef4444; font-weight:700;">฿${Math.max((booking.totalPrice || 0) - depositVal, 0).toLocaleString()}</td>
+
             <td><span class="status-badge ${statusClass}">${statusText}</span></td>
             <td>
               <div class="action-buttons">
@@ -1422,6 +1555,11 @@
                 <span class="booking-card-label">มัดจำ:</span>
                 <span style="color:#10b981; font-weight:600;">฿${depositVal.toLocaleString()}</span>
               </div>
+              <div class="booking-card-row">
+                <span class="booking-card-label">ค่าคงค้าง:</span>
+                <span style="color:#ef4444; font-weight:700;">฿${Math.max((booking.totalPrice || 0) - depositVal, 0).toLocaleString()}</span>
+              </div>
+
             </div>
             <div class="booking-card-actions">
               <button class="btn-view" onclick="viewBooking('${booking.id}')">ดูรายละเอียด</button>
@@ -2019,7 +2157,8 @@
         date: get('refundDate') || '',
         time: get('refundTime') || '',
         deposit: parseInt(document.getElementById('refundDeposit').value, 10) || DEPOSIT_AMOUNT,
-        reason: get('refundReason') || '-',
+        reason: 'ยกเลิกการจอง',
+
         status: 'pending',
         createdAt: new Date().toISOString(),
         createdBy: auth.currentUser.uid
