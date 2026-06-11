@@ -1,45 +1,22 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
   <head>
-<!-- 
-═══════════════════════════════════════════════════════════
-🔒 SECURITY ENHANCEMENTS APPLIED
-═══════════════════════════════════════════════════════════
-
-✅ Patches Applied:
-1. Input Sanitization (SecurityUtils.sanitizeInput)
-2. XSS Prevention (SecurityUtils.escapeHtml)
-3. Race Condition Prevention (SlotLocker)
-4. Memory Leak Fixes (cleanup listeners)
-5. Firebase Security Warning
-
-⚠️ TODO:
-- Setup Firebase Security Rules (see firebase-security-rules.json)
-- Enable Firebase App Check
-- Optimize images
-
-═══════════════════════════════════════════════════════════
--->
-
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-site-verification" content="bR1mEsXKVvOw49DkWfjDAmJHnfmsgKIcgD6kVuu1stI" />
-    <title>จองสนามฟุตบอล PRIJIT SPORT - ระบบจองออนไลน์ 24 ชม.</title>
-    <meta name="description" content="จองสนามฟุตบอล 7 คน PRIJIT SPORT มี 6 สนาม ราคาถูก จองง่าย ระบบออนไลน์ตลอด 24 ชั่วโมง พร้อมระบบจัดการจองที่ทันสมัย">
-    <meta name="keywords" content="จองสนามฟุตบอล, สนามฟุตบอล 7 คน, สนามฟุตบอล, PRIJIT SPORT, จองสนาม, สนามฟุตบอลออนไลน์, ฟุตบอล">
+    <title>สนามฟุตบอล PRIJIT SPORT - ระบบจองออนไลน์ 24 ชม.</title>
+    <meta name="description" content="จองสนามฟุตบอล 7 คน PRIJIT SPORT 6 สนาม ราคาถูก จองง่าย ระบบออนไลน์ตลอด 24 ชั่วโมง">
+    <meta name="keywords" content="จองสนามฟุตบอล, สนามฟุตบอล 7 คน, PRIJIT SPORT, จองสนาม, สนามฟุตบอลออนไลน์">
     <meta name="author" content="PRIJIT SPORT">
     <meta name="robots" content="index, follow">
-    <!-- Open Graph -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="จองสนามฟุตบอล PRIJIT SPORT">
-    <meta property="og:description" content="จองสนามฟุตบอล 7 คน ระบบออนไลน์ 24 ชั่วโมง มี 6 สนาม ราคาถูก จองง่าย">
+    <meta property="og:description" content="จองสนามฟุตบอล 7 คน ระบบออนไลน์ 24 ชั่วโมง 6 สนาม ราคาถูก จองง่าย">
     <meta property="og:image" content="https://prijit-sport.github.io/prijit-sport-booking/f4.jpg">
     <meta property="og:url" content="https://prijit-sport.github.io/prijit-sport-booking/">
     <meta property="og:site_name" content="PRIJIT SPORT">
     <meta property="og:locale" content="th_TH">
     <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
-    
-    <!-- Structured Data -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -56,197 +33,149 @@
       "priceRange": "$$"
     }
     </script>
-    
-    <!-- Favicon -->
     <meta http-equiv="Permissions-Policy" content="interest-cohort=()">
     <link rel="icon" type="image/jpeg" href="f6.jpg">
-    
-    <!-- 🚀 PERFORMANCE OPTIMIZATION - ปรับปรุงความเร็ว -->
-    <!-- Preconnect to Firebase - เชื่อมต่อ Firebase ล่วงหน้า -->
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="dns-prefetch" href="https://www.gstatic.com">
-    
-    <!-- Preload Critical Resources - โหลดทรัพยากรสำคัญก่อน -->
     <link rel="preload" href="styles.css" as="style">
     <link rel="preload" href="app.js" as="script">
     <link rel="preload" href="f6.jpg" as="image" fetchpriority="high">
-    
-    <!-- External Stylesheets -->
     <link rel="stylesheet" href="styles.css" media="all">
-    
-    
   </head>
   <body>
     <!-- Login/Register Modal -->
     <div id="loginModal" class="modal-overlay">
       <div class="auth-modal">
         <button class="modal-close-btn" onclick="closeLoginModal()">&times;</button>
-        
+ 
         <div id="modalLoginForm">
-  <h1 class="auth-title">⚽ เข้าสู่ระบบ</h1>
-  <form onsubmit="handleLogin(event)">
-    <div class="form-group">
-      <label class="" for="modalLoginUsername">ชื่อผู้ใช้</label>
-      <input type="text" id="modalLoginUsername" class="form-input" 
-             placeholder="กรอกชื่อผู้ใช้" 
-             autocomplete="username" 
-             required />
-    </div>  <!-- ✅ ปิด form-group ของ username -->
-    
-    <div class="form-group">  <!-- ✅ form-group ใหม่สำหรับ password -->
-      <label class="" for="modalLoginPassword">รหัสผ่าน</label>
-      <div style="position: relative;">
-        <input type="password" id="modalLoginPassword" class="form-input" 
-               placeholder="กรอกรหัสผ่าน" 
-               autocomplete="current-password" 
-               required 
-               style="padding-right: 45px;" />
-        
-        <button type="button" 
-                onclick="togglePassword('modalLoginPassword', this)" 
-                style="position: absolute; right: 10px; top: 50%; 
-                       transform: translateY(-50%); background: none; 
-                       border: none; cursor: pointer; font-size: 1.2em; 
-                       padding: 5px;">
-          👁️
-        </button>
-      </div>
-    </div>  
-    <button type="submit" class="submit-btn">เข้าสู่ระบบ</button>
-  </form>
-  <div class="auth-switch">
-    ยังไม่มีบัญชี? <a onclick="showRegisterInModal()">สมัครสมาชิก</a>
-  </div>
-</div>
-<div class="auth-switch">
-  <a href="staff-login.html" style="color: #667eea; font-weight: 600; text-decoration: none;"
-  > 👤 เข้าสู่ระบบพนักงาน </a>
-</div>
-        <div id="modalRegisterForm" style="display: none;">
-  <h1 class="auth-title">📝 สมัครสมาชิก</h1>
-  <form onsubmit="handleRegister(event)">
-    <div class="form-group">
-      <label class="form-label" for="modalRegUsername">ชื่อผู้ใช้</label>
-      <input type="text" id="modalRegUsername" class="form-input" 
-             placeholder="กรอกชื่อผู้ใช้" 
-             autocomplete="username" 
-             required />
-    </div>
-    
-    <div class="form-group">
-      <label class="form-label" for="modalRegFullname">ชื่อ-นามสกุล</label>
-      <input type="text" id="modalRegFullname" class="form-input" 
-             placeholder="กรอกชื่อ-นามสกุล" 
-             autocomplete="name" 
-             required />
-    </div>
-    
-    <div class="form-group">
-      <label class="form-label" for="modalRegPhone">เบอร์โทร</label>
-      <input type="tel" id="modalRegPhone" class="form-input" 
-             placeholder="กรอกเบอร์โทรศัพท์" 
-             autocomplete="tel" 
-             required />
-    </div>
-    
-    <div class="form-group">
-      <label class="form-label" for="modalRegPassword">รหัสผ่าน</label>
-      <div style="position: relative;">
-        <input type="password" id="modalRegPassword" class="form-input" 
-               placeholder="กรอกรหัสผ่าน" 
-               autocomplete="new-password" 
-               required 
-               style="padding-right: 45px;" />
-        
-        <button type="button" 
-                onclick="togglePassword('modalRegPassword', this)" 
-                style="position: absolute; right: 10px; top: 50%; 
-                       transform: translateY(-50%); background: none; 
-                       border: none; cursor: pointer; font-size: 1.2em; 
-                       padding: 5px;">
-          👁️
-        </button>
-      </div>
-    </div>
-    <button type="submit" class="submit-btn">สมัครสมาชิก</button>
-  </form>
-  <div class="auth-switch">
-    มีบัญชีแล้ว? <a onclick="showLoginInModal()">เข้าสู่ระบบ</a>
-  </div>
-</div>
-      </div>
-    </div>
-
-    <!-- Navigation Bar -->
-     <nav class="navbar">
-    <div class="nav-container">
-      <div class="hamburger" id="hamburgerBtn">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div> 
-
-      <div class="nav-links" id="desktopNav">
-        <button class="nav-item" data-section="homeSection">หน้าแรก</button>
-        <button class="nav-item" data-section="fieldInfoSection">ข้อมูลสนาม</button>
-        <button class="nav-item" data-section="rulesSection">กฎระเบียบ</button>
-        <button class="nav-item" data-section="bookingSection">จองสนาม</button>
-        <button class="nav-item" data-section="checkBookingSection">ตรวจสอบการจอง</button>
-        <button class="nav-item" data-section="gallerySection">รูปภาพและกิจกรรม</button>
-        <button class="nav-item" data-section="contactSection">ติดต่อสอบถาม</button>
-      </div>
-      <div class="user-section">
-
-        <span class="login-btn" id="loginNavBtn">login</span>
-        <div id="userInfo" style="display:none;">
-          <span>👤 <span id="currentUser"></span></span>
-          <span class="logout-btn" id="logoutBtn">logout</span>
+          <h1 class="auth-title">⚽ เข้าสู่ระบบ</h1>
+          <form onsubmit="handleLogin(event)">
+            <div class="form-group">
+              <label for="modalLoginUsername">ชื่อ-นามสกุล</label>
+              <input type="text" id="modalLoginUsername" class="form-input"
+                     placeholder="กรอกชื่อผู้ใช้"
+                     autocorrect="off" autocapitalize="off" required />
+            </div>
+            <div class="form-group">
+              <label for="modalLoginPassword">รหัสผ่าน</label>
+              <div style="position:relative;">
+                <input type="password" id="modalLoginPassword" class="form-input"
+                       placeholder="กรอกรหัสผ่าน"
+                       autocomplete="current-password" required
+                       style="padding-right:45px;" />
+                <button type="button" onclick="togglePassword('modalLoginPassword',this)"
+                        style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.2em;padding:5px;">👁️</button>
+              </div>
+            </div>
+            <button type="submit" class="submit-btn">เข้าสู่ระบบ</button>
+          </form>
+          <div class="auth-switch">ยังไม่มีบัญชี? <a onclick="showRegisterInModal()">สมัครสมาชิก</a></div>
+        </div>
+        <div class="auth-switch">
+          <a href="staff-login.html" style="color:#667eea;font-weight:600;text-decoration:none;">👤 เข้าสู่ระบบพนักงาน</a>
+        </div>
+ 
+        <div id="modalRegisterForm" style="display:none;">
+          <h1 class="auth-title">📝 สมัครสมาชิก</h1>
+          <form onsubmit="handleRegister(event)">
+            <div class="form-group">
+              <label class="form-label" for="modalRegUsername">ชื่อผู้ใช้</label>
+              <input type="text" id="modalRegUsername" class="form-input"
+                     placeholder="กรอกชื่อผู้ใช้"
+                     autocomplete="username" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="modalRegFullname">ชื่อ-นามสกุล</label>
+              <input type="text" id="modalRegFullname" class="form-input"
+                     placeholder="กรอกชื่อ-นามสกุล"
+                     autocomplete="name" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="modalRegPhone">เบอร์โทร</label>
+              <input type="tel" id="modalRegPhone" class="form-input"
+                     placeholder="กรอกเบอร์โทรศัพท์"
+                     autocomplete="tel" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="modalRegPassword">รหัสผ่าน</label>
+              <div style="position:relative;">
+                <input type="password" id="modalRegPassword" class="form-input"
+                       placeholder="กรอกรหัสผ่าน"
+                       autocomplete="new-password" required
+                       style="padding-right:45px;" />
+                <button type="button" onclick="togglePassword('modalRegPassword',this)"
+                        style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.2em;padding:5px;">👁️</button>
+              </div>
+            </div>
+            <button type="submit" class="submit-btn">สมัครสมาชิก</button>
+          </form>
+          <div class="auth-switch">มีบัญชีแล้ว? <a onclick="showLoginInModal()">เข้าสู่ระบบ</a></div>
         </div>
       </div>
     </div>
-  </nav>
-    
+ 
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+      <div class="nav-container">
+        <div class="hamburger" id="hamburgerBtn">
+          <span></span><span></span><span></span>
+        </div>
+        <div class="nav-links" id="desktopNav">
+          <button class="nav-item" data-section="homeSection">หน้าแรก</button>
+          <button class="nav-item" data-section="fieldInfoSection">ข้อมูลสนาม</button>
+          <button class="nav-item" data-section="rulesSection">กฎระเบียบ</button>
+          <button class="nav-item" data-section="bookingSection">จองสนาม</button>
+          <button class="nav-item" data-section="checkBookingSection">ตรวจสอบการจอง</button>
+          <button class="nav-item" data-section="gallerySection">รูปภาพและกิจกรรม</button>
+          <button class="nav-item" data-section="contactSection">ติดต่อสอบถาม</button>
+        </div>
+        <div class="user-section">
+          <span class="login-btn" id="loginNavBtn">login</span>
+          <div id="userInfo" style="display:none;">
+            <span>👤 <span id="currentUser"></span></span>
+            <span class="logout-btn" id="logoutBtn">logout</span>
+          </div>
+        </div>
+      </div>
+    </nav>
+ 
     <!-- Mobile Menu -->
-  <div class="menu-overlay" id="menuOverlay">
-    <button class="mobile-close-btn" onclick="closeMobileMenu()" aria-label="ปิดเมนู">
-      <span class="close-icon">✕</span>
-    </button>
-    <div class="nav-links" id="mobileNav">
-      <button class="nav-item" data-section="homeSection">🏠 หน้าแรก</button>
-      <button class="nav-item" data-section="fieldInfoSection">ℹ️ ข้อมูลสนาม</button>
-      <button class="nav-item" data-section="rulesSection">📋 กฎระเบียบ</button>
-      <button class="nav-item" data-section="bookingSection">⚽ จองสนาม</button>
-      <button class="nav-item" data-section="checkBookingSection">✅ ตรวจสอบการจอง</button>
-      <button class="nav-item" data-section="gallerySection">📸 รูปภาพและกิจกรรม</button>
-      <button class="nav-item" data-section="contactSection">📞 ติดต่อสอบถาม</button>
+    <div class="menu-overlay" id="menuOverlay">
+      <button class="mobile-close-btn" onclick="closeMobileMenu()" aria-label="ปิดเมนู">
+        <span class="close-icon">✕</span>
+      </button>
+      <div class="nav-links" id="mobileNav">
+        <button class="nav-item" data-section="homeSection">🏠 หน้าแรก</button>
+        <button class="nav-item" data-section="fieldInfoSection">ℹ️ ข้อมูลสนาม</button>
+        <button class="nav-item" data-section="rulesSection">📋 กฎระเบียบ</button>
+        <button class="nav-item" data-section="bookingSection">⚽ จองสนาม</button>
+        <button class="nav-item" data-section="checkBookingSection">✅ ตรวจสอบการจอง</button>
+        <button class="nav-item" data-section="gallerySection">📸 รูปภาพและกิจกรรม</button>
+        <button class="nav-item" data-section="contactSection">📞 ติดต่อสอบถาม</button>
+      </div>
     </div>
-  </div>
-
+ 
     <!-- Home Section -->
     <section id="homeSection">
-
       <div class="hero">
         <img src="f6.jpg" alt="Logo" class="hero-logo-left" />
-        <h1>PRIJIT SPORT</h1>
-        <p>⚽ ระบบจองสนามฟุตบอล 7 คน ⚽</p>
+        <h1>สนามฟุตบอล PRIJIT SPORT</h1>
+        <p>⚽ สนามฟุตบอล 7 คน ⚽</p>
         <p>เปิดให้บริการทุกวัน จองง่าย สะดวก รวดเร็ว</p>
         <p>✨ ยินดีให้บริการ 💡</p>
       </div>
-      
       <div class="slider-section">
         <div class="slider-container">
           <div class="slider-wrapper">
-
             <div class="slide active"><img src="f11.jpg" alt="slide1" /></div>
             <div class="slide"><img src="f8.jpg" alt="slide2" /></div>
             <div class="slide"><img src="f9.jpg" alt="slide3" /></div>
             <div class="slide"><img src="13.jpg" alt="slide4" /></div>
             <div class="slide"><img src="12.jpg" alt="slide5" /></div>
           </div>
-
           <button class="slider-btn prev" onclick="changeSlide(-1)">‹</button>
           <button class="slider-btn next" onclick="changeSlide(1)">›</button>
-
           <div class="slider-dots">
             <span class="dot active" onclick="currentSlide(0)"></span>
             <span class="dot" onclick="currentSlide(1)"></span>
@@ -255,100 +184,114 @@
             <span class="dot" onclick="currentSlide(4)"></span>
           </div>
         </div>
-      
         <div class="slider-welcome-text">
           <h2>⚽ Welcome ⚽</h2>
           <p>สนามฟุตบอล PRIJIT SPORT</p>
-          <p style="margin-top: 10px; color: #ffffff;">สนามฟุตบอลไพรจิตรทุกสนามใช้หญ้าเทียมคุณภาพดี ทำให้การเล่นฟุตบอลของคุณมีความรู้สึกไม่แตกต่างจากสนา มหญ้า อีกทั้งยังมีสิ่งอำนวยความสะดวกต่างๆและที่จอดรถกว้าง เหมาะสำหรับนัดหมายเพื่อนๆมาเล่นฟุตบอลเพื่อออกกำลังกาย</p>
+          <p style="margin-top:10px;color:#ffffff;">สนามฟุตบอลไพรจิตรทุกสนามใช้หญ้าเทียมคุณภาพดี ทำให้การเล่นฟุตบอลของคุณมีความรู้สึกไม่แตกต่างจากสนามหญ้า อีกทั้งยังมีสิ่งอำนวยความสะดวกต่างๆ และที่จอดรถกว้าง เหมาะสำหรับนัดหมายเพื่อนๆ มาเล่นฟุตบอลเพื่อออกกำลังกาย</p>
         </div>
       </div>
     </section>
-
+ 
     <!-- Field Info Section -->
     <section id="fieldInfoSection">
       <h2 class="section-title">ข้อมูลสนาม</h2>
       <div class="content-card">
         <div class="section-header">รายละเอียดสนามและอุปกรณ์</div>
         <div class="field-details">
-          <p><strong>🏟️ มีทั้งหมด 6 สนาม</strong></p>
-          <p>💡 มีสปอตไลท์ สนามละ 6 จุด</p>
+          <p><strong>🏟️ ทั้งหมด 6 สนาม</strong></p>
+          <p>💡 สปอตไลท์ สนามละ 6 จุด</p>
           <p>🌱 สนามหญ้าเทียม</p>
-          <p>📊 ที่ปรับผลสกอร์ (Scoreboard)</p>
+          <p>📊 สกอร์บอร์ดป้านคะแนนไฟฟ้า</p>
           <p>⚽ ลูกฟุตบอล สนามละ 2 ใบ</p>
-          <p>🚻 มีห้องน้ำ 2 จุด</p>
+          <p>🚻 ห้องน้ำ 2 จุด</p>
         </div>
-
+ 
         <div class="price-list">
-          <h3 style="margin-bottom: 20px; color: #000000; text-align: center;">💰 อัตราค่าบริการ</h3>
+          <h3 style="margin-bottom:20px;color:#000000;text-align:center;">💰 อัตราค่าบริการ</h3>
           <div class="price-item">
             <span class="field-name">สนาม 1 (35×54m)</span>
-            <span class="field-price">ก่อน 6 โมง = 1ชม. / 1,000 บาท | หลัง 6 โมง =  1ชม. / 1,200 บาท</span>
+            <span class="field-price">07.00 - 18.00 น. = 1 ชม. / 1,000 บาท &nbsp;|&nbsp; 18.01 - 20.00 น. = 1 ชม. / 1,200 บาท</span>
           </div>
           <div class="price-item">
             <span class="field-name">สนาม 2 (35×54m)</span>
-            <span class="field-price">ก่อน 6 โมง =  1ชม. / 1,000 บาท | หลัง 6 โมง =  1ชม. / 1,200 บาท</span>
+            <span class="field-price">07.00 - 18.00 น. = 1 ชม. / 1,000 บาท &nbsp;|&nbsp; 18.01 - 20.00 น. = 1 ชม. / 1,200 บาท</span>
           </div>
           <div class="price-item">
             <span class="field-name">สนาม 3 (35×52m)</span>
-            <span class="field-price">ก่อน 6 โมง =  1ชม. / 1,000 บาท | หลัง 6 โมง =  1ชม. / 1,200 บาท</span>
+            <span class="field-price">07.00 - 18.00 น. = 1 ชม. / 1,000 บาท &nbsp;|&nbsp; 18.01 - 20.00 น. = 1 ชม. / 1,200 บาท</span>
           </div>
           <div class="price-item">
             <span class="field-name">สนาม 4 (37×55m)</span>
-            <span class="field-price">ก่อน 6 โมง =  1ชม.  1,100 บาท | หลัง 6 โมง =  1ชม. / 1,300 บาท</span>
+            <span class="field-price">07.00 - 18.00 น. = 1 ชม. / 1,100 บาท &nbsp;|&nbsp; 18.01 - 20.00 น. = 1 ชม. / 1,300 บาท</span>
           </div>
           <div class="price-item">
             <span class="field-name">สนาม 5 (34×50m)</span>
-            <span class="field-price">ก่อน 6 โมง =  1ชม. / 900 บาท | หลัง 6 โมง =  1ชม. / 1,100 บาท</span>
+            <span class="field-price">07.00 - 18.00 น. = 1 ชม. / 900 บาท &nbsp;|&nbsp; 18.01 - 20.00 น. = 1 ชม. / 1,100 บาท</span>
           </div>
           <div class="price-item">
             <span class="field-name">สนาม 6 (27×45m)</span>
-            <span class="field-price">ก่อน 6 โมง =  1ชม. / 700 บาท | หลัง 6 โมง =  1ชม. / 900 บาท</span>
+            <span class="field-price">07.00 - 18.00 น. = 1 ชม. / 700 บาท &nbsp;|&nbsp; 18.01 - 20.00 น. = 1 ชม. / 900 บาท</span>
           </div>
         </div>
-
-        <div class="section-header" style="margin-top: 40px;">📍 ตำแหน่งที่ตั้ง</div>
+ 
+        <div class="section-header" style="margin-top:40px;">📍 ตำแหน่งที่ตั้ง</div>
         <div class="map-container">
-          <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3876.519192244568!2d100.42645637479106!3d13.68697489879167!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x30e2bd50acd08fd7%3A0x9ec98b477706a73!2z4Liq4LiZ4Liy4Lih4Lif4Li44LiV4Lia4Lit4Lil4LmE4Lie4Lij4LiI4Li04LiV4Lij4Liq4Lib4Lit4Lij4LmM4LiV!5e0!3m2!1sth!2sth!4v1767945226405!5m2!1sth!2sth" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+          <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3876.519192244568!2d100.42645637479106!3d13.68697489879167!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x30e2bd50acd08fd7%3A0x9ec98b477706a73!2z4Liq4LiZ4Liy4Lih4Lif4Li44LiV4Lia4Lit4Lil4LmE4Lie4Lij4LiI4Li04LiV4Lij4Liq4Lib4Lit4Lij4LmM4LiV!5e0!3m2!1sth!2sth!4v1767945226405!5m2!1sth!2sth"
+            style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         </div>
-
-        <div style="text-align: center; margin-top: 20px; padding: 20px; background: #d1e94b; border-radius: 10px;">
-          <p style="color: #16a34a; font-weight: bold; font-size: 1.1em;">📌 จุดสังเกต: ก่อนสี่แยกบางบอน 1 และ บางแค</p>
-          <p style="color: #020202; margin-top: 10px;">🚗 มีที่จอดรถกว้างขวาง สะดวกสบาย</p>
+        <div style="text-align:center;margin-top:20px;padding:20px;background:#d1e94b;border-radius:10px;">
+          <p style="color:#16a34a;font-weight:bold;font-size:1.1em;">📌 จุดสังเกต ก่อนสี่แยกบางบอน 1 และ บางแค</p>
+          <p style="color:#020202;margin-top:10px;">🚗 ที่จอดรถด้านหน้าทางเข้ากว้างขวาง สะดวกสบาย</p>
         </div>
-      </div> 
+      </div>
     </section>
-
+ 
     <!-- Rules Section -->
     <section id="rulesSection">
       <h2 class="section-title">กฎระเบียบ</h2>
       <div class="content-card">
-        <div class="section-header">ข้อปฏิบัติในการใช้สนาม</div>
+        <div class="section-header">กฎระเบียบในการใช้สนาม</div>
         <div class="rules-list">
+ 
           <div class="rule-item">
-            การเตะบอล ต้องใช้รองเท้าฟุตบอลสนามหญ้าเทียม (Stud Turf/AG) หรือรองเท้าฟุตซอล ห้ามใช้รองเท้าหมุดแหลม หรือรองเท้าแบบหมุดเหล็ก เนื่องจากอาจทำลายสนามได้
+            <strong>1. การเตะบอล</strong><br>
+            ต้องใช้รองเท้าฟุตบอลสนามหญ้าเทียม (Stud Turf/AG) หรือรองเท้าฟุตซอล ห้ามใช้รองเท้าหมุดแหลม หรือรองเท้าแบบหมุดเหล็ก เนื่องจากอาจทำลายสนามได้
           </div>
+ 
           <div class="rule-item">
-            การใช้งานสนาม ห้ามนำสัตว์เลี้ยงเข้ามา ห้ามนำอาหาร เครื่องดื่มแอลกอฮอล์เข้ามา และควรดูแลรักษาความสะอาดภายในบริเวณสนาม
+            <strong>2. การใช้งานสนาม</strong><br>
+            ห้ามนำสัตว์เลี้ยงเข้ามา ห้ามนำอาหาร เครื่องดื่มแอลกอฮอล์เข้ามา และควรดูแลรักษาความสะอาดภายในบริเวณสนาม
           </div>
+ 
           <div class="rule-item">
-            การเล่นและความปลอดภัย ห้ามเล่นรุนแรง ใช้ท่าเสี่ยงอันตราย หรือกระทำการใดๆ ที่อาจก่อให้เกิดอันตรายต่อผู้เล่นคนอื่น
+            <strong>3. การเล่นและความปลอดภัย</strong><br>
+            ห้ามเล่นรุนแรง ใช้ท่าเสี่ยงอันตราย หรือกระทำการใดๆ ที่อาจก่อให้เกิดอันตรายต่อผู้เล่นคนอื่น
           </div>
+ 
           <div class="rule-item">
-            การรักษาความสะอาด กรุณาทิ้งขยะลงถังขยะ เก็บของใช้ส่วนตัวให้เรียบร้อยหลังการใช้งาน
+            <strong>4. การรักษาความสะอาด</strong><br>
+            กรุณาทิ้งขยะลงถังขยะ เก็บของใช้ส่วนตัวให้เรียบร้อยหลังการใช้งาน
           </div>
-          <div class="rule-item" style="background:#d1e94b; border-left: 5px solid #033f12;">
-            ⚠️ ข้อสำคัญ: ผู้เช่าต้องรับผิดชอบความเสียหายที่เกิดขึ้นจากการกระทำของตนเอง ทางสนามไม่รับผิดชอบต่อความสูญหายหรือความเสียหายของทรัพย์สินส่วนบุคคล
+ 
+          <div class="rule-item" style="background:#d1e94b;border-left:5px solid #033f12;">
+            <strong>5. ข้อสำคัญ</strong><br>
+            ผู้เช่าต้องรับผิดชอบความเสียหายที่เกิดขึ้นจากการกระทำของตนเอง ทางสนามไม่รับผิดชอบต่อความสูญหายหรือความเสียหายของทรัพย์สินส่วนบุคคล
           </div>
+ 
+          <div class="rule-item" style="background:#fee2e2;border-left:5px solid red;">
+            <strong style="color:red;">⚠️ หากมาไม่ตรงตามเวลาไม่สามารถขอค่ามัดจำคืนได้</strong>
+          </div>
+ 
         </div>
       </div>
     </section>
-
+ 
     <!-- Booking Section -->
     <section id="bookingSection">
       <h2 class="section-title">จองสนาม</h2>
       <div class="content-card">
         <div class="section-header">ระบบจองสนาม</div>
-        
+ 
         <div class="availability-legend">
           <div class="legend-item">
             <div class="legend-box available"></div>
@@ -359,7 +302,7 @@
             <span>ไม่ว่าง</span>
           </div>
         </div>
-        
+ 
         <div class="form-group">
           <label class="form-label" for="fieldSelect">เลือกสนาม</label>
           <select id="fieldSelect" class="form-input" onchange="checkAvailability()">
@@ -372,70 +315,67 @@
             <option value="สนาม 6">สนาม 6 (27×45m) - 700/900 บาท</option>
           </select>
         </div>
-
+ 
         <div class="form-group">
           <label class="form-label" for="dateSelect">เลือกวันที่</label>
           <input type="date" id="dateSelect" class="form-input" onchange="checkAvailability()" />
         </div>
-        <div id="availabilityStatus" class="availability-notice" style="display: none">
+ 
+        <div id="availabilityStatus" class="availability-notice" style="display:none;">
           <strong>กำลังตรวจสอบสถานะสนาม...</strong>
         </div>
-        
-         <div class="form-group">
+ 
+        <div class="form-group">
           <label class="form-label">เลือกช่วงเวลา</label>
-          <div class="time-slots-grid" id="timeSlotsContainer1"style="margin-top: 15px;">
+          <div class="time-slots-grid" id="timeSlotsContainer1" style="margin-top:15px;">
             <button class="time-slot-btn" type="button" data-time="07:00 - 08:00">07:00 - 08:00</button>
             <button class="time-slot-btn" type="button" data-time="08:00 - 09:00">08:00 - 09:00</button>
             <button class="time-slot-btn" type="button" data-time="09:00 - 10:00">09:00 - 10:00</button>
             <button class="time-slot-btn" type="button" data-time="10:00 - 11:00">10:00 - 11:00</button>
           </div>
-          <div class="time-slots-grid" id="timeSlotsContainer2" style="margin-top: 15px;">
+          <div class="time-slots-grid" id="timeSlotsContainer2" style="margin-top:15px;">
             <button class="time-slot-btn" type="button" data-time="11:00 - 12:00">11:00 - 12:00</button>
             <button class="time-slot-btn" type="button" data-time="12:00 - 13:00">12:00 - 13:00</button>
             <button class="time-slot-btn" type="button" data-time="13:00 - 14:00">13:00 - 14:00</button>
             <button class="time-slot-btn" type="button" data-time="14:00 - 15:00">14:00 - 15:00</button>
-        </div>
-        <div class="time-slots-grid" id="timeSlotsContainer3" style="margin-top: 15px;">
+          </div>
+          <div class="time-slots-grid" id="timeSlotsContainer3" style="margin-top:15px;">
             <button class="time-slot-btn" type="button" data-time="15:00 - 16:00">15:00 - 16:00</button>
             <button class="time-slot-btn" type="button" data-time="16:00 - 17:00">16:00 - 17:00</button>
             <button class="time-slot-btn" type="button" data-time="17:00 - 18:00">17:00 - 18:00</button>
             <button class="time-slot-btn" type="button" data-time="18:00 - 19:00">18:00 - 19:00</button>
             <button class="time-slot-btn" type="button" data-time="19:00 - 20:00">19:00 - 20:00</button>
-          </div> 
+          </div>
         </div>
-          <button class="submit-btn" onclick="confirmBooking()">ยืนยันการจอง
-          </button>
-        </div>
+ 
+        <button class="submit-btn" onclick="confirmBooking()">ยืนยันการจอง</button>
+      </div>
     </section>
-
+ 
     <!-- Check Booking Section -->
     <section id="checkBookingSection">
       <h2 class="section-title">ตรวจสอบการจอง</h2>
       <div class="content-card">
         <div class="section-header">รายการจองของคุณ</div>
-
-        <div id="bookingList" style="min-height: 200px">
-          <p style="text-align: center; color: #ffffff; padding: 40px">ยังไม่มีรายการจอง</p>
+        <div id="bookingList" style="min-height:200px;">
+          <p style="text-align:center;color:#ffffff;padding:40px;">ยังไม่มีรายการจอง</p>
         </div>
       </div>
     </section>
-
+ 
     <!-- Gallery Section -->
     <section id="gallerySection">
       <h2 class="section-title">รูปภาพและกิจกรรม</h2>
       <div class="content-card">
         <div class="section-header">📸 ภาพบรรยากาศสนาม PRIJIT SPORT</div>
-
         <div class="gallery-main-image">
           <img id="galleryMainImage" src="f11.jpg" alt="สนามฟุตบอล PRIJIT SPORT" loading="lazy" decoding="async" width="800" height="600">
           <button class="gallery-nav-btn gallery-prev-btn" onclick="changeGalleryImage(-1)">❮</button>
           <button class="gallery-nav-btn gallery-next-btn" onclick="changeGalleryImage(1)">❯</button>
         </div>
-
         <div class="gallery-counter">
           <span id="currentImageNumber">1</span> / <span id="totalImages">7</span>
         </div>
-
         <div class="gallery-thumbnails">
           <img class="gallery-thumbnail active" src="f11.jpg" onclick="selectGalleryImage(0)" alt="ภาพ 1">
           <img class="gallery-thumbnail" src="f8.jpg" onclick="selectGalleryImage(1)" alt="ภาพ 2" loading="lazy" width="150" height="100">
@@ -445,16 +385,13 @@
           <img class="gallery-thumbnail" src="2.jpg" onclick="selectGalleryImage(5)" alt="ภาพ 6" loading="lazy" width="150" height="100">
           <img class="gallery-thumbnail" src="f3.jpg" onclick="selectGalleryImage(6)" alt="ภาพ 7" loading="lazy" width="150" height="100">
         </div>
-
-        <div style="text-align: center; margin-top: 40px; padding: 30px; background: #f0fdf4; border-radius: 15px;">
-          <p style="font-size: 1.3em; color: #16a34a; font-weight: bold;">⚽ ภาพบรรยากาศสนาม มาตรฐาน และปลอดภัย ⚽</p>
-          <p style="margin-top: 10px; color: #6b7280;">จองสนามผ่านระบบออนไลน์ สะดวก รวดเร็ว</p>
+        <div style="text-align:center;margin-top:40px;padding:30px;background:#f0fdf4;border-radius:15px;">
+          <p style="font-size:1.3em;color:#16a34a;font-weight:bold;">⚽ ภาพบรรยากาศสนาม มาตรฐาน และปลอดภัย ⚽</p>
+          <p style="margin-top:10px;color:#6b7280;">จองสนามผ่านระบบออนไลน์ สะดวก รวดเร็ว</p>
         </div>
       </div>
     </section>
-
-    <!-- Contact Section -->
-
+ 
     <!-- Staff Gallery Section -->
     <section id="staffGallerySection" class="staff-content-section">
       <h2 class="section-title">📸 ภาพกิจกรรม</h2>
@@ -464,11 +401,8 @@
           <div class="content-loading-state">🔄 กำลังโหลดรูปภาพ...</div>
         </div>
       </div>
-</section>
-
-    
-      
-    
+    </section>
+ 
     <!-- Activities Section -->
     <section id="activitiesSection" class="staff-content-section">
       <h2 class="section-title">📢 ข่าวสาร/กิจกรรม</h2>
@@ -479,51 +413,46 @@
         </div>
       </div>
     </section>
-
+ 
     <!-- Gallery Modal -->
     <div id="staffGalleryModal" class="staff-gallery-modal" onclick="closeStaffModal()">
       <span class="staff-gallery-close" onclick="closeStaffModal()">&times;</span>
       <img id="staffGalleryModalImg" src="" alt="">
     </div>
-
+ 
+    <!-- Contact Section -->
     <section id="contactSection">
       <h2 class="section-title">ติดต่อสอบถาม</h2>
       <div class="content-card">
         <div class="section-header">ข้อมูลการติดต่อ</div>
-
         <div class="contact-wrapper">
           <div class="contact-logo-img">
             <img src="f6.jpg" alt="PRIJIT SPORT Logo" loading="lazy" width="200" height="200" />
           </div>
-
           <div class="contact-info">
             <div class="contact-phone">
-              <span>📞</span>
-              <strong>089-115-3822</strong>
+              <span>📞</span><strong>089-115-3822</strong>
             </div>
             <div class="contact-phone">
-              <span>📞</span>
-              <strong>02-899-2448</strong>
+              <span>📞</span><strong>02-899-2448</strong>
             </div>
           </div>
         </div>
-
         <div class="thank-you-text">thank you</div>
-        <p style="text-align: center;color: #ffffff;">⚽PRIJIT SPORT⚽</p>
+        <p style="text-align:center;color:#ffffff;">⚽PRIJIT SPORT⚽</p>
       </div>
     </section>
-    
+ 
     <!-- Firebase Scripts -->
     <script>window.firebaseLoadError = false;</script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" onerror="console.error('❌ Failed to load firebase-app-compat.js'); window.firebaseLoadError = true;"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" onerror="console.error('❌ Failed to load firebase-auth-compat.js'); window.firebaseLoadError = true;"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js" onerror="console.error('❌ Failed to load firebase-database-compat.js'); window.firebaseLoadError = true;"></script>
-
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" onerror="console.error('Firebase app load error'); window.firebaseLoadError = true;"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" onerror="console.error('Firebase auth load error'); window.firebaseLoadError = true;"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js" onerror="console.error('Firebase database load error'); window.firebaseLoadError = true;"></script>
     <script src="app.js" defer></script>
-
+ 
     <!-- Toast Container -->
     <div id="toast-container"></div>
-    
+ 
     <!-- Global Loading Overlay -->
     <div id="global-loading">
       <div class="loading-overlay">
@@ -531,62 +460,47 @@
         <p class="loading-text">กำลังโหลด...</p>
       </div>
     </div>
-    
-<!-- Extension Modal - ระบบต่อเวลา -->
-<div class="extension-modal" id="extensionModal">
-  <div class="extension-modal-content">
-    <button class="extension-modal-close" onclick="closeExtensionModal()">✕</button>
-    
-    <h2 class="extension-modal-title">ต่อเวลาการใช้งาน</h2>
-    <p class="extension-modal-subtitle">ยืนยันการต่อเวลาของคุณ</p>
-
-    <!-- Available Slot Section -->
-    <div id="availableExtensionSlot" style="display: none;">
-      <div class="extension-slot-status slot-available">
-        <div class="slot-status-icon">✅</div>
-        <div class="slot-status-text">ช่วงเวลาว่าง!</div>
-      </div>
-
-      <div class="extension-slot-time" id="extensionSlotTime">14:00 - 15:00</div>
-      <div class="extension-slot-price">💰 ราคา: <span id="extensionSlotPrice">500</span> บาท</div>
-
-      <div class="extension-countdown-timer">
-        <div class="countdown-label">⏰ กรุณายืนยันภายใน</div>
-        <div class="countdown-value" id="extensionCountdown">5:00</div>
-      </div>
-
-      <div class="extension-modal-actions">
-        <button class="extension-btn extension-btn-cancel" onclick="closeExtensionModal()">
-          ยกเลิก
-        </button>
-        <button class="extension-btn extension-btn-confirm" id="confirmExtensionBtn" onclick="confirmExtensionPayment()">
-          ยืนยันชำระเงิน
-        </button>
-      </div>
-    </div>
-
-    <!-- Booked Slot Section -->
-    <div id="bookedExtensionSlot" style="display: none;">
-      <div class="extension-slot-status slot-booked">
-        <div class="slot-status-icon">❌</div>
-        <div class="slot-status-text">ช่วงเวลานี้ถูกจองแล้ว</div>
-      </div>
-
-      <div class="extension-slot-time" id="bookedExtensionSlotTime">14:00 - 15:00</div>
-      
-      <div class="alternative-slots" id="alternativeSlotsList">
-        <div class="alternative-title">💡 ช่วงเวลาอื่นที่ว่าง</div>
-
-      </div>
-
-      <div class="extension-modal-actions" style="margin-top: 20px;">
-        <button class="extension-btn extension-btn-cancel" onclick="closeExtensionModal()">
-          ปิด
-        </button>
+ 
+    <!-- Extension Modal -->
+    <div class="extension-modal" id="extensionModal">
+      <div class="extension-modal-content">
+        <button class="extension-modal-close" onclick="closeExtensionModal()">✕</button>
+        <h2 class="extension-modal-title">ต่อเวลาการใช้งาน</h2>
+        <p class="extension-modal-subtitle">ยืนยันการต่อเวลาของคุณ</p>
+ 
+        <div id="availableExtensionSlot" style="display:none;">
+          <div class="extension-slot-status slot-available">
+            <div class="slot-status-icon">✅</div>
+            <div class="slot-status-text">ช่วงเวลาว่าง!</div>
+          </div>
+          <div class="extension-slot-time" id="extensionSlotTime">14:00 - 15:00</div>
+          <div class="extension-slot-price">💰 ราคา: <span id="extensionSlotPrice">500</span> บาท</div>
+          <div class="extension-countdown-timer">
+            <div class="countdown-label">⏰ กรุณายืนยันภายใน</div>
+            <div class="countdown-value" id="extensionCountdown">5:00</div>
+          </div>
+          <div class="extension-modal-actions">
+            <button class="extension-btn extension-btn-cancel" onclick="closeExtensionModal()">ยกเลิก</button>
+            <button class="extension-btn extension-btn-confirm" id="confirmExtensionBtn" onclick="confirmExtensionPayment()">ยืนยันชำระเงิน</button>
+          </div>
+        </div>
+ 
+        <div id="bookedExtensionSlot" style="display:none;">
+          <div class="extension-slot-status slot-booked">
+            <div class="slot-status-icon">❌</div>
+            <div class="slot-status-text">ช่วงเวลานี้ถูกจองแล้ว</div>
+          </div>
+          <div class="extension-slot-time" id="bookedExtensionSlotTime">14:00 - 15:00</div>
+          <div class="alternative-slots" id="alternativeSlotsList">
+            <div class="alternative-title">💡 ช่วงเวลาอื่นที่ว่าง</div>
+          </div>
+          <div class="extension-modal-actions" style="margin-top:20px;">
+            <button class="extension-btn extension-btn-cancel" onclick="closeExtensionModal()">ปิด</button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
-
-</body>
+ 
+  </body>
 </html>
+ 
