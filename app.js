@@ -1155,12 +1155,13 @@ function hideLoading() { LoadingSystem.hide(); }
 function loadStaffGallery() {
   const container = document.getElementById('staffGalleryContainer');
   if (!container) return;
-  database.ref('gallery').orderByChild('order').on('value', (snapshot) => {
+  container.innerHTML = '<div class="content-loading-state">🔄 กำลังโหลดรูปภาพ...</div>';
+  database.ref('gallery').get().then((snapshot) => {
     container.innerHTML = '';
     if (!snapshot.exists()) { container.innerHTML = '<div class="content-loading-state">📷 ยังไม่มีรูปภาพ</div>'; return; }
     const items = [];
-    snapshot.forEach(child => items.push({ id: child.key, ...child.val() }));
-    items.sort((a, b) => (a.order||0) - (b.order||0));
+    snapshot.forEach(child => { const val = child.val(); if (val && val.url) items.push({ id: child.key, ...val }); });
+    items.sort((a, b) => (a.order != null ? Number(a.order) : 9999) - (b.order != null ? Number(b.order) : 9999));
     items.forEach(item => {
       const safeTitle = SecurityUtils.escapeHtml(item.title || 'ไม่มีชื่อ');
       const safeUrl = (item.url || '').replace(/[<>"'`]/g, '');
@@ -1171,18 +1172,27 @@ function loadStaffGallery() {
       card.innerHTML = `<img src="${safeUrl}" alt="${safeTitle}" loading="lazy" onerror="this.src='placeholder.jpg'"><div class="staff-gallery-card-title">${safeTitle}</div>`;
       container.appendChild(card);
     });
+    console.log('✅ gallery loaded:', items.length, 'items');
+  }).catch(err => {
+    console.error('❌ gallery error:', err);
+    container.innerHTML = '<div class="content-loading-state">⚠️ โหลดรูปภาพไม่สำเร็จ</div>';
   });
 }
  
 function loadActivities() {
   const container = document.getElementById('activitiesContainer');
   if (!container) return;
-  database.ref('activities').orderByChild('createdAt').on('value', (snapshot) => {
+  container.innerHTML = '<div class="content-loading-state">🔄 กำลังโหลดข่าวสาร...</div>';
+  database.ref('activities').get().then((snapshot) => {
     container.innerHTML = '';
     if (!snapshot.exists()) { container.innerHTML = '<div class="content-loading-state">📝 ยังไม่มีข่าวสาร</div>'; return; }
     const items = [];
-    snapshot.forEach(child => items.push({ id: child.key, ...child.val() }));
-    items.reverse();
+    snapshot.forEach(child => { const val = child.val(); if (val) items.push({ id: child.key, ...val }); });
+    items.sort((a, b) => {
+      const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return db - da;
+    });
     items.forEach(item => {
       const safeTitle = SecurityUtils.escapeHtml(item.title || 'ไม่มีหัวข้อ');
       const safeContent = SecurityUtils.escapeHtml(item.content || '');
@@ -1191,6 +1201,10 @@ function loadActivities() {
       card.innerHTML = `<div class="activity-header"><div class="activity-title">${safeTitle}</div><div class="activity-date">${formatDate(item.createdAt)}</div></div><div class="activity-content">${safeContent}</div>`;
       container.appendChild(card);
     });
+    console.log('✅ activities loaded:', items.length, 'items');
+  }).catch(err => {
+    console.error('❌ activities error:', err);
+    container.innerHTML = '<div class="content-loading-state">⚠️ โหลดข่าวสารไม่สำเร็จ</div>';
   });
 }
  
