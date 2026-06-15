@@ -303,7 +303,7 @@
         <div class="stat-card" style="border-top:4px solid #6366f1;"><h3>💵 รับมัดจำทั้งหมด</h3><div class="stat-value" style="color:#6366f1;" id="refTotalReceived">฿0</div><div style="font-size:13px;color:#999;margin-top:4px;" id="refTotalCount">0 รายการ</div></div>
         <div class="stat-card" style="border-top:4px solid #f59e0b;"><h3>⏳ รอคืนมัดจำ</h3><div class="stat-value stat-pending" id="refPendingAmt">฿0</div><div style="font-size:13px;color:#999;margin-top:4px;" id="refPendingCount">0 รายการ</div></div>
         <div class="stat-card" style="border-top:4px solid #10b981;"><h3>✅ คืนแล้ว</h3><div class="stat-value stat-approved" id="refRefunded">฿0</div></div>
-        <div class="stat-card" style="border-top:4px solid #ef4444;"><h3>⛔ ริบมัดจำ</h3><div class="stat-value" style="color:#ef4444;" id="refForfeit">฿0</div></div>
+        <div class="stat-card" style="border-top:4px solid #ef4444;"><h3>⛔ หักค่ามัดจำ</h3><div class="stat-value" style="color:#ef4444;" id="refForfeit">฿0</div></div>
       </div>
       <div class="bookings-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
@@ -655,7 +655,7 @@
     }
  
     function depositStatusText(s) {
-      const m = { pending:'รอตรวจสอบ', verified:'ยืนยันแล้ว', paid:'ชำระแล้ว', refunded:'คืนแล้ว', forfeited:'ริบมัดจำ', not_required:'ไม่ต้องมัดจำ', cancelled:'ยกเลิก' };
+      const m = { pending:'รอตรวจสอบ', verified:'ยืนยันแล้ว', paid:'ชำระแล้ว', refunded:'คืนแล้ว', forfeited:'หักค่ามัดจำ', not_required:'ไม่ต้องมัดจำ', cancelled:'ยกเลิก' };
       return m[s] || (s||'รอตรวจสอบ');
     }
  
@@ -728,7 +728,7 @@
       if (!reason || !reason.trim()) { showToast('กรุณาระบุเหตุผล','warning'); return; }
       if (!confirm('⚠️ การปฏิเสธจะลบรายการจองนี้ออกจากระบบทันที\nยืนยันการปฏิเสธ?')) return;
       if (booking && booking.depositSlipUrl) {
-        const doRefund = confirm('ลูกค้าได้แนบสลิปมัดจำไว้\nตกลง = บันทึกเป็นรายการรอคืนมัดจำ\nยกเลิก = ริบมัดจำ');
+        const doRefund = confirm('ลูกค้าได้แนบสลิปมัดจำไว้\nตกลง = บันทึกเป็นรายการรอคืนมัดจำ\nยกเลิก = หักค่ามัดจำ');
         createRefundRecord(booking, reason, doRefund ? 'pending' : 'forfeit');
       }
       showLoading();
@@ -873,7 +873,7 @@
  
     function refundStatusInfo(s) {
       if (s==='refunded') return { cls:'status-refunded', text:'✅ คืนแล้ว' };
-      if (s==='forfeit')  return { cls:'status-forfeit',  text:'⛔ ริบมัดจำ' };
+      if (s==='forfeit')  return { cls:'status-forfeit',  text:'⛔ หักค่ามัดจำ' };
       return { cls:'status-pending', text:'⏳ รอคืนเงิน' };
     }
  
@@ -904,7 +904,7 @@
       allRefunds.forEach(r => {
         const st = refundStatusInfo(r.status);
         const actions = r.status==='pending'
-          ? `<button class="btn-approve" onclick="processRefund('${r.id}','refunded')">คืนเงิน</button><button class="btn-reject" onclick="processRefund('${r.id}','forfeit')">ริบ</button>`
+          ? `<button class="btn-approve" onclick="processRefund('${r.id}','refunded')">คืนเงิน</button><button class="btn-reject" onclick="processRefund('${r.id}','forfeit')">หักค่ามัดจำ</button>`
           : `<button class="btn-reject" onclick="deleteRefund('${r.id}')">ลบ</button>`;
         tableHtml += `<tr>
           <td>${r.fullname||'-'}</td><td>${r.phone||'-'}</td><td>${r.field||'-'}</td>
@@ -930,11 +930,11 @@
     }
  
     function processRefund(refundId, status) {
-      const msg = status==='refunded' ? '✅ ยืนยันการคืนเงินมัดจำให้ลูกค้า?' : '⛔ ยืนยันการริบมัดจำ (ไม่คืนเงิน)?';
+      const msg = status==='refunded' ? '✅ ยืนยันการคืนเงินมัดจำให้ลูกค้า?' : '⛔ ยืนยันการหักค่ามัดจำ (ไม่คืนเงิน)?';
       if (!confirm(msg)) return;
       showLoading();
       database.ref('refunds/'+refundId).update({ status, processedAt:new Date().toISOString(), processedBy:auth.currentUser.uid })
-        .then(() => { hideLoading(); showToast(status==='refunded'?'คืนเงินมัดจำเรียบร้อย':'ริบมัดจำเรียบร้อย','success'); })
+        .then(() => { hideLoading(); showToast(status==='refunded'?'คืนเงินมัดจำเรียบร้อย':'หักค่ามัดจำเรียบร้อย','success'); })
         .catch(err => { hideLoading(); showToast(err.message,'error'); });
     }
  
