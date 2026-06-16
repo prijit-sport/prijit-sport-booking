@@ -1,0 +1,6 @@
+# บอก Google ให้ crawl ทุกหน้า
+User-agent: *
+Allow: /
+
+# บอก Sitemap อยู่ที่ไหน
+Sitemap: https://prijit-sport.github.io/prijit-sport-booking/sitemap.xml

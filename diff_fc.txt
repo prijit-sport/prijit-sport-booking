@@ -1,0 +1,3 @@
+Comparing files index.html and INDEX.HTML.BAK
+FC: no differences encountered
+
