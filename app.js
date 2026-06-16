@@ -659,10 +659,10 @@ function confirmBooking() {
         </div>
  
         <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:14px;margin-bottom:20px;font-size:0.9em;line-height:1.8;">
-          <div style="font-weight:700;color:#dc2626;margin-bottom:6px;">⚠️ เงื่อนไข</div>
-          <div>• ชำระค่ามัดจำ <strong>${depositAmount.toLocaleString()} บาท</strong> ผ่าน QR Code</div>
-          <div style="color:#dc2626;font-weight:600;">• หากมาไม่ตรงตามเวลาไม่สามารถขอค่ามัดจำคืนได้</div>
-          <div style="color:#059669;">• มาตามนัด = คืนเงินมัดจำทันที</div>
+          <div style="font-weight:700;color:#1d4ed8;margin-bottom:8px;">💡 สรุปการชำระเงิน</div>
+          <div>• ชำระค่ามัดจำ <strong>${depositAmount.toLocaleString()} บาท</strong> ผ่าน QR Code ตอนนี้</div>
+          <div style="color:#059669;font-weight:700;margin-top:6px;">• มาตามนัด: จ่ายเพิ่มเพียง <strong>${remainingAmount.toLocaleString()} บาท</strong> ที่สนาม เพราะมัดจำ ${depositAmount.toLocaleString()} บาท หักจ่ายไปแล้ว</div>
+          <div style="color:#dc2626;font-weight:700;margin-top:6px;">• ไม่มาตามที่จอง: โดนหักเก็บค่ามัดจำ ${depositAmount.toLocaleString()} บาท ทันที</div>
         </div>
  
         <div style="display:flex;gap:12px;">
@@ -740,10 +740,11 @@ function showPaymentModal() {
           <img id="slipPreview" style="display:none;">
         </div>
         <div class="payment-terms">
-          <h4>⚠️ เงื่อนไขการคืนเงินมัดจำ</h4>
+          <h4>💡 สรุปการชำระเงิน</h4>
           <ul>
-            <li>✅ มาตามเวลานัด: คืนเงินมัดจำ ${data.depositAmount.toLocaleString()} บาท ทันที</li>
-            <li style="color:red;font-weight:bold;">❌ หากมาไม่ตรงตามเวลาไม่สามารถขอค่ามัดจำคืนได้</li>
+            <li style="color:#059669;font-weight:bold;">✅ มาตามนัด: จ่ายเพิ่มเพียง <strong>${data.remainingAmount.toLocaleString()} บาท</strong> ที่สนาม<br><small style="font-weight:normal;color:#374151;">เพราะค่ามัดจำ ${data.depositAmount.toLocaleString()} บาท หักจ่ายมาแล้ว รวมเป็น ${data.totalPrice.toLocaleString()} บาท</small></li>
+            <li style="color:red;font-weight:bold;">❌ ไม่มาตามที่จอง: โดนหักเก็บค่ามัดจำ ${data.depositAmount.toLocaleString()} บาท ทันที ไม่มีการคืนเงิน</li>
+            <li style="color:#b45309;font-weight:bold;">⚠️ ค่ามัดจำจะคืนเฉพาะกรณียกเลิกการจองหรือถูกปฏิเสธเท่านั้น</li>
             <li>📌 กรุณามาถึงก่อนเวลา 15 นาที</li>
           </ul>
         </div>
@@ -955,6 +956,9 @@ function generateBookingCard(booking) {
  
   let statusColor = '#f59e0b', statusText = 'รอตรวจสอบ', statusBg = '#fef3c7';
   if (safeBooking.bookingStatus === 'approved') { statusColor = '#10b981'; statusText = 'อนุมัติแล้ว ✅'; statusBg = '#d1fae5'; }
+  else if (safeBooking.bookingStatus === 'remaining_payment_pending') { statusColor = '#f97316'; statusText = 'รอยืนยันการชำระ 💸'; statusBg = '#fff7ed'; }
+  else if (safeBooking.bookingStatus === 'playing') { statusColor = '#7c3aed'; statusText = '⚽ กำลังใช้สนาม'; statusBg = '#f5f3ff'; }
+  else if (safeBooking.bookingStatus === 'completed') { statusColor = '#6b7280'; statusText = 'เล่นเสร็จแล้ว ✔️'; statusBg = '#f3f4f6'; }
   else if (['pending_payment','pending'].includes(safeBooking.bookingStatus)) { statusColor = '#f59e0b'; statusText = 'รอตรวจสอบ ⏳'; statusBg = '#fef3c7'; }
   else if (safeBooking.bookingStatus === 'cancelled') { statusColor = '#6b7280'; statusText = 'ยกเลิกแล้ว'; statusBg = '#f3f4f6'; }
  
@@ -991,6 +995,50 @@ function generateBookingCard(booking) {
     } catch(e) {}
   }
  
+  // ปุ่มจ่ายค่าคงเหลือ — แสดงเมื่อถึงเวลาจองและยังไม่ได้จ่าย
+  let payRemainingButton = '';
+  if (safeBooking.bookingStatus === 'approved' && safeBooking.remainingStatus !== 'paid' && safeBooking.remainingAmount > 0) {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (safeBooking.date === todayStr) {
+        const [startHour] = safeBooking.time.split(':').map(Number);
+        const now = new Date();
+        const minutesUntilStart = (startHour * 60) - (now.getHours() * 60 + now.getMinutes());
+        if (minutesUntilStart <= 30) {
+          payRemainingButton = `
+            <div style="background:#fff7ed;border:2px solid #f97316;border-radius:10px;padding:14px;margin-top:10px;">
+              <p style="margin:0 0 8px;color:#c2410c;font-weight:700;font-size:14px;">💸 ถึงเวลาจ่ายค่าสนามคงเหลือ!</p>
+              <p style="margin:0 0 10px;color:#374151;font-size:13px;">จ่ายเพิ่ม <strong style="color:#dc2626;">${safeBooking.remainingAmount.toLocaleString()} บาท</strong> ก่อนเข้าใช้สนาม</p>
+              <button onclick="openPayRemainingModal('${safeBooking.id}')"
+                style="width:100%;padding:10px;background:#f97316;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;">
+                💳 ชำระค่าสนามคงเหลือ ${safeBooking.remainingAmount.toLocaleString()} บาท
+              </button>
+            </div>`;
+        }
+      }
+    } catch(e) {}
+  }
+ 
+  // แบนเนอร์กำลังใช้สนาม
+  let playingBanner = '';
+  if (safeBooking.bookingStatus === 'playing') {
+    playingBanner = `
+      <div style="background:#f5f3ff;border:2px solid #7c3aed;border-radius:10px;padding:12px;margin-top:10px;text-align:center;">
+        <p style="margin:0;color:#7c3aed;font-weight:700;font-size:15px;">⚽ กำลังใช้สนามอยู่</p>
+        <p style="margin:4px 0 0;color:#6b7280;font-size:12px;">Staff จะอัปเดตสถานะเมื่อเล่นเสร็จ</p>
+      </div>`;
+  }
+ 
+  // แบนเนอร์รอยืนยันการชำระ
+  let waitingBanner = '';
+  if (safeBooking.bookingStatus === 'remaining_payment_pending') {
+    waitingBanner = `
+      <div style="background:#fff7ed;border:2px solid #f97316;border-radius:10px;padding:12px;margin-top:10px;text-align:center;">
+        <p style="margin:0;color:#f97316;font-weight:700;">⏳ รอ Staff ยืนยันการรับเงิน</p>
+        <p style="margin:4px 0 0;color:#6b7280;font-size:12px;">กรุณารอสักครู่ หรือแจ้ง Staff โดยตรง</p>
+      </div>`;
+  }
+ 
   let cancelButton = '';
   if (['pending','pending_payment','approved'].includes(safeBooking.bookingStatus)) {
     cancelButton = `<button class="cancel-btn" id="cancel-btn-${safeBooking.id}" data-booking-id="${safeBooking.id}" style="background:#ef4444;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;margin-top:10px;">❌ ยกเลิกการจอง</button>`;
@@ -1019,6 +1067,9 @@ function generateBookingCard(booking) {
         </div>
       </div>
       ${extensionButton}
+      ${payRemainingButton}
+      ${waitingBanner}
+      ${playingBanner}
       ${cancelButton}
       <div style="margin-top:15px;padding-top:15px;border-top:1px solid #e5e7eb;">
         <p style="margin:0;color:#9ca3af;font-size:12px;">📋 จองเมื่อ: ${fmtDateTime(safeBooking.createdAt)}</p>
@@ -1046,6 +1097,92 @@ function initializeBookingCardEvents() {
       if (bookingId) cancelBooking(bookingId);
     });
   });
+}
+ 
+// ========== จ่ายค่าสนามคงเหลือ ==========
+function openPayRemainingModal(bookingId) {
+  const booking = null; // ดึงจาก Firebase
+  database.ref('bookings/' + bookingId).once('value').then(snap => {
+    const b = snap.val();
+    if (!b) { showToast('❌ ไม่พบข้อมูลการจอง', 'error'); return; }
+    const remaining = b.remainingAmount || 0;
+    const modalHtml = `
+      <div id="payRemainingModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:white;border-radius:16px;padding:24px;max-width:400px;width:100%;max-height:90vh;overflow-y:auto;">
+          <h3 style="color:#c2410c;margin:0 0 16px;text-align:center;">💸 ชำระค่าสนามคงเหลือ</h3>
+          <div style="background:#fff7ed;border-radius:10px;padding:12px;margin-bottom:14px;font-size:0.9em;line-height:1.8;">
+            <div>📍 <strong>สนาม:</strong> ${b.field}</div>
+            <div>⏰ <strong>เวลา:</strong> ${b.time}</div>
+            <div>💰 <strong>ยอดที่ต้องชำระ:</strong> <span style="color:#dc2626;font-weight:700;font-size:1.1em;">${remaining.toLocaleString()} บาท</span></div>
+          </div>
+          <div style="background:#f9fafb;border-radius:10px;padding:12px;margin-bottom:14px;text-align:center;">
+            <p style="margin:0 0 8px;font-weight:600;">📱 สแกน QR Code พร้อมเพย์</p>
+            <img src="qr-promptpay.png" alt="QR Code" style="max-width:200px;width:100%;border-radius:8px;" onerror="this.parentElement.innerHTML='<p style=color:#ef4444>⚠️ กรุณาโอนที่เลขพร้อมเพย์: <strong>1103100835163</strong></p>'">
+            <p style="margin:8px 0 0;font-size:13px;color:#374151;"><strong>ชื่อบัญชี:</strong> นาย พัสกร ราชชมภู</p>
+            <p style="margin:4px 0 0;font-size:13px;color:#374151;"><strong>ยอด:</strong> ${remaining.toLocaleString()} บาท</p>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;margin-bottom:8px;font-weight:600;font-size:14px;">📤 แนบสลิปการโอนเงิน</label>
+            <div onclick="document.getElementById('remainingSlipInput').click()"
+              style="border:2px dashed #f97316;border-radius:10px;padding:20px;text-align:center;cursor:pointer;background:#fff7ed;">
+              <p style="margin:0;color:#f97316;">📎 คลิกเพื่ออัพโหลดสลิป</p>
+            </div>
+            <input type="file" id="remainingSlipInput" accept="image/*" style="display:none;" onchange="previewRemainingSlip(event)">
+            <img id="remainingSlipPreview" style="display:none;max-width:100%;border-radius:8px;margin-top:8px;">
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button onclick="document.getElementById('payRemainingModal').remove()"
+              style="flex:1;padding:11px;border:2px solid #e5e7eb;background:white;border-radius:10px;cursor:pointer;font-family:inherit;">
+              ยกเลิก
+            </button>
+            <button id="confirmRemainingBtn" onclick="submitRemainingPayment('${bookingId}',${remaining})" disabled
+              style="flex:2;padding:11px;background:#f97316;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">
+              ✅ ยืนยันการชำระ
+            </button>
+          </div>
+        </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  }).catch(err => showToast('❌ ' + err.message, 'error'));
+}
+ 
+function previewRemainingSlip(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!['image/jpeg','image/jpg','image/png'].includes(file.type)) { alert('❌ กรุณาอัพโหลดไฟล์ภาพ JPG หรือ PNG'); return; }
+  if (file.size > 5 * 1024 * 1024) { alert('❌ ไฟล์ใหญ่เกินไป (ไม่เกิน 5MB)'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('remainingSlipPreview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    document.getElementById('confirmRemainingBtn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+ 
+function submitRemainingPayment(bookingId, remainingAmount) {
+  const slipInput = document.getElementById('remainingSlipInput');
+  const file = slipInput ? slipInput.files[0] : null;
+  if (!file) { alert('❌ กรุณาแนบสลิปการโอนเงิน'); return; }
+  const btn = document.getElementById('confirmRemainingBtn');
+  btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...';
+  const reader = new FileReader();
+  reader.onload = e => {
+    database.ref('bookings/' + bookingId).update({
+      bookingStatus: 'remaining_payment_pending',
+      remainingSlipUrl: e.target.result,
+      remainingPaidAt: new Date().toISOString()
+    }).then(() => {
+      document.getElementById('payRemainingModal').remove();
+      showToast('✅ ส่งสลิปแล้ว รอ Staff ยืนยัน', 'success', 4000);
+      updateBookingList();
+    }).catch(err => {
+      btn.disabled = false; btn.textContent = '✅ ยืนยันการชำระ';
+      showToast('❌ ' + err.message, 'error');
+    });
+  };
+  reader.readAsDataURL(file);
 }
  
 function cancelBooking(bookingId) {
