@@ -176,12 +176,6 @@
     .slot-pending:hover { filter:brightness(0.96); }
     .slot-approved { background:#10b981; color:#fff; cursor:pointer; }
     .slot-approved:hover { background:#059669; }
-    .slot-remaining { background:#fed7aa; color:#c2410c; cursor:pointer; }
-    .slot-remaining:hover { background:#fdba74; }
-    .slot-playing { background:#7c3aed; color:#fff; cursor:pointer; animation:pulse-slot 2s infinite; }
-    .slot-playing:hover { background:#6d28d9; }
-    .slot-completed { background:#d1d5db; color:#4b5563; cursor:pointer; }
-    @keyframes pulse-slot { 0%,100%{opacity:1} 50%{opacity:0.8} }
  
     /* Refund */
     .payment-pending { color:#f59e0b; font-weight:600; }
@@ -196,33 +190,9 @@
     .range-btn { padding:8px 16px; border:2px solid #e5e7eb; background:white; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; transition:all 0.3s; font-family:'Sarabun',sans-serif; }
     .range-btn:hover, .range-btn.active { background:#667eea; color:white; border-color:#667eea; }
  
-    .status-playing { background:#f5f3ff; color:#7c3aed; }
-    .status-completed { background:#f3f4f6; color:#6b7280; }
-    .status-remaining { background:#fff7ed; color:#c2410c; }
     @media(max-width:768px) {
       .schedule-date-label { font-size:15px; width:100%; }
     }
- 
-    .rpt-range-btn {
-      padding: 7px 16px;
-      border: 1px solid #e5e7eb;
-      background: white;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      color: #374151;
-      transition: all 0.2s;
-      font-family: 'Sarabun', sans-serif;
-    }
-    .rpt-range-btn:hover { background: #f9fafb; border-color: #d1d5db; }
-    .rpt-range-btn.active { background: #4f46e5; color: white; border-color: #4f46e5; }
-    #rptTableContainer table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    #rptTableContainer thead tr { background: #f9fafb; }
-    #rptTableContainer th { padding: 10px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; border-bottom: 1px solid #f3f4f6; }
-    #rptTableContainer td { padding: 12px 16px; border-bottom: 1px solid #f9fafb; color: #374151; }
-    #rptTableContainer tbody tr:hover { background: #fafafa; }
-    #rptTableContainer tbody tr:last-child td { border-bottom: none; }
   </style>
 </head>
 <body>
@@ -298,7 +268,6 @@
         <div class="stat-card"><h3>ช่องเวลาว่าง (วันนี้)</h3><div class="stat-value stat-approved" id="schFree">0</div></div>
         <div class="stat-card"><h3>รออนุมัติ</h3><div class="stat-value stat-pending" id="schPending">0</div></div>
         <div class="stat-card"><h3>จองแล้ว (อนุมัติ)</h3><div class="stat-value stat-total" id="schApproved">0</div></div>
-        <div class="stat-card" style="border-top:4px solid #7c3aed;"><h3>⚽ กำลังเล่น</h3><div class="stat-value" style="color:#7c3aed;" id="schPlaying">0</div></div>
       </div>
       <div class="bookings-section">
         <h2>🗓️ ตารางสถานะสนาม</h2>
@@ -317,10 +286,7 @@
         <div class="legend">
           <span><i class="dot dot-free"></i> ว่าง</span>
           <span><i class="dot dot-pending"></i> รออนุมัติ</span>
-          <span><i class="dot dot-approved"></i> จองแล้ว (อนุมัติ)</span>
-          <span><i class="dot" style="background:#fed7aa;border:1px solid #f97316;"></i> รอจ่ายค่าคงเหลือ</span>
-          <span><i class="dot" style="background:#7c3aed;"></i> ⚽ กำลังเล่น</span>
-          <span><i class="dot" style="background:#d1d5db;"></i> เสร็จแล้ว</span>
+          <span><i class="dot dot-approved"></i> จองแล้ว (อนุมัติ) — คลิกเพื่อดูรายละเอียด</span>
         </div>
         <div class="schedule-wrap">
           <table class="schedule-table">
@@ -337,7 +303,7 @@
         <div class="stat-card" style="border-top:4px solid #6366f1;"><h3>💵 รับมัดจำทั้งหมด</h3><div class="stat-value" style="color:#6366f1;" id="refTotalReceived">฿0</div><div style="font-size:13px;color:#999;margin-top:4px;" id="refTotalCount">0 รายการ</div></div>
         <div class="stat-card" style="border-top:4px solid #f59e0b;"><h3>⏳ รอคืนมัดจำ</h3><div class="stat-value stat-pending" id="refPendingAmt">฿0</div><div style="font-size:13px;color:#999;margin-top:4px;" id="refPendingCount">0 รายการ</div></div>
         <div class="stat-card" style="border-top:4px solid #10b981;"><h3>✅ คืนแล้ว</h3><div class="stat-value stat-approved" id="refRefunded">฿0</div></div>
-        <div class="stat-card" style="border-top:4px solid #ef4444;"><h3>⛔ ริบมัดจำ</h3><div class="stat-value" style="color:#ef4444;" id="refForfeit">฿0</div></div>
+        <div class="stat-card" style="border-top:4px solid #ef4444;"><h3>⛔ หักค่ามัดจำ</h3><div class="stat-value" style="color:#ef4444;" id="refForfeit">฿0</div></div>
       </div>
       <div class="bookings-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
@@ -348,87 +314,73 @@
       </div>
     </div>
  
-        <!-- ===== TAB: REPORT ===== -->
+    <!-- ===== TAB: REPORT ===== -->
     <div class="tab-content" id="reportTab">
-      <div style="padding:0;">
+      <div class="bookings-section">
+        <h2>📊 รายงานสรุป</h2>
  
-        <!-- Header บาร์ -->
-        <div style="background:white;border-radius:12px;padding:20px 24px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,0.08);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-          <div>
-            <h2 style="margin:0;font-size:20px;font-weight:600;color:#111;">รายงานสรุปผล</h2>
-            <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">ข้อมูลการจองและรายรับในช่วงเวลาที่เลือก</p>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button onclick="setReportRange(1)"  class="rpt-range-btn" id="rBtn1" >วันนี้</button>
-            <button onclick="setReportRange(7)"  class="rpt-range-btn active" id="rBtn7" >7 วัน</button>
-            <button onclick="setReportRange(30)" class="rpt-range-btn" id="rBtn30">30 วัน</button>
-            <button onclick="setReportRange(90)" class="rpt-range-btn" id="rBtn90">90 วัน</button>
-          </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px;">
+          <span style="font-weight:600;color:#374151;">ช่วงเวลา:</span>
+          <button class="btn-add" style="margin:0;padding:10px 18px;" onclick="setReportRange(1)">วันนี้</button>
+          <button class="btn-add" style="margin:0;padding:10px 18px;" onclick="setReportRange(7)">7 วัน</button>
+          <button class="btn-add" style="margin:0;padding:10px 18px;" onclick="setReportRange(30)">30 วัน</button>
+          <button class="btn-secondary" style="margin:0;padding:10px 18px;" onclick="setReportRange(90)">90 วัน</button>
         </div>
  
-        <!-- KPI Cards แถวบน -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px;">
- 
-          <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-top:3px solid #4f46e5;">
-            <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">รายรับทั้งหมด</p>
-            <p style="margin:0;font-size:28px;font-weight:700;color:#4f46e5;" id="rptFullIncome">฿0</p>
-            <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;" id="rptBookingCount">0 รายการ</p>
-          </div>
- 
-          <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-top:3px solid #059669;">
-            <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">อนุมัติแล้ว</p>
-            <p style="margin:0;font-size:28px;font-weight:700;color:#059669;" id="rptApprovedIncome">฿0</p>
-            <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;" id="rptApprovedCount">0 รายการ</p>
-          </div>
- 
-          <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-top:3px solid #d97706;">
-            <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">รอตรวจสอบ</p>
-            <p style="margin:0;font-size:28px;font-weight:700;color:#d97706;" id="rptPendingIncome">฿0</p>
-            <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;" id="rptPendingCount">0 รายการ</p>
-          </div>
- 
-          <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-top:3px solid #dc2626;">
-            <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">ยกเลิก</p>
-            <p style="margin:0;font-size:28px;font-weight:700;color:#dc2626;" id="rptCancelCount">0 รายการ</p>
-            <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;">รายการที่ถูกปฏิเสธ</p>
-          </div>
- 
-        </div>
- 
-        <!-- แถวที่ 2: สนามยอดนิยม + ลูกค้า/รายการ -->
-        <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:20px;">
- 
-          <!-- สนามยอดนิยม -->
-          <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-            <p style="margin:0 0 16px;font-size:14px;font-weight:600;color:#374151;border-bottom:1px solid #f3f4f6;padding-bottom:10px;">สนามที่ใช้งานมากที่สุด</p>
-            <div id="rptTopFields"><p style="text-align:center;color:#9ca3af;font-size:13px;padding:20px 0;">ยังไม่มีข้อมูล</p></div>
-          </div>
- 
-          <!-- ลูกค้า + รายการ -->
-          <div style="display:flex;flex-direction:column;gap:14px;">
-            <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);flex:1;">
-              <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">รายการจองทั้งหมด</p>
-              <p style="margin:0;font-size:32px;font-weight:700;color:#2563eb;" id="rptTotalBookings">0</p>
+        <!-- 1. รายรับทั้งหมด (ราคาเต็ม) -->
+        <div class="stat-card" style="border-top:4px solid #667eea;margin-bottom:20px;">
+          <h3>💰 รายรับทั้งหมด (ราคาเต็ม)</h3>
+          <div class="stat-value" style="color:#667eea;font-size:42px;" id="rptFullIncome">฿0</div>
+          <div style="display:flex;gap:30px;margin-top:12px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:13px;color:#999;">✅ อนุมัติแล้ว</div>
+              <div style="font-size:20px;font-weight:700;color:#10b981;" id="rptApprovedIncome">฿0</div>
+              <div style="font-size:12px;color:#999;" id="rptApprovedCount">0 รายการ</div>
             </div>
-            <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);flex:1;">
-              <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">ลูกค้าทั้งหมด</p>
-              <p style="margin:0;font-size:32px;font-weight:700;color:#7c3aed;" id="rptTotalCustomers">0</p>
-              <p style="margin:4px 0 0;font-size:12px;color:#9ca3af;">คน (ไม่ซ้ำ)</p>
+            <div>
+              <div style="font-size:13px;color:#999;">⏳ รอตรวจสอบ</div>
+              <div style="font-size:20px;font-weight:700;color:#f59e0b;" id="rptPendingIncome">฿0</div>
+              <div style="font-size:12px;color:#999;" id="rptPendingCount">0 รายการ</div>
+            </div>
+            <div>
+              <div style="font-size:13px;color:#999;">❌ ยกเลิก</div>
+              <div style="font-size:20px;font-weight:700;color:#ef4444;" id="rptCancelCount">0 รายการ</div>
+            </div>
+            <div>
+              <div style="font-size:13px;color:#999;">📋 รายการทั้งหมด</div>
+              <div style="font-size:20px;font-weight:700;color:#667eea;" id="rptBookingCount">0 รายการ</div>
             </div>
           </div>
- 
         </div>
  
-        <!-- ตารางรายการจอง -->
-        <div style="background:white;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden;">
-          <div style="padding:16px 22px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;">
-            <p style="margin:0;font-size:14px;font-weight:600;color:#374151;">รายการจองในช่วงเวลา</p>
+        <!-- 2. สนามที่ใช้มากที่สุด -->
+        <div style="background:#f9fafb;border-radius:12px;padding:20px;margin-bottom:20px;">
+          <h3 style="color:#333;margin-bottom:15px;">🏆 สนามที่ใช้งานมากที่สุด</h3>
+          <div id="rptTopFields">
+            <p style="text-align:center;color:#999;">กำลังโหลด...</p>
           </div>
+        </div>
+ 
+        <!-- 3. รายการจอง + ลูกค้า -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:15px;margin-bottom:20px;">
+          <div class="stat-card" style="border-top:4px solid #3b82f6;">
+            <h3>📋 รายการจองทั้งหมด</h3>
+            <div class="stat-value" style="color:#3b82f6;" id="rptTotalBookings">0</div>
+          </div>
+          <div class="stat-card" style="border-top:4px solid #8b5cf6;">
+            <h3>👥 ลูกค้าทั้งหมด</h3>
+            <div class="stat-value" style="color:#8b5cf6;" id="rptTotalCustomers">0</div>
+            <div style="font-size:13px;color:#999;margin-top:4px;">คน (ไม่ซ้ำ)</div>
+          </div>
+        </div>
+ 
+        <!-- ตารางรายการ -->
+        <div>
+          <h3 style="color:#333;margin-bottom:15px;">📋 รายการจองในช่วงเวลา</h3>
           <div style="overflow-x:auto;" id="rptTableContainer">
-            <p style="text-align:center;color:#9ca3af;padding:30px;font-size:13px;">กำลังโหลดข้อมูล...</p>
+            <p style="text-align:center;color:#999;padding:20px;">กำลังโหลด...</p>
           </div>
         </div>
- 
       </div>
     </div>
  
@@ -646,36 +598,6 @@
       renderBookings();
     }
  
-    function getStatusInfo(status) {
-      const map = {
-        'pending':                   { cls:'status-pending',   text:'รอตรวจสอบ ⏳' },
-        'pending_payment':           { cls:'status-pending',   text:'รอตรวจสอบ ⏳' },
-        'approved':                  { cls:'status-approved',  text:'อนุมัติแล้ว ✅' },
-        'remaining_payment_pending': { cls:'',                 text:'รอยืนยันการชำระ 💸', style:'background:#fff7ed;color:#c2410c;' },
-        'playing':                   { cls:'',                 text:'⚽ กำลังใช้สนาม',    style:'background:#f5f3ff;color:#7c3aed;' },
-        'completed':                 { cls:'',                 text:'เสร็จแล้ว ✔️',       style:'background:#f3f4f6;color:#6b7280;' },
-        'rejected':                  { cls:'status-rejected',  text:'ปฏิเสธ ❌' },
-      };
-      return map[status] || { cls:'status-pending', text:status };
-    }
- 
-    function getActionButtons(booking) {
-      const id = booking.id;
-      const st = booking.bookingStatus;
-      let btns = `<button class="btn-view" onclick="viewBooking('${id}')">ดู</button>`;
-      if (st === 'pending' || st === 'pending_payment') {
-        btns += `<button class="btn-approve" onclick="approveBooking('${id}')">อนุมัติ</button>
-                 <button class="btn-reject"  onclick="rejectBooking('${id}')">ปฏิเสธ</button>`;
-      }
-      if (st === 'remaining_payment_pending') {
-        btns += `<button class="btn-approve" onclick="confirmRemainingPayment('${id}')" style="background:#f97316;">✅ ยืนยันรับเงิน</button>`;
-      }
-      if (st === 'playing') {
-        btns += `<button class="btn-approve" onclick="markCompleted('${id}')" style="background:#7c3aed;">🏁 เล่นเสร็จ</button>`;
-      }
-      return btns;
-    }
- 
     function renderBookings() {
       const container = document.getElementById('bookingsContainer');
       if (filteredBookings.length === 0) { container.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">ไม่พบข้อมูลการจอง</p>'; return; }
@@ -689,26 +611,28 @@
       let mobileHtml = '<div class="mobile-bookings">';
  
       filteredBookings.forEach(booking => {
-        const si = getStatusInfo(booking.bookingStatus);
-        const badgeStyle = si.style ? `style="${si.style}padding:6px 12px;border-radius:20px;font-weight:600;font-size:13px;display:inline-block;"` : `class="status-badge ${si.cls}"`;
+        const sClass = booking.bookingStatus==='approved' ? 'status-approved' : booking.bookingStatus==='rejected' ? 'status-rejected' : 'status-pending';
+        const sText  = booking.bookingStatus==='approved' ? 'อนุมัติแล้ว' : booking.bookingStatus==='rejected' ? 'ปฏิเสธ' : 'รอตรวจสอบ';
         const name   = booking.fullname || booking.name || booking.username || '-';
         const dep    = getBookingDeposit(booking);
         const remaining = Math.max((booking.totalPrice||0) - dep, 0);
         const no     = String(runNo++).padStart(2,'0');
-        const actionBtns = getActionButtons(booking);
  
-        tableHtml += `<tr${booking.bookingStatus==='playing'?' style="background:#faf5ff;"':booking.bookingStatus==='completed'?' style="background:#f9fafb;opacity:0.75;"':''}>
+        tableHtml += `<tr>
           <td>${no}</td><td>${name}</td><td>${booking.phone||'-'}</td>
           <td>${booking.field}</td><td>${formatDate(booking.date)}</td><td>${booking.time}</td>
           <td>฿${(booking.totalPrice||0).toLocaleString()}</td>
           <td style="color:#10b981;font-weight:600;">฿${dep.toLocaleString()}</td>
           <td style="color:#ef4444;font-weight:600;">฿${remaining.toLocaleString()}</td>
-          <td><span ${badgeStyle}>${si.text}</span></td>
-          <td><div class="action-buttons">${actionBtns}</div></td>
+          <td><span class="status-badge ${sClass}">${sText}</span></td>
+          <td><div class="action-buttons">
+            <button class="btn-view" onclick="viewBooking('${booking.id}')">ดู</button>
+            ${booking.bookingStatus!=='approved'?`<button class="btn-approve" onclick="approveBooking('${booking.id}')">อนุมัติ</button><button class="btn-reject" onclick="rejectBooking('${booking.id}')">ปฏิเสธ</button>`:''}
+          </div></td>
         </tr>`;
  
-        mobileHtml += `<div class="booking-card" style="${booking.bookingStatus==='playing'?'border-left:4px solid #7c3aed;':booking.bookingStatus==='completed'?'opacity:0.75;':booking.bookingStatus==='remaining_payment_pending'?'border-left:4px solid #f97316;':''}">
-          <div class="booking-card-header"><span class="booking-card-id">${no}</span><span ${badgeStyle}>${si.text}</span></div>
+        mobileHtml += `<div class="booking-card">
+          <div class="booking-card-header"><span class="booking-card-id">${no}</span><span class="status-badge ${sClass}">${sText}</span></div>
           <div class="booking-card-body">
             <div class="booking-card-row"><span class="booking-card-label">ชื่อ-นามสกุล:</span><span>${name}</span></div>
             <div class="booking-card-row"><span class="booking-card-label">สนาม:</span><span>${booking.field}</span></div>
@@ -718,7 +642,10 @@
             <div class="booking-card-row"><span class="booking-card-label">มัดจำ:</span><span style="color:#10b981;font-weight:600;">฿${dep.toLocaleString()}</span></div>
             <div class="booking-card-row"><span class="booking-card-label">ค่าคงค้าง:</span><span style="color:#ef4444;font-weight:600;">฿${remaining.toLocaleString()}</span></div>
           </div>
-          <div class="booking-card-actions">${actionBtns}</div>
+          <div class="booking-card-actions">
+            <button class="btn-view" onclick="viewBooking('${booking.id}')">ดูรายละเอียด</button>
+            ${booking.bookingStatus!=='approved'?`<button class="btn-approve" onclick="approveBooking('${booking.id}')">อนุมัติ</button><button class="btn-reject" onclick="rejectBooking('${booking.id}')">ปฏิเสธ</button>`:''}
+          </div>
         </div>`;
       });
  
@@ -728,7 +655,7 @@
     }
  
     function depositStatusText(s) {
-      const m = { pending:'รอตรวจสอบ', verified:'ยืนยันแล้ว', paid:'ชำระแล้ว', refunded:'คืนแล้ว', forfeited:'ริบมัดจำ', not_required:'ไม่ต้องมัดจำ', cancelled:'ยกเลิก' };
+      const m = { pending:'รอตรวจสอบ', verified:'ยืนยันแล้ว', paid:'ชำระแล้ว', refunded:'คืนแล้ว', forfeited:'หักค่ามัดจำ', not_required:'ไม่ต้องมัดจำ', cancelled:'ยกเลิก' };
       return m[s] || (s||'รอตรวจสอบ');
     }
  
@@ -801,7 +728,7 @@
       if (!reason || !reason.trim()) { showToast('กรุณาระบุเหตุผล','warning'); return; }
       if (!confirm('⚠️ การปฏิเสธจะลบรายการจองนี้ออกจากระบบทันที\nยืนยันการปฏิเสธ?')) return;
       if (booking && booking.depositSlipUrl) {
-        const doRefund = confirm('ลูกค้าได้แนบสลิปมัดจำไว้\nตกลง = บันทึกเป็นรายการรอคืนมัดจำ\nยกเลิก = ริบมัดจำ');
+        const doRefund = confirm('ลูกค้าได้แนบสลิปมัดจำไว้\nตกลง = บันทึกเป็นรายการรอคืนมัดจำ\nยกเลิก = หักค่ามัดจำ');
         createRefundRecord(booking, reason, doRefund ? 'pending' : 'forfeit');
       }
       showLoading();
@@ -836,70 +763,7 @@
       else database.ref('bookings/'+bookingId).remove();
     }
  
-    // ===== ยืนยันรับเงินค่าสนามคงเหลือ → playing =====
-    function confirmRemainingPayment(bookingId) {
-      const booking = allBookings.find(b => b.id === bookingId);
-      if (!booking) { showToast('ไม่พบข้อมูลการจอง', 'error'); return; }
-      // แสดง modal สลิปค่าคงเหลือ
-      const slipUrl = booking.remainingSlipUrl || '';
-      const modalHtml = `
-        <div id="confirmRemModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">
-          <div style="background:white;border-radius:16px;padding:24px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">
-            <h3 style="color:#c2410c;margin:0 0 14px;text-align:center;">💸 ยืนยันการรับเงินค่าสนาม</h3>
-            <div style="background:#fff7ed;border-radius:10px;padding:12px;margin-bottom:14px;font-size:0.9em;line-height:1.8;">
-              <div>👤 <strong>${booking.fullname||booking.username||'-'}</strong></div>
-              <div>📍 <strong>${booking.field}</strong> | ⏰ ${booking.time}</div>
-              <div>💰 ยอดที่รับ: <strong style="color:#dc2626;">${(booking.remainingAmount||0).toLocaleString()} บาท</strong></div>
-            </div>
-            ${slipUrl ? `<div style="margin-bottom:14px;text-align:center;">
-              <p style="font-weight:600;margin-bottom:8px;">📎 สลิปที่แนบมา</p>
-              <img src="${slipUrl}" style="max-width:100%;border-radius:8px;max-height:300px;object-fit:contain;" onclick="window.open('${slipUrl}','_blank')">
-            </div>` : '<p style="color:#ef4444;text-align:center;">⚠️ ไม่มีสลิปแนบมา</p>'}
-            <div style="display:flex;gap:10px;margin-top:16px;">
-              <button onclick="document.getElementById('confirmRemModal').remove()"
-                style="flex:1;padding:11px;border:2px solid #e5e7eb;background:white;border-radius:10px;cursor:pointer;font-family:inherit;">ยกเลิก</button>
-              <button onclick="document.getElementById('confirmRemModal').remove(); doConfirmRemaining('${bookingId}')"
-                style="flex:2;padding:11px;background:#7c3aed;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">
-                ✅ รับเงินแล้ว → เปิดสนาม
-              </button>
-            </div>
-          </div>
-        </div>`;
-      document.body.insertAdjacentHTML('beforeend', modalHtml);
-    }
- 
-    function doConfirmRemaining(bookingId) {
-      showLoading();
-      const now = new Date().toISOString();
-      database.ref('bookings/' + bookingId).update({
-        bookingStatus: 'playing',
-        remainingStatus: 'paid',
-        remainingConfirmedAt: now,
-        remainingConfirmedBy: auth.currentUser ? auth.currentUser.uid : 'staff',
-        playingStartedAt: now
-      }).then(() => {
-        hideLoading();
-        showToast('✅ ยืนยันรับเงินแล้ว สนามเปิดใช้งาน', 'success');
-      }).catch(err => { hideLoading(); showToast('❌ ' + err.message, 'error'); });
-    }
- 
-    // ===== เล่นเสร็จ → completed → ลบหลัง 24 ชม. =====
-    function markCompleted(bookingId) {
-      if (!confirm('ยืนยันว่าลูกค้าเล่นเสร็จแล้ว?')) return;
-      showLoading();
-      const autoDeleteAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      database.ref('bookings/' + bookingId).update({
-        bookingStatus: 'completed',
-        completedAt: new Date().toISOString(),
-        autoDeleteAt: autoDeleteAt
-      }).then(() => {
-        hideLoading();
-        showToast('✅ บันทึกเสร็จแล้ว จะลบอัตโนมัติใน 24 ชม.', 'success');
-        scheduleAutoDelete(bookingId, autoDeleteAt);
-      }).catch(err => { hideLoading(); showToast('❌ ' + err.message, 'error'); });
-    }
- 
-        function checkAndDeleteExpiredBookings() {
+    function checkAndDeleteExpiredBookings() {
       const now = new Date();
       allBookings.forEach(b => {
         if (b.autoDeleteAt && b.bookingStatus==='approved') {
@@ -947,7 +811,7 @@
       document.getElementById('scheduleHead').innerHTML = head;
  
       const dayBookings = allBookings.filter(b => (b.date||'').substring(0,10)===input.value && b.bookingStatus!=='rejected');
-      let body='', freeCount=0, pendingCount=0, approvedCount=0, playingCount=0;
+      let body='', freeCount=0, pendingCount=0, approvedCount=0;
  
       for (let h = SCHEDULE_START_HOUR; h <= SCHEDULE_END_HOUR; h++) {
         const label = `${pad2(h)}:00 - ${pad2(h+1)}:00`;
@@ -962,19 +826,10 @@
             return h>=s && h<e;
           });
           if (b) {
-            const st = b.bookingStatus;
-            let cls, txt;
-            if (st === 'playing') {
-              cls = 'slot-playing'; txt = '⚽ กำลังเล่น'; playingCount++;
-            } else if (st === 'remaining_payment_pending') {
-              cls = 'slot-remaining'; txt = '💸 รอจ่าย'; approvedCount++;
-            } else if (st === 'completed') {
-              cls = 'slot-completed'; txt = '✔️ เสร็จแล้ว';
-            } else if (st === 'approved') {
-              cls = 'slot-approved'; txt = 'จองแล้ว'; approvedCount++;
-            } else {
-              cls = 'slot-pending'; txt = 'รออนุมัติ'; pendingCount++;
-            }
+            const approved = b.bookingStatus==='approved';
+            if (approved) approvedCount++; else pendingCount++;
+            const cls = approved ? 'slot-approved' : 'slot-pending';
+            const txt = approved ? 'จองแล้ว' : 'รออนุมัติ';
             const name = ((b.fullname||b.name||b.username||'')).split(' ')[0]||'';
             body += `<td class="slot ${cls}" onclick="viewBooking('${b.id}')">${txt}<small>${name}</small></td>`;
           } else { freeCount++; body += `<td class="slot slot-free">ว่าง</td>`; }
@@ -986,7 +841,6 @@
       document.getElementById('schFree').textContent     = freeCount;
       document.getElementById('schPending').textContent  = pendingCount;
       document.getElementById('schApproved').textContent = approvedCount;
-      const sp = document.getElementById('schPlaying'); if(sp) sp.textContent = playingCount;
     }
  
     // ===== REFUNDS =====
@@ -1019,7 +873,7 @@
  
     function refundStatusInfo(s) {
       if (s==='refunded') return { cls:'status-refunded', text:'✅ คืนแล้ว' };
-      if (s==='forfeit')  return { cls:'status-forfeit',  text:'⛔ ริบมัดจำ' };
+      if (s==='forfeit')  return { cls:'status-forfeit',  text:'⛔ หักค่ามัดจำ' };
       return { cls:'status-pending', text:'⏳ รอคืนเงิน' };
     }
  
@@ -1050,7 +904,7 @@
       allRefunds.forEach(r => {
         const st = refundStatusInfo(r.status);
         const actions = r.status==='pending'
-          ? `<button class="btn-approve" onclick="processRefund('${r.id}','refunded')">คืนเงิน</button><button class="btn-reject" onclick="processRefund('${r.id}','forfeit')">ริบ</button>`
+          ? `<button class="btn-approve" onclick="processRefund('${r.id}','refunded')">คืนเงิน</button><button class="btn-reject" onclick="processRefund('${r.id}','forfeit')">หักค่ามัดจำ</button>`
           : `<button class="btn-reject" onclick="deleteRefund('${r.id}')">ลบ</button>`;
         tableHtml += `<tr>
           <td>${r.fullname||'-'}</td><td>${r.phone||'-'}</td><td>${r.field||'-'}</td>
@@ -1076,11 +930,11 @@
     }
  
     function processRefund(refundId, status) {
-      const msg = status==='refunded' ? '✅ ยืนยันการคืนเงินมัดจำให้ลูกค้า?' : '⛔ ยืนยันการริบมัดจำ (ไม่คืนเงิน)?';
+      const msg = status==='refunded' ? '✅ ยืนยันการคืนเงินมัดจำให้ลูกค้า?' : '⛔ ยืนยันการหักค่ามัดจำ (ไม่คืนเงิน)?';
       if (!confirm(msg)) return;
       showLoading();
       database.ref('refunds/'+refundId).update({ status, processedAt:new Date().toISOString(), processedBy:auth.currentUser.uid })
-        .then(() => { hideLoading(); showToast(status==='refunded'?'คืนเงินมัดจำเรียบร้อย':'ริบมัดจำเรียบร้อย','success'); })
+        .then(() => { hideLoading(); showToast(status==='refunded'?'คืนเงินมัดจำเรียบร้อย':'หักค่ามัดจำเรียบร้อย','success'); })
         .catch(err => { hideLoading(); showToast(err.message,'error'); });
     }
  
@@ -1412,10 +1266,6 @@
  
     function setReportRange(days) {
       REPORT_RANGE_DAYS = Number(days) || 7;
-      document.querySelectorAll('.rpt-range-btn').forEach(b => b.classList.remove('active'));
-      const btnMap = {1:'rBtn1',7:'rBtn7',30:'rBtn30',90:'rBtn90'};
-      const btn = document.getElementById(btnMap[days]);
-      if (btn) btn.classList.add('active');
       renderReport();
     }
  
