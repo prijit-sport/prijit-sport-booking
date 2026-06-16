@@ -892,7 +892,7 @@ function uploadSlipAndCreateBooking() {
         bookingRef.set(bookingData).then(() => {
           clearInterval(paymentTimer);
           const displayDate = formatDateThai(data.date);
-          alert(`✅ อัพโหลดสลิปสำเร็จ!\n\n📋 เลขที่การจอง: #${bookingRef.key.substr(-6).toUpperCase()}\n\nระบบจะตรวจสอบการชำระเงินภายใน 5 นาที\n\n📍 สนาม: ${data.field}\n📅 วันที่: ${displayDate}\n⏰ เวลา: ${data.time}\n💰 มัดจำ: ${data.depositAmount.toLocaleString()} บาท ✅\n💸 ค่าบริการคงเหลือ: ${data.remainingAmount.toLocaleString()} บาท\n\n⚠️ กรุณามาตามเวลานัดเพื่อรับเงินมัดจำคืน`);
+          alert(`✅ อัพโหลดสลิปสำเร็จ!\n\n📋 เลขที่การจอง: #${bookingRef.key.substr(-6).toUpperCase()}\n\nระบบจะตรวจสอบการชำระเงินภายใน 5 นาที\n\n📍 สนาม: ${data.field}\n📅 วันที่: ${displayDate}\n⏰ เวลา: ${data.time}\n💰 มัดจำ: ${data.depositAmount.toLocaleString()} บาท ✅\n💸 ค่าบริการคงเหลือ: ${data.remainingAmount.toLocaleString()} บาท\n\n⚠️ ค่ามัดจำจะคืนเฉพาะกรณียกเลิกการจองหรือถูกปฏิเสธเท่านั้น`);
           closePaymentModal(); resetBookingForm();
           document.location.href = '#checkBookingSection';
           updateBookingList();
