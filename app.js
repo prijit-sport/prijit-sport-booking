@@ -1,540 +1,1386 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PRIJIT SPORT - ระบบ Admin</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2790%27>⚽</text></svg>">
-  <style>
-    * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Sarabun',sans-serif; background:linear-gradient(135deg,#033f12 0%,#0bb33d 100%); min-height:100vh; }
-    .container { max-width:1400px; margin:0 auto; padding:20px; }
+console.log('🚀 [PRIJIT SPORT] Script starting...', new Date().toISOString());
  
-    /* Header */
-    .staff-header { background:white; padding:20px; border-radius:15px; margin-bottom:20px; box-shadow:0 4px 20px rgba(0,0,0,0.1); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; }
-    .staff-header h1 { color:#000; font-size:28px; }
-    .staff-info { display:flex; align-items:center; gap:15px; }
-    .staff-name { font-weight:600; color:#333; }
-    .logout-btn { background:#ef4444; color:white; padding:10px 20px; border:none; border-radius:8px; cursor:pointer; font-size:16px; transition:all 0.3s; }
-    .logout-btn:hover { background:#dc2626; transform:translateY(-2px); }
+const DEBUG_MODE = false;
+function debugLog(...args) {
+  if (DEBUG_MODE) console.log(...args);
+}
+console.log("🐛 Debug mode:", DEBUG_MODE ? "ON" : "OFF");
  
-    /* Tabs */
-    .tab-navigation { background:white; padding:15px 20px; border-radius:15px; margin-bottom:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1); display:flex; gap:10px; flex-wrap:wrap; }
-    .tab-btn { padding:12px 24px; border:none; background:#f3f4f6; color:#374151; border-radius:10px; cursor:pointer; font-size:16px; font-weight:600; transition:all 0.3s; }
-    .tab-btn:hover { background:#e5e7eb; }
-    .tab-btn.active { background:linear-gradient(135deg,#667eea,#764ba2); color:white; }
-    .tab-content { display:none; }
-    .tab-content.active { display:block; }
+const CONFIG = {
+  DEBUG_MODE: false,
+  FIREBASE_RETRY_MAX: 50,
+  FIREBASE_RETRY_INTERVAL: 100,
+  AVAILABILITY_CHECK_TIMEOUT: 10000,
+  TOAST_DURATION: 3000,
+  DEBOUNCE_DELAY: 150,
+  SLIDER_INTERVAL: 4000
+};
  
-    /* Stats */
-    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:20px; margin-bottom:30px; }
-    .stat-card { background:white; padding:25px; border-radius:15px; box-shadow:0 4px 15px rgba(0,0,0,0.1); transition:transform 0.3s; }
-    .stat-card:hover { transform:translateY(-5px); }
-    .stat-card h3 { color:#666; font-size:14px; margin-bottom:10px; }
-    .stat-value { font-size:36px; font-weight:bold; color:#667eea; }
-    .stat-pending { color:#f59e0b; }
-    .stat-approved { color:#10b981; }
-    .stat-total { color:#667eea; }
+(function() {
+  try { localStorage.clear(); } catch(e) {}
+  try { sessionStorage.clear(); } catch(e) {}
+})();
  
-    /* Filter */
-    .filter-section { background:white; padding:20px; border-radius:15px; margin-bottom:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1); }
-    .filter-section h2 { margin-bottom:15px; color:#333; }
-    .filter-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px; }
-    .filter-group { display:flex; flex-direction:column; }
-    .filter-group label { margin-bottom:5px; color:#666; font-weight:600; }
-    .filter-group select, .filter-group input { padding:10px; border:2px solid #e5e7eb; border-radius:8px; font-size:16px; transition:border-color 0.3s; font-family:'Sarabun',sans-serif; }
-    .filter-group select:focus, .filter-group input:focus { outline:none; border-color:#667eea; }
+function openLoginModal() {
+  const modal = document.getElementById('loginModal');
+  if (modal) {
+    modal.classList.add('active');
+    document.body.classList.add('modal-open');
+    showLoginInModal();
+  }
+}
  
-    /* Bookings Section */
-    .bookings-section { background:white; padding:20px; border-radius:15px; box-shadow:0 4px 15px rgba(0,0,0,0.1); }
-    .bookings-section h2 { margin-bottom:20px; color:#333; }
+function closeLoginModal() {
+  const modal = document.getElementById('loginModal');
+  if (modal) {
+    modal.classList.remove('active');
+    document.body.classList.remove('modal-open');
+  }
+}
  
-    /* Table */
-    .bookings-table { width:100%; border-collapse:collapse; }
-    .bookings-table thead { background:#f3f4f6; }
-    .bookings-table th, .bookings-table td { padding:15px; text-align:left; border-bottom:1px solid #e5e7eb; }
-    .bookings-table th { font-weight:600; color:#374151; }
-    .bookings-table tbody tr:hover { background:#f9fafb; }
+function showLoginInModal() {
+  document.getElementById('modalLoginForm').style.display = 'block';
+  document.getElementById('modalRegisterForm').style.display = 'none';
+}
  
-    /* Mobile Cards */
-    .mobile-bookings { display:none; }
-    .booking-card { background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; padding:15px; margin-bottom:15px; }
-    .booking-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-    .booking-card-id { font-weight:bold; color:#667eea; }
-    .booking-card-row { display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid #e5e7eb; }
-    .booking-card-row:last-child { border-bottom:none; }
-    .booking-card-label { color:#666; font-weight:600; }
-    .booking-card-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+function showRegisterInModal() {
+  const loginForm = document.getElementById('modalLoginForm');
+  const registerForm = document.getElementById('modalRegisterForm');
+  if (!loginForm || !registerForm) return;
+  loginForm.style.display = 'none';
+  registerForm.style.display = 'block';
+  registerForm.style.pointerEvents = 'auto';
+  registerForm.style.opacity = '1';
+  setTimeout(() => {
+    const firstinput = registerForm.querySelector('input');
+    if (firstinput) firstinput.focus();
+  }, 300);
+}
  
-    @media(max-width:768px) {
-      .bookings-table { display:none; }
-      .mobile-bookings { display:block; }
-      .staff-header { text-align:center; }
-      .staff-header h1 { font-size:22px; }
+let auth, database, currentUser = null;
+let isCancelling = false;
+ 
+function initNavigation() {
+  const desktopNavItems = document.querySelectorAll('#desktopNav .nav-item');
+  desktopNavItems.forEach(item => {
+    item.addEventListener('click', function() {
+      scrollToSection(this.getAttribute('data-section'));
+    });
+  });
+  const mobileNavItems = document.querySelectorAll('#mobileNav .nav-item');
+  mobileNavItems.forEach(item => {
+    item.addEventListener('click', function() {
+      scrollToSection(this.getAttribute('data-section'));
+      closeMobileMenu();
+    });
+  });
+  const hamburger = document.getElementById('hamburgerBtn');
+  if (hamburger) hamburger.addEventListener('click', toggleMobileMenu);
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+  const loginBtn = document.getElementById('loginNavBtn');
+  if (loginBtn) loginBtn.addEventListener('click', openLoginModal);
+}
+ 
+function scrollToSection(sectionId) {
+  const section = document.getElementById(sectionId);
+  if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+ 
+function debounce(func, delay) {
+  let timeoutId;
+  return function(...args) {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func.apply(this, args), delay);
+  };
+}
+ 
+function togglePassword(inputId, button) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    button.textContent = '🙈';
+  } else {
+    input.type = 'password';
+    button.textContent = '👁️';
+  }
+}
+ 
+function toggleMobileMenu() {
+  const overlay = document.getElementById('menuOverlay');
+  const hamburger = document.getElementById('hamburgerBtn');
+  if (!overlay || !hamburger) return;
+  if (overlay.classList.contains('active')) {
+    closeMobileMenu();
+  } else {
+    overlay.classList.add('active');
+    hamburger.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+}
+ 
+function closeMobileMenu() {
+  const overlay = document.getElementById('menuOverlay');
+  const hamburger = document.getElementById('hamburgerBtn');
+  if (overlay) overlay.classList.remove('active');
+  if (hamburger) hamburger.classList.remove('active');
+  document.body.style.overflow = '';
+}
+ 
+let selectedTimeSlot = null;
+let currentBookingData = null;
+let uploadedSlipFile = null;
+let currentAvailabilityCheck = null;
+let lastMenuToggleTime = 0;
+const MENU_TOGGLE_DELAY = 300;
+let lastNavigationTime = 0;
+const NAVIGATION_DELAY = 300;
+let currentSlideIndex = 0;
+let slideInterval = null;
+const galleryImages = ['f11.jpg', 'f8.jpg', 'f9.jpg', 'f1.jpg', 'f10.jpg', '2.jpg', 'f3.jpg'];
+let currentGalleryIndex = 0;
+let paymentTimer = null;
+const DEPOSIT_PERCENTAGE = 0.3;
+const MAX_BOOKING_DAYS = 30;
+const MAX_FILE_SIZE_MB = 5;
+const PAYMENT_TIMEOUT_MINUTES = 15;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+ 
+const SecurityUtils = {
+  escapeHtml(text) {
+    if (typeof text !== 'string') return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  },
+  sanitizeInput(input, options = {}) {
+    if (typeof input !== 'string') return '';
+    const defaults = { maxLength: 500, allowSpaces: true, allowNumbers: true, allowThai: true, allowEnglish: true, allowSpecialChars: false };
+    const opts = { ...defaults, ...options };
+    let sanitized = input.trim().replace(/[<>"'`]/g, '').substring(0, opts.maxLength);
+    let pattern = '';
+    if (opts.allowThai) pattern += 'ก-๙';
+    if (opts.allowEnglish) pattern += 'a-zA-Z';
+    if (opts.allowNumbers) pattern += '0-9';
+    if (opts.allowSpaces) pattern += '\\s';
+    if (opts.allowSpecialChars) pattern += '._-';
+    if (pattern) sanitized = sanitized.replace(new RegExp(`[^${pattern}]`, 'g'), '');
+    return sanitized;
+  },
+  sanitizePhone(phone) {
+    if (typeof phone !== 'string') return '';
+    return phone.replace(/[^0-9]/g, '').substring(0, 10);
+  },
+  sanitizeUsername(username) {
+    if (typeof username !== 'string') return '';
+    return username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '').substring(0, 50);
+  }
+};
+ 
+const Validator = {
+  username(value) {
+    if (!value || value.trim().length < 3) return 'ชื่อผู้ใช้ต้องมีอย่างน้อย 3 ตัวอักษร';
+    if (value.trim().length > 50) return 'ชื่อผู้ใช้ยาวเกินไป (ไม่เกิน 50 ตัวอักษร)';
+    if (!/^[a-zA-Z0-9_]+$/.test(value.trim())) return 'ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษร A-Z, ตัวเลข 0-9 และ _ เท่านั้น';
+    if (/^[0-9]/.test(value.trim())) return 'ชื่อผู้ใช้ต้องขึ้นต้นด้วยตัวอักษร';
+    return null;
+  },
+  fullname(value) {
+    if (!value || value.trim().length < 2) return 'กรุณากรอกชื่อ-นามสกุล (อย่างน้อย 2 ตัวอักษร)';
+    if (value.trim().length > 100) return 'ชื่อ-นามสกุลยาวเกินไป (ไม่เกิน 100 ตัวอักษร)';
+    if (!/[ก-๙a-zA-Z]{2,}/.test(value)) return 'ชื่อ-นามสกุลต้องมีตัวอักษรอย่างน้อย 2 ตัว';
+    return null;
+  },
+  name(value) { return this.fullname(value); },
+  phone(value) {
+    if (!value) return 'กรุณากรอกเบอร์โทรศัพท์';
+    const cleaned = value.replace(/[\s-]/g, '');
+    if (!/^0[0-9]{9}$/.test(cleaned)) return 'เบอร์โทรไม่ถูกต้อง (ต้องขึ้นต้นด้วย 0 และมี 10 หลัก)';
+    const validPrefixes = ['08','09','06','02','03','04','05','07'];
+    if (!validPrefixes.includes(cleaned.substring(0,2))) return 'เบอร์โทรไม่ถูกต้อง (prefix ไม่ถูกต้อง)';
+    return null;
+  },
+  email(value) {
+    if (!value) return 'กรุณากรอกอีเมล';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'รูปแบบอีเมลไม่ถูกต้อง';
+    return null;
+  },
+  password(value) {
+    if (!value) return 'กรุณากรอกรหัสผ่าน';
+    if (value.length < 6) return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+    if (value.length > 128) return 'รหัสผ่านยาวเกินไป (ไม่เกิน 128 ตัวอักษร)';
+    return null;
+  },
+  field(value) { return value ? null : 'กรุณาเลือกสนาม'; },
+  date(value) {
+    if (!value) return 'กรุณาเลือกวันที่';
+    const selectedDate = new Date(value);
+    const today = new Date(); today.setHours(0,0,0,0);
+    if (selectedDate < today) return 'ไม่สามารถเลือกวันที่ในอดีตได้';
+    const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + 30);
+    if (selectedDate > maxDate) return 'สามารถจองล่วงหน้าได้ไม่เกิน 30 วัน';
+    return null;
+  },
+  time(value) { return value ? null : 'กรุณาเลือกเวลา'; },
+  file(file, maxSizeMB = 5) {
+    if (!file) return 'กรุณาเลือกไฟล์';
+    if (!['image/jpeg','image/jpg','image/png'].includes(file.type)) return 'รองรับเฉพาะไฟล์ JPG และ PNG เท่านั้น';
+    if (file.size > maxSizeMB * 1024 * 1024) return `ไฟล์ใหญ่เกินไป (ไม่เกิน ${maxSizeMB} MB)`;
+    return null;
+  },
+  form(data) {
+    const errors = {};
+    Object.keys(data).forEach(field => {
+      if (this[field]) { const e = this[field](data[field]); if (e) errors[field] = e; }
+    });
+    return Object.keys(errors).length > 0 ? errors : null;
+  }
+};
+ 
+function validateAllFields(data) {
+  const errors = {};
+  Object.keys(data).forEach(field => {
+    const validator = Validator[field];
+    if (validator && typeof validator === 'function') {
+      const error = validator(data[field]);
+      if (error) errors[field] = error;
     }
+  });
+  return Object.keys(errors).length > 0 ? errors : null;
+}
  
-    /* Status Badge */
-    .status-badge { padding:6px 12px; border-radius:20px; font-size:14px; font-weight:600; display:inline-block; }
-    .status-pending { background:#fef3c7; color:#92400e; }
-    .status-approved { background:#d1fae5; color:#065f46; }
-    .status-rejected { background:#fee2e2; color:#991b1b; }
-    .status-refunded { background:#d1fae5; color:#065f46; }
-    .status-forfeit { background:#fee2e2; color:#991b1b; }
- 
-    /* Buttons */
-    .action-buttons { display:flex; gap:8px; flex-wrap:wrap; }
-    .btn-view { background:#3b82f6; color:white; padding:8px 15px; border:none; border-radius:6px; cursor:pointer; font-size:14px; transition:all 0.3s; }
-    .btn-approve { background:#10b981; color:white; padding:8px 15px; border:none; border-radius:6px; cursor:pointer; font-size:14px; transition:all 0.3s; }
-    .btn-reject { background:#ef4444; color:white; padding:8px 15px; border:none; border-radius:6px; cursor:pointer; font-size:14px; transition:all 0.3s; }
-    .btn-edit { background:#3b82f6; color:white; padding:8px 15px; border:none; border-radius:6px; cursor:pointer; font-size:14px; transition:all 0.3s; }
-    .btn-delete { background:#ef4444; color:white; padding:8px 15px; border:none; border-radius:6px; cursor:pointer; font-size:14px; transition:all 0.3s; }
-    .btn-upload { background:#667eea; color:white; padding:8px 15px; border:none; border-radius:6px; cursor:pointer; font-size:14px; transition:all 0.3s; }
-    .btn-add { background:#10b981; color:white; padding:12px 24px; border:none; border-radius:8px; cursor:pointer; font-size:16px; font-weight:600; margin-bottom:20px; transition:all 0.3s; }
-    .btn-primary { background:#667eea; color:white; padding:12px 24px; border:none; border-radius:8px; cursor:pointer; font-size:16px; font-weight:600; transition:all 0.3s; }
-    .btn-secondary { background:#6b7280; color:white; padding:12px 24px; border:none; border-radius:8px; cursor:pointer; font-size:16px; font-weight:600; transition:all 0.3s; }
-    .btn-view:hover { background:#2563eb; } .btn-approve:hover { background:#059669; }
-    .btn-reject:hover { background:#dc2626; } .btn-edit:hover { background:#2563eb; }
-    .btn-delete:hover { background:#dc2626; } .btn-upload:hover { background:#5568d3; }
-    .btn-add:hover { background:#059669; transform:translateY(-2px); }
-    .btn-primary:hover { background:#5568d3; } .btn-secondary:hover { background:#4b5563; }
- 
-    /* Modal */
-    .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center; }
-    .modal.active { display:flex; }
-    .modal-content { background:white; padding:30px; border-radius:15px; max-width:600px; width:90%; max-height:90vh; overflow-y:auto; }
-    .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
-    .modal-header h2 { color:#333; font-size:24px; }
-    .close-modal { background:none; border:none; font-size:32px; cursor:pointer; color:#999; transition:color 0.3s; }
-    .close-modal:hover { color:#333; }
-    .booking-detail { display:grid; grid-template-columns:150px 1fr; gap:15px; padding:15px; border-bottom:1px solid #f3f4f6; }
-    .booking-detail label { font-weight:600; color:#666; }
-    .slip-image { max-width:100%; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
-    .modal-actions { display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; }
-    .modal-actions button { flex:1; padding:12px 20px; font-size:16px; min-width:150px; }
- 
-    /* Loading */
-    .loading-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; }
-    .loading-overlay.active { display:flex; }
-    .spinner { width:50px; height:50px; border:5px solid rgba(255,255,255,0.3); border-top-color:white; border-radius:50%; animation:spin 1s linear infinite; }
-    @keyframes spin { to { transform:rotate(360deg); } }
- 
-    /* Image Grid */
-    .image-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:20px; margin-top:20px; }
-    .image-card { background:white; border-radius:10px; padding:15px; box-shadow:0 2px 8px rgba(0,0,0,0.1); transition:transform 0.3s; }
-    .image-card:hover { transform:translateY(-5px); }
-    .image-preview { width:100%; height:150px; object-fit:cover; border-radius:8px; margin-bottom:10px; }
-    .image-info { text-align:center; }
-    .image-name { font-weight:600; color:#333; margin-bottom:10px; }
-    .image-actions { display:flex; gap:8px; justify-content:center; }
- 
-    /* Activity */
-    .activity-list { margin-top:20px; }
-    .activity-item { background:white; border:1px solid #e5e7eb; border-radius:10px; padding:20px; margin-bottom:15px; }
-    .activity-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-    .activity-title { font-size:18px; font-weight:600; color:#333; }
-    .activity-date { font-size:14px; color:#666; }
-    .activity-content { color:#555; line-height:1.6; margin-bottom:10px; }
-    .activity-actions { display:flex; gap:8px; }
- 
-    /* Form */
-    .form-group { margin-bottom:20px; }
-    .form-group label { display:block; margin-bottom:8px; color:#374151; font-weight:600; }
-    .form-group input, .form-group textarea { width:100%; padding:12px; border:2px solid #e5e7eb; border-radius:8px; font-size:16px; transition:border-color 0.3s; font-family:'Sarabun',sans-serif; }
-    .form-group input:focus, .form-group textarea:focus { outline:none; border-color:#667eea; }
-    .form-group textarea { min-height:120px; resize:vertical; }
-    .form-actions { display:flex; gap:10px; justify-content:flex-end; }
- 
-    /* Toast */
-    .toast { position:fixed; bottom:20px; right:20px; background:white; padding:15px 20px; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.2); z-index:10000; display:none; align-items:center; gap:10px; animation:slideIn 0.3s ease; }
-    .toast.show { display:flex; }
-    .toast.success { border-left:4px solid #10b981; }
-    .toast.error { border-left:4px solid #ef4444; }
-    .toast.warning { border-left:4px solid #f59e0b; }
-    @keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
- 
-    /* Schedule */
-    .schedule-controls { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
-    .schedule-controls .nav-btn { width:42px; height:42px; border:2px solid #e5e7eb; background:#fff; border-radius:8px; cursor:pointer; font-size:20px; color:#15803d; font-weight:bold; transition:all 0.2s; }
-    .schedule-controls .nav-btn:hover { background:#f3f4f6; }
-    .schedule-controls input[type=date] { padding:10px; border:2px solid #e5e7eb; border-radius:8px; font-size:16px; font-family:'Sarabun',sans-serif; }
-    .schedule-date-label { font-weight:600; color:#333; font-size:18px; }
-    .legend { display:flex; gap:18px; flex-wrap:wrap; margin-bottom:16px; font-size:14px; color:#555; }
-    .legend span { display:flex; align-items:center; gap:8px; }
-    .legend .dot { width:16px; height:16px; border-radius:4px; display:inline-block; }
-    .dot-free { background:#ecfdf5; border:1px solid #a7f3d0; }
-    .dot-pending { background:#fef3c7; border:1px solid #fcd34d; }
-    .dot-approved { background:#10b981; }
-    .schedule-wrap { overflow-x:auto; border:1px solid #f3f4f6; border-radius:12px; }
-    .schedule-table { width:100%; border-collapse:separate; border-spacing:0; min-width:760px; }
-    .schedule-table th { background:#065f46; color:#fff; padding:12px 8px; font-size:14px; font-weight:600; text-align:center; }
-    .schedule-table .time-head { background:#064e3b; }
-    .schedule-table td.time-cell { background:#f3f4f6; color:#555; font-weight:600; font-size:13px; white-space:nowrap; padding:10px 12px; text-align:center; border-bottom:1px solid #e5e7eb; }
-    .schedule-table td.slot { text-align:center; height:50px; font-size:13px; font-weight:600; border-bottom:1px solid #f1f5f9; border-left:1px solid #f1f5f9; transition:all 0.15s; }
-    .slot small { display:block; font-weight:400; font-size:11px; opacity:0.85; }
-    .slot-free { background:#ecfdf5; color:#15803d; cursor:default; }
-    .slot-pending { background:#fef3c7; color:#92600a; cursor:pointer; }
-    .slot-pending:hover { filter:brightness(0.96); }
-    .slot-approved { background:#10b981; color:#fff; cursor:pointer; }
-    .slot-approved:hover { background:#059669; }
-    .slot-remaining { background:#fed7aa; color:#c2410c; cursor:pointer; }
-    .slot-remaining:hover { background:#fdba74; }
-    .slot-playing { background:#7c3aed; color:#fff; cursor:pointer; animation:pulse-slot 2s infinite; }
-    .slot-playing:hover { background:#6d28d9; }
-    .slot-completed { background:#d1d5db; color:#4b5563; cursor:pointer; }
-    @keyframes pulse-slot { 0%,100%{opacity:1} 50%{opacity:0.8} }
- 
-    /* Refund */
-    .payment-pending { color:#f59e0b; font-weight:600; }
-    .payment-verified { color:#10b981; font-weight:600; }
- 
-    /* Report */
-    .report-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px; margin-bottom:20px; }
-    .report-card { background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.1); text-align:center; }
-    .report-card h4 { color:#666; font-size:14px; margin-bottom:8px; }
-    .report-value { font-size:28px; font-weight:bold; }
-    .range-btns { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px; }
-    .range-btn { padding:8px 16px; border:2px solid #e5e7eb; background:white; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; transition:all 0.3s; font-family:'Sarabun',sans-serif; }
-    .range-btn:hover, .range-btn.active { background:#667eea; color:white; border-color:#667eea; }
- 
-    .status-playing { background:#f5f3ff; color:#7c3aed; }
-    .status-completed { background:#f3f4f6; color:#6b7280; }
-    .status-remaining { background:#fff7ed; color:#c2410c; }
-    @media(max-width:768px) {
-      .schedule-date-label { font-size:15px; width:100%; }
+function showValidationErrors(errors, formId = null) {
+  if (!errors) return;
+  const messages = Object.entries(errors).map(([field, msg]) => `• ${getFieldDisplayName(field)}: ${msg}`).join('\n');
+  showToast('❌ กรุณาแก้ไขข้อมูล:\n' + messages, 'error', 5000);
+  Object.keys(errors).forEach(field => {
+    const input = document.getElementById(field) || document.querySelector(`[name="${field}"]`);
+    if (input) {
+      input.classList.add('error');
+      input.addEventListener('focus', function() { this.classList.remove('error'); }, { once: true });
+      if (Object.keys(errors)[0] === field) {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => input.focus(), 500);
+      }
     }
+  });
+}
  
-    .rpt-range-btn {
-      padding: 7px 16px;
-      border: 1px solid #e5e7eb;
-      background: white;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      color: #374151;
-      transition: all 0.2s;
-      font-family: 'Sarabun', sans-serif;
+function getFieldDisplayName(field) {
+  const names = { username:'ชื่อผู้ใช้', fullname:'ชื่อ-นามสกุล', phone:'เบอร์โทร', password:'รหัสผ่าน', field:'สนาม', date:'วันที่', time:'เวลา' };
+  return names[field] || field;
+}
+ 
+// ========== SLIDER ==========
+function startSlider() { slideInterval = setInterval(() => changeSlide(1), 4000); }
+function stopSlider() { clearInterval(slideInterval); }
+function showSlide(index) {
+  const slides = document.querySelectorAll(".slide");
+  const dots = document.querySelectorAll(".dot");
+  if (index >= slides.length) currentSlideIndex = 0;
+  if (index < 0) currentSlideIndex = slides.length - 1;
+  slides.forEach(s => s.classList.remove("active"));
+  dots.forEach(d => d.classList.remove("active"));
+  slides[currentSlideIndex].classList.add("active");
+  dots[currentSlideIndex].classList.add("active");
+}
+function changeSlide(direction) {
+  currentSlideIndex += direction;
+  const slides = document.querySelectorAll(".slide");
+  if (currentSlideIndex >= slides.length) currentSlideIndex = 0;
+  else if (currentSlideIndex < 0) currentSlideIndex = slides.length - 1;
+  showSlide(currentSlideIndex);
+  stopSlider(); startSlider();
+}
+function currentSlide(index) { currentSlideIndex = index; showSlide(currentSlideIndex); stopSlider(); startSlider(); }
+ 
+// ========== GALLERY ==========
+function changeGalleryImage(direction) {
+  currentGalleryIndex += direction;
+  if (currentGalleryIndex < 0) currentGalleryIndex = galleryImages.length - 1;
+  else if (currentGalleryIndex >= galleryImages.length) currentGalleryIndex = 0;
+  updateGalleryDisplay();
+}
+function selectGalleryImage(index) { currentGalleryIndex = index; updateGalleryDisplay(); }
+function updateGalleryDisplay() {
+  document.getElementById('galleryMainImage').src = galleryImages[currentGalleryIndex];
+  document.getElementById('currentImageNumber').textContent = currentGalleryIndex + 1;
+  document.getElementById('totalImages').textContent = galleryImages.length;
+  document.querySelectorAll('.gallery-thumbnail').forEach((thumb, index) => {
+    thumb.classList.toggle('active', index === currentGalleryIndex);
+  });
+}
+document.addEventListener('keydown', (e) => {
+  const g = document.getElementById('gallerySection');
+  if (g && isInViewport(g)) {
+    if (e.key === 'ArrowLeft') changeGalleryImage(-1);
+    else if (e.key === 'ArrowRight') changeGalleryImage(1);
+  }
+});
+function isInViewport(element) {
+  const rect = element.getBoundingClientRect();
+  return rect.top >= 0 && rect.left >= 0 &&
+    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+    rect.right <= (window.innerWidth || document.documentElement.clientWidth);
+}
+ 
+// ========== STAFF MODAL ==========
+function openStaffModal(url) {
+  const modal = document.getElementById('staffGalleryModal');
+  const modalImg = document.getElementById('staffGalleryModalImg');
+  if (!modal || !modalImg) return;
+  const img = new Image();
+  img.onload = function() { modalImg.src = url; };
+  img.onerror = function() { modalImg.src = url; };
+  img.src = url;
+  modal.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeStaffModal() {
+  const modal = document.getElementById('staffGalleryModal');
+  if (modal) { modal.classList.remove('show'); document.body.style.overflow = ''; }
+}
+ 
+// ========== TIME SLOTS ==========
+function initializeTimeSlots() {
+  const timeSlots = document.querySelectorAll('.time-slot-btn');
+  timeSlots.forEach(btn => {
+    let touchHandled = false;
+    btn.addEventListener('touchend', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      if (this.classList.contains('booked')) { alert('❌ ช่วงเวลานี้ถูกจองแล้ว กรุณาเลือกช่วงเวลาอื่น'); return; }
+      touchHandled = true; selectTime(this);
+      setTimeout(() => { touchHandled = false; }, 300);
+    }, { passive: false });
+    btn.addEventListener('click', function(e) {
+      if (touchHandled) { e.preventDefault(); return; }
+      if (this.classList.contains('booked')) { alert('❌ ช่วงเวลานี้ถูกจองแล้ว กรุณาเลือกช่วงเวลาอื่น'); return; }
+      selectTime(this);
+    });
+  });
+}
+function selectTime(element) {
+  if (element.classList.contains('booked')) return;
+  document.querySelectorAll(".time-slot-btn").forEach(s => s.classList.remove("selected"));
+  element.classList.add("selected");
+  selectedTimeSlot = element.getAttribute('data-time');
+}
+function resetTimeSlots() {
+  document.querySelectorAll('.time-slot-btn').forEach(btn => {
+    btn.classList.remove('available', 'booked', 'selected');
+    btn.disabled = false;
+    const badge = btn.querySelector('.status-badge');
+    if (badge) badge.remove();
+  });
+}
+function checkAvailability() {
+  if (currentAvailabilityCheck && typeof currentAvailabilityCheck.off === 'function') currentAvailabilityCheck.off();
+  currentAvailabilityCheck = null;
+  const field = document.getElementById('fieldSelect').value;
+  const date = document.getElementById('dateSelect').value;
+  if (!field || !date) { resetTimeSlots(); return; }
+  const statusDiv = document.getElementById('availabilityStatus');
+  statusDiv.style.display = 'block';
+  statusDiv.className = 'availability-notice checking';
+  statusDiv.innerHTML = '<strong>⏳ กำลังตรวจสอบสถานะสนาม...</strong>';
+  const timeoutId = setTimeout(() => {
+    statusDiv.innerHTML = '<strong style="color:#ef4444;">⚠️ การเชื่อมต่อล่าช้า กรุณาลองใหม่อีกครั้ง</strong>';
+  }, 10000);
+  const query = database.ref('bookings').orderByChild('field').equalTo(field);
+  currentAvailabilityCheck = query;
+  query.once('value').then((snapshot) => {
+    clearTimeout(timeoutId);
+    if (currentAvailabilityCheck !== query) return;
+    const bookedTimes = [];
+    snapshot.forEach((child) => {
+      const booking = child.val();
+      if (booking.date === date && booking.bookingStatus !== 'cancelled') bookedTimes.push(booking.time);
+    });
+    updateTimeSlotAvailability(bookedTimes);
+    statusDiv.style.display = 'none';
+    currentAvailabilityCheck = null;
+  }).catch((error) => {
+    clearTimeout(timeoutId);
+    if (currentAvailabilityCheck !== query) return;
+    statusDiv.className = 'availability-notice';
+    statusDiv.style.display = 'block';
+    currentAvailabilityCheck = null;
+  });
+}
+function updateTimeSlotAvailability(bookedTimes) {
+  const timeSlots = document.querySelectorAll('.time-slot-btn');
+  const bookedTimesSet = new Set(bookedTimes);
+  const selectedDate = document.getElementById('dateSelect').value;
+  if (!selectedDate) { resetTimeSlots(); return; }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const selectedDateObj = new Date(selectedDate + 'T00:00:00');
+  const isPastDate = selectedDateObj < today;
+  const isToday = selectedDateObj.getTime() === today.getTime();
+  const isFutureDate = selectedDateObj > today;
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  timeSlots.forEach(btn => {
+    const time = btn.getAttribute('data-time');
+    btn.classList.remove('available','booked','selected','past-time');
+    const existingBadge = btn.querySelector('.status-badge');
+    if (existingBadge) existingBadge.remove();
+    btn.style.opacity = '1';
+    let shouldDisable = false, badgeText = 'ว่าง', badgeColor = '', statusClass = 'available';
+    if (isPastDate) {
+      shouldDisable = true; badgeText = 'ผ่านแล้ว'; badgeColor = '#ef4444'; statusClass = 'booked past-time'; btn.style.opacity = '0.5';
+    } else if (isToday) {
+      const [startHour, startMinute] = time.split(' - ')[0].split(':').map(Number);
+      const isPastTime = startHour < currentHour || (startHour === currentHour && startMinute <= currentMinute);
+      if (isPastTime) { shouldDisable = true; badgeText = 'ผ่านแล้ว'; badgeColor = '#ef4444'; statusClass = 'booked past-time'; btn.style.opacity = '0.5'; }
+      else if (bookedTimesSet.has(time)) { shouldDisable = true; badgeText = 'ไม่ว่าง'; statusClass = 'booked'; }
+    } else if (isFutureDate) {
+      if (bookedTimesSet.has(time)) { shouldDisable = true; badgeText = 'ไม่ว่าง'; statusClass = 'booked'; }
     }
-    .rpt-range-btn:hover { background: #f9fafb; border-color: #d1d5db; }
-    .rpt-range-btn.active { background: #4f46e5; color: white; border-color: #4f46e5; }
-    #rptTableContainer table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    #rptTableContainer thead tr { background: #f9fafb; }
-    #rptTableContainer th { padding: 10px 16px; text-align: left; font-weight: 600; color: #6b7280; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; border-bottom: 1px solid #f3f4f6; }
-    #rptTableContainer td { padding: 12px 16px; border-bottom: 1px solid #f9fafb; color: #374151; }
-    #rptTableContainer tbody tr:hover { background: #fafafa; }
-    #rptTableContainer tbody tr:last-child td { border-bottom: none; }
-  </style>
-</head>
-<body>
-  <div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
-  <div class="toast" id="toast"><span id="toastMessage"></span></div>
+    btn.classList.add(...statusClass.split(' '));
+    btn.disabled = shouldDisable;
+    const badge = document.createElement('span');
+    badge.className = 'status-badge';
+    badge.textContent = badgeText;
+    if (badgeColor) badge.style.background = badgeColor;
+    btn.appendChild(badge);
+  });
+}
+function resetBookingForm() {
+  document.getElementById('fieldSelect').value = '';
+  document.getElementById('dateSelect').value = '';
+  selectedTimeSlot = null;
+  resetTimeSlots();
+}
  
-  <div class="container">
-    <!-- Header -->
-    <div class="staff-header">
-      <h1>🏟️ PRIJIT SPORT - ระบบ Admin</h1>
-      <div class="staff-info">
-        <span class="staff-name" id="staffName"></span>
-        <button class="logout-btn" onclick="handleStaffLogout()">ออกจากระบบ</button>
-      </div>
-    </div>
+// ========== AUTH ==========
+async function handleLogin(e) {
+  e.preventDefault();
+  const loginBtn = e.target.querySelector('button[type="submit"]');
+  const originalText = loginBtn.textContent;
+  try {
+    const username = document.getElementById("modalLoginUsername").value;
+    const password = document.getElementById("modalLoginPassword").value;
+    const errors = {};
+    const usernameError = Validator.username(username);
+    if (usernameError) errors.modalLoginUsername = usernameError;
+    const passwordError = Validator.password(password);
+    if (passwordError) errors.modalLoginPassword = passwordError;
+    if (Object.keys(errors).length > 0) { showValidationErrors(errors); return; }
+    const sanitizedUsername = SecurityUtils.sanitizeUsername(username);
+    if (!sanitizedUsername || sanitizedUsername.length < 3) {
+      showToast('❌ ชื่อผู้ใช้มีตัวอักษรที่ไม่ถูกต้อง', 'error');
+      document.getElementById("modalLoginUsername").focus();
+      return;
+    }
+    loginBtn.disabled = true;
+    loginBtn.innerHTML = '⏳ กำลังเข้าสู่ระบบ...';
+    const email = sanitizedUsername + "@prijitsport.com";
+    const userCredential = await auth.signInWithEmailAndPassword(email, password);
+    const snapshot = await database.ref('users/' + userCredential.user.uid).once('value');
+    const userData = snapshot.val();
+    currentUser = {
+      uid: auth.currentUser.uid,
+      username: SecurityUtils.escapeHtml(userData.username || ''),
+      fullname: SecurityUtils.escapeHtml(userData.fullname || ''),
+      phone: SecurityUtils.sanitizePhone(userData.phone || ''),
+      createdAt: userData.createdAt
+    };
+    document.getElementById("currentUser").textContent = currentUser.fullname;
+    document.getElementById("loginNavBtn").style.display = "none";
+    document.getElementById("userInfo").style.display = "flex";
+    closeLoginModal();
+    showToast("✅ เข้าสู่ระบบสำเร็จ! ยินดีต้อนรับ " + currentUser.fullname, 'success');
+    e.target.reset();
+    updateBookingList();
+  } catch (error) {
+    let msg = 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+    if (error.code === 'auth/user-not-found') msg = 'ไม่พบชื่อผู้ใช้นี้ในระบบ';
+    else if (error.code === 'auth/wrong-password') msg = 'รหัสผ่านไม่ถูกต้อง';
+    else if (error.code === 'auth/too-many-requests') msg = 'ลองเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่';
+    else if (error.code === 'auth/network-request-failed') msg = 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ กรุณาตรวจสอบการเชื่อมต่อ';
+    showToast("❌ " + msg, 'error');
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = originalText;
+  }
+}
  
-    <!-- Tabs -->
-    <div class="tab-navigation">
-      <button class="tab-btn active" onclick="switchTab('bookings',event)">📋 จัดการการจอง</button>
-      <button class="tab-btn" onclick="switchTab('schedule',event)">🗓️ ตารางสนาม</button>
-      <button class="tab-btn" onclick="switchTab('refunds',event)">💰 คืนมัดจำ</button>
-      <button class="tab-btn" onclick="switchTab('report',event)">📊 รายงาน</button>
-      <button class="tab-btn" onclick="switchTab('images',event)">🖼️ จัดการรูปภาพ</button>
-      <button class="tab-btn" onclick="switchTab('activities',event)">📢 จัดการกิจกรรม</button>
-    </div>
+async function handleRegister(e) {
+  e.preventDefault();
+  const registerBtn = e.target.querySelector('button[type="submit"]');
+  const originalText = registerBtn.textContent;
+  try {
+    const username = document.getElementById("modalRegUsername").value;
+    const fullname = document.getElementById("modalRegFullname").value;
+    const phone = document.getElementById("modalRegPhone").value;
+    const password = document.getElementById("modalRegPassword").value;
+    const errors = validateAllFields({ username, fullname, phone, password });
+    if (errors) { showValidationErrors(errors); return; }
+    const sanitizedData = {
+      username: SecurityUtils.sanitizeUsername(username),
+      fullname: SecurityUtils.sanitizeInput(fullname, { allowThai:true, allowEnglish:true, allowSpaces:true, maxLength:100 }),
+      phone: SecurityUtils.sanitizePhone(phone)
+    };
+    if (!sanitizedData.username || sanitizedData.username.length < 3) { showToast('❌ ชื่อผู้ใช้มีตัวอักษรที่ไม่ถูกต้อง', 'error'); return; }
+    if (!sanitizedData.fullname || sanitizedData.fullname.length < 2) { showToast('❌ ชื่อ-นามสกุลมีตัวอักษรที่ไม่ถูกต้อง', 'error'); return; }
+    if (!sanitizedData.phone || sanitizedData.phone.length !== 10) { showToast('❌ เบอร์โทรไม่ถูกต้อง', 'error'); return; }
+    registerBtn.disabled = true;
+    registerBtn.innerHTML = '⏳ กำลังสมัครสมาชิก...';
+    const email = sanitizedData.username + "@prijitsport.com";
+    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+    await database.ref('users/' + userCredential.user.uid).set({
+      username: sanitizedData.username,
+      fullname: sanitizedData.fullname,
+      phone: sanitizedData.phone,
+      createdAt: new Date().toISOString()
+    });
+    showToast("✅ สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ", 'success', 4000);
+    e.target.reset();
+    setTimeout(() => showLoginInModal(), 500);
+  } catch (error) {
+    let msg = 'สมัครสมาชิกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง';
+    if (error.code === 'auth/email-already-in-use') msg = 'ชื่อผู้ใช้นี้มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น';
+    else if (error.code === 'auth/weak-password') msg = 'รหัสผ่านไม่ปลอดภัยพอ กรุณาใช้รหัสผ่านที่แข็งแรงขึ้น';
+    else if (error.code === 'auth/network-request-failed') msg = 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ กรุณาตรวจสอบการเชื่อมต่อ';
+    showToast("❌ " + msg, 'error', 5000);
+  } finally {
+    registerBtn.disabled = false;
+    registerBtn.textContent = originalText;
+  }
+}
  
-    <!-- ===== TAB: BOOKINGS ===== -->
-    <div class="tab-content active" id="bookingsTab">
-      <div class="stats-grid">
-        <div class="stat-card"><h3>รอตรวจสอบ</h3><div class="stat-value stat-pending" id="statPending">0</div></div>
-        <div class="stat-card"><h3>อนุมัติแล้ว</h3><div class="stat-value stat-approved" id="statApproved">0</div></div>
-        <div class="stat-card"><h3>ทั้งหมด</h3><div class="stat-value stat-total" id="statTotal">0</div></div>
-      </div>
-      <div class="filter-section">
-        <h2>🔍 กรองข้อมูล</h2>
-        <div class="filter-grid">
-          <div class="filter-group">
-            <label>สถานะ:</label>
-            <select id="filterStatus" onchange="applyFilters()">
-              <option value="all">ทั้งหมด</option>
-              <option value="pending">รอตรวจสอบ</option>
-              <option value="pending_payment">รอตรวจสอบ (มัดจำ)</option>
-              <option value="approved">อนุมัติแล้ว</option>
-              <option value="remaining_payment_pending">รอยืนยันการชำระ</option>
-              <option value="playing">กำลังใช้สนาม</option>
-              <option value="completed">เสร็จแล้ว</option>
-              <option value="rejected">ปฏิเสธ</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <label>สนาม:</label>
-            <select id="filterField" onchange="applyFilters()">
-              <option value="all">ทุกสนาม</option>
-              <option value="สนาม 1">สนาม 1</option>
-              <option value="สนาม 2">สนาม 2</option>
-              <option value="สนาม 3">สนาม 3</option>
-              <option value="สนาม 4">สนาม 4</option>
-              <option value="สนาม 5">สนาม 5</option>
-              <option value="สนาม 6">สนาม 6</option>
-            </select>
-          </div>
-          <div class="filter-group">
-            <label>วันที่:</label>
-            <input type="date" id="filterDate" onchange="applyFilters()">
-          </div>
+async function handleLogout() {
+  if (!confirm("ต้องการออกจากระบบใช่หรือไม่?")) return;
+  try {
+    showLoading('กำลังออกจากระบบ...');
+    await auth.signOut();
+    currentUser = null;
+    document.getElementById("loginNavBtn").style.display = "inline-block";
+    document.getElementById("userInfo").style.display = "none";
+    const bookingListDiv = document.getElementById('bookingList');
+    if (bookingListDiv) {
+      bookingListDiv.innerHTML = `<div style="text-align:center;padding:40px;"><p style="color:#6b7280;font-size:1.1em;margin-bottom:20px;">กรุณา Login เพื่อดูรายการจอง</p><button onclick="openLoginModal()" style="background:#22c55e;color:white;padding:12px 24px;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:1em;">🔐 เข้าสู่ระบบ</button></div>`;
+    }
+    hideLoading();
+    showToast("✅ ออกจากระบบเรียบร้อย", 'success');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } catch (error) {
+    hideLoading();
+    showToast("❌ ออกจากระบบไม่สำเร็จ กรุณาลองใหม่", 'error');
+  }
+}
+ 
+// ========== FORMAT DATE (DD/MM/YYYY พ.ศ.) ==========
+function formatDateThai(dateStr) {
+  if (!dateStr) return '-';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    const day   = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year  = d.getFullYear() + 543;
+    return `${day}/${month}/${year}`;
+  } catch(e) { return '-'; }
+}
+ 
+// ========== BOOKING ==========
+function confirmBooking() {
+  if (!currentUser) {
+    showToast('กรุณา Login ก่อนจองสนาม', 'warning', 4000);
+    setTimeout(() => openLoginModal(), 500);
+    return;
+  }
+  const field = document.getElementById("fieldSelect").value;
+  const date = document.getElementById("dateSelect").value;
+  if (!field || !date || !selectedTimeSlot) {
+    showToast("❌ กรุณากรอกข้อมูลให้ครบถ้วน", 'error');
+    return;
+  }
+  const selectedDate = new Date(date);
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (selectedDate.getTime() === today.getTime()) {
+    const now = new Date();
+    const [startHour, startMinute] = selectedTimeSlot.split(' - ')[0].split(':').map(Number);
+    if (startHour < now.getHours() || (startHour === now.getHours() && startMinute <= now.getMinutes())) {
+      showToast("❌ ไม่สามารถจองย้อนหลังได้ กรุณาเลือกช่วงเวลาอื่น", 'error');
+      return;
+    }
+  }
+  if (selectedDate < today) { alert("❌ ไม่สามารถจองย้อนหลังได้"); return; }
+  const maxDate = new Date(today); maxDate.setDate(maxDate.getDate() + 30);
+  if (selectedDate > maxDate) { alert("❌ สามารถจองได้สูงสุด 30 วันล่วงหน้าเท่านั้น"); return; }
+ 
+  let totalPrice = 0;
+  const hour = parseInt(selectedTimeSlot.split(":")[0]);
+  if (field.includes("สนาม 1") || field.includes("สนาม 2") || field.includes("สนาม 3")) totalPrice = hour >= 18 ? 1200 : 1000;
+  else if (field.includes("สนาม 4")) totalPrice = hour >= 18 ? 1300 : 1100;
+  else if (field.includes("สนาม 5")) totalPrice = hour >= 18 ? 1100 : 900;
+  else if (field.includes("สนาม 6")) totalPrice = hour >= 18 ? 900 : 700;
+ 
+  const depositAmount = Math.round(totalPrice * DEPOSIT_PERCENTAGE);
+  const remainingAmount = totalPrice - depositAmount;
+  currentBookingData = { field, date, time: selectedTimeSlot, totalPrice, depositAmount, remainingAmount };
+ 
+  const displayDate = formatDateThai(date);
+ 
+  // ใช้ custom modal แทน confirm() เพื่อแสดงข้อความได้ครบ
+  const modalHtml = `
+    <div id="confirmBookingModal" style="
+      position:fixed;top:0;left:0;width:100%;height:100%;
+      background:rgba(0,0,0,0.7);z-index:9999;
+      display:flex;align-items:center;justify-content:center;padding:20px;">
+      <div style="
+        background:white;border-radius:16px;padding:28px;
+        max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.3);
+        max-height:90vh;overflow-y:auto;">
+ 
+        <h3 style="color:#065f46;font-size:1.15em;margin-bottom:16px;text-align:center;">
+          📋 ตรวจสอบข้อมูลการจอง
+        </h3>
+ 
+        <div style="background:#f0fdf4;border-radius:10px;padding:14px;margin-bottom:14px;font-size:0.95em;line-height:1.8;">
+          <div>📍 <strong>สนาม:</strong> ${field}</div>
+          <div>📅 <strong>วันที่:</strong> ${displayDate}</div>
+          <div>⏰ <strong>เวลา:</strong> ${selectedTimeSlot}</div>
+        </div>
+ 
+        <div style="background:#f9fafb;border-radius:10px;padding:14px;margin-bottom:14px;font-size:0.95em;line-height:1.8;">
+          <div>💰 <strong>ราคาเต็ม:</strong> ${totalPrice.toLocaleString()} บาท</div>
+          <div>💵 <strong>มัดจำ 30%:</strong> <span style="color:#10b981;font-weight:700;">${depositAmount.toLocaleString()} บาท</span></div>
+          <div>💸 <strong>คงเหลือจ่ายที่สนาม:</strong> <span style="color:#ef4444;font-weight:700;">${remainingAmount.toLocaleString()} บาท</span></div>
+        </div>
+ 
+        <div style="background:#f9fafb;border-radius:10px;padding:14px;margin-bottom:14px;font-size:0.95em;line-height:1.8;">
+          <div>👤 <strong>ผู้จอง:</strong> ${currentUser.fullname}</div>
+          <div>📞 <strong>เบอร์:</strong> ${currentUser.phone}</div>
+        </div>
+ 
+        <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:14px;margin-bottom:20px;font-size:0.9em;line-height:1.8;">
+          <div style="font-weight:700;color:#1d4ed8;margin-bottom:8px;">💡 สรุปการชำระเงิน</div>
+          <div>• ชำระค่ามัดจำ <strong>${depositAmount.toLocaleString()} บาท</strong> ผ่าน QR Code ตอนนี้</div>
+          <div style="color:#059669;font-weight:700;margin-top:6px;">• มาตามนัด: จ่ายเพิ่มเพียง <strong>${remainingAmount.toLocaleString()} บาท</strong> ที่สนาม เพราะมัดจำ ${depositAmount.toLocaleString()} บาท หักจ่ายไปแล้ว</div>
+          <div style="color:#dc2626;font-weight:700;margin-top:6px;">• ไม่มาตามที่จอง: โดนหักเก็บค่ามัดจำ ${depositAmount.toLocaleString()} บาท ทันที</div>
+        </div>
+ 
+        <div style="display:flex;gap:12px;">
+          <button onclick="document.getElementById('confirmBookingModal').remove()"
+            style="flex:1;padding:12px;border:2px solid #e5e7eb;background:white;border-radius:10px;font-size:1em;cursor:pointer;font-family:inherit;color:#666;">
+            ยกเลิก
+          </button>
+          <button onclick="document.getElementById('confirmBookingModal').remove(); showPaymentModal();"
+            style="flex:2;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;border-radius:10px;font-size:1em;font-weight:700;cursor:pointer;font-family:inherit;">
+            ✅ ยืนยันการจอง
+          </button>
         </div>
       </div>
-      <div class="bookings-section">
-        <h2>📋 รายการจอง</h2>
-        <div id="bookingsContainer"><p style="text-align:center;color:#666;">กำลังโหลดข้อมูล...</p></div>
-      </div>
-    </div>
+    </div>`;
  
-    <!-- ===== TAB: SCHEDULE ===== -->
-    <div class="tab-content" id="scheduleTab">
-      <div class="stats-grid">
-        <div class="stat-card"><h3>ช่องเวลาว่าง (วันนี้)</h3><div class="stat-value stat-approved" id="schFree">0</div></div>
-        <div class="stat-card"><h3>รออนุมัติ</h3><div class="stat-value stat-pending" id="schPending">0</div></div>
-        <div class="stat-card"><h3>จองแล้ว (อนุมัติ)</h3><div class="stat-value stat-total" id="schApproved">0</div></div>
-        <div class="stat-card" style="border-top:4px solid #7c3aed;"><h3>⚽ กำลังเล่น</h3><div class="stat-value" style="color:#7c3aed;" id="schPlaying">0</div></div>
-      </div>
-      <div class="bookings-section">
-        <h2>🗓️ ตารางสถานะสนาม</h2>
-        <div class="schedule-controls">
-          <button class="nav-btn" onclick="changeScheduleDay(-1)">‹</button>
-          <div style="position:relative;display:inline-flex;align-items:center;">
-            <input type="text" id="scheduleDateDisplay" readonly
-                   style="padding:10px 35px 10px 15px;border:2px solid #e5e7eb;border-radius:8px;font-size:16px;width:130px;text-align:center;background:#fff;cursor:pointer;color:#333;font-family:'Sarabun',sans-serif;">
-            <span style="position:absolute;right:10px;pointer-events:none;">📅</span>
-            <input type="date" id="scheduleDate" onchange="renderSchedule()"
-                   style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;box-sizing:border-box;">
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+ 
+function showPaymentModal() {
+  const data = currentBookingData;
+  const displayDate = formatDateThai(data.date);
+  const modalHTML = `
+    <div id="paymentModal" class="payment-modal active">
+      <div class="payment-content">
+        <div class="payment-header">
+          <h2>💳 ชำระค่ามัดจำ</h2>
+          <p>จองสนาม ${data.field}</p>
+        </div>
+        <div class="payment-summary">
+          <div class="summary-row">
+            <span class="summary-label">💵 ค่าบริการทั้งหมด:</span>
+            <span class="summary-value">${data.totalPrice.toLocaleString()} บาท</span>
           </div>
-          <button class="nav-btn" onclick="changeScheduleDay(1)">›</button>
-          <span class="schedule-date-label" id="scheduleDateLabel"></span>
-        </div>
-        <div class="legend">
-          <span><i class="dot dot-free"></i> ว่าง</span>
-          <span><i class="dot dot-pending"></i> รออนุมัติ</span>
-          <span><i class="dot dot-approved"></i> จองแล้ว (อนุมัติ)</span>
-          <span><i class="dot" style="background:#fed7aa;border:1px solid #f97316;"></i> รอจ่ายค่าคงเหลือ</span>
-          <span><i class="dot" style="background:#7c3aed;"></i> ⚽ กำลังเล่น</span>
-          <span><i class="dot" style="background:#d1d5db;"></i> เสร็จแล้ว</span>
-        </div>
-        <div class="schedule-wrap">
-          <table class="schedule-table">
-            <thead id="scheduleHead"></thead>
-            <tbody id="scheduleBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
- 
-    <!-- ===== TAB: REFUNDS ===== -->
-    <div class="tab-content" id="refundsTab">
-      <div class="stats-grid">
-        <div class="stat-card" style="border-top:4px solid #6366f1;"><h3>💵 รับมัดจำทั้งหมด</h3><div class="stat-value" style="color:#6366f1;" id="refTotalReceived">฿0</div><div style="font-size:13px;color:#999;margin-top:4px;" id="refTotalCount">0 รายการ</div></div>
-        <div class="stat-card" style="border-top:4px solid #f59e0b;"><h3>⏳ รอคืนมัดจำ</h3><div class="stat-value stat-pending" id="refPendingAmt">฿0</div><div style="font-size:13px;color:#999;margin-top:4px;" id="refPendingCount">0 รายการ</div></div>
-        <div class="stat-card" style="border-top:4px solid #10b981;"><h3>✅ คืนแล้ว</h3><div class="stat-value stat-approved" id="refRefunded">฿0</div></div>
-        <div class="stat-card" style="border-top:4px solid #ef4444;"><h3>⛔ ริบมัดจำ</h3><div class="stat-value" style="color:#ef4444;" id="refForfeit">฿0</div></div>
-      </div>
-      <div class="bookings-section">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
-          <h2 style="margin:0;">💰 จัดการคืนมัดจำ</h2>
-          <button class="btn-add" style="margin:0;" onclick="openAddRefundModal()">➕ เพิ่มรายการคืนมัดจำ</button>
-        </div>
-        <div id="refundsContainer"><p style="text-align:center;color:#666;">กำลังโหลดข้อมูล...</p></div>
-      </div>
-    </div>
- 
-        <!-- ===== TAB: REPORT ===== -->
-    <div class="tab-content" id="reportTab">
-      <div style="padding:0;">
- 
-        <!-- Header บาร์ -->
-        <div style="background:white;border-radius:12px;padding:20px 24px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,0.08);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-          <div>
-            <h2 style="margin:0;font-size:20px;font-weight:600;color:#111;">รายงานสรุปผล</h2>
-            <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">ข้อมูลการจองและรายรับในช่วงเวลาที่เลือก</p>
+          <div class="summary-row">
+            <span class="summary-label">📍 ค่ามัดจำ 30%:</span>
+            <span class="summary-value">${data.depositAmount.toLocaleString()} บาท</span>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button onclick="setReportRange(1)"  class="rpt-range-btn" id="rBtn1" >วันนี้</button>
-            <button onclick="setReportRange(7)"  class="rpt-range-btn active" id="rBtn7" >7 วัน</button>
-            <button onclick="setReportRange(30)" class="rpt-range-btn" id="rBtn30">30 วัน</button>
-            <button onclick="setReportRange(90)" class="rpt-range-btn" id="rBtn90">90 วัน</button>
+          <div class="summary-row">
+            <span class="summary-label">💸 ค่าบริการคงเหลือจ่ายที่สนาม:</span>
+            <span class="summary-value" style="color:#ef4444;font-weight:700;">${data.remainingAmount.toLocaleString()} บาท</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-label">💰 ต้องชำระตอนนี้:</span>
+            <span class="summary-value" style="color:#22c55e;font-size:1.3em;">${data.depositAmount.toLocaleString()} บาท</span>
           </div>
         </div>
- 
-        <!-- KPI Cards แถวบน -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:20px;">
- 
-          <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-top:3px solid #4f46e5;">
-            <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">รายรับทั้งหมด</p>
-            <p style="margin:0;font-size:28px;font-weight:700;color:#4f46e5;" id="rptFullIncome">฿0</p>
-            <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;" id="rptBookingCount">0 รายการ</p>
-          </div>
- 
-          <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-top:3px solid #059669;">
-            <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">อนุมัติแล้ว</p>
-            <p style="margin:0;font-size:28px;font-weight:700;color:#059669;" id="rptApprovedIncome">฿0</p>
-            <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;" id="rptApprovedCount">0 รายการ</p>
-          </div>
- 
-          <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-top:3px solid #d97706;">
-            <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">รอตรวจสอบ</p>
-            <p style="margin:0;font-size:28px;font-weight:700;color:#d97706;" id="rptPendingIncome">฿0</p>
-            <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;" id="rptPendingCount">0 รายการ</p>
-          </div>
- 
-          <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-top:3px solid #dc2626;">
-            <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">ยกเลิก</p>
-            <p style="margin:0;font-size:28px;font-weight:700;color:#dc2626;" id="rptCancelCount">0 รายการ</p>
-            <p style="margin:6px 0 0;font-size:12px;color:#9ca3af;">รายการที่ถูกปฏิเสธ</p>
-          </div>
- 
+        <div class="deposit-highlight">
+          <p><strong>📱 สแกน QR Code เพื่อชำระค่ามัดจำ</strong></p>
         </div>
- 
-        <!-- แถวที่ 2: สนามยอดนิยม + ลูกค้า/รายการ -->
-        <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:20px;">
- 
-          <!-- สนามยอดนิยม -->
-          <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
-            <p style="margin:0 0 16px;font-size:14px;font-weight:600;color:#374151;border-bottom:1px solid #f3f4f6;padding-bottom:10px;">สนามที่ใช้งานมากที่สุด</p>
-            <div id="rptTopFields"><p style="text-align:center;color:#9ca3af;font-size:13px;padding:20px 0;">ยังไม่มีข้อมูล</p></div>
-          </div>
- 
-          <!-- ลูกค้า + รายการ -->
-          <div style="display:flex;flex-direction:column;gap:14px;">
-            <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);flex:1;">
-              <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">รายการจองทั้งหมด</p>
-              <p style="margin:0;font-size:32px;font-weight:700;color:#2563eb;" id="rptTotalBookings">0</p>
+        <div class="qr-code-container">
+          <div class="qr-code-image" style="position:relative;min-height:300px;">
+            <div id="qrLoading" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;color:#6b7280;">
+              <div style="width:40px;height:40px;border:3px solid #f3f4f6;border-top-color:#3b82f6;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 10px;"></div>
+              <p style="font-size:0.9em;">กำลังโหลด QR Code...</p>
             </div>
-            <div style="background:white;border-radius:12px;padding:20px 22px;box-shadow:0 1px 4px rgba(0,0,0,0.08);flex:1;">
-              <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#6b7280;letter-spacing:0.05em;text-transform:uppercase;">ลูกค้าทั้งหมด</p>
-              <p style="margin:0;font-size:32px;font-weight:700;color:#7c3aed;" id="rptTotalCustomers">0</p>
-              <p style="margin:4px 0 0;font-size:12px;color:#9ca3af;">คน (ไม่ซ้ำ)</p>
+            <img id="qrCodeCanvas" src="qr-promptpay.png" alt="QR Code PromptPay"
+              style="width:100%;height:100%;object-fit:contain;display:none;"
+              onload="this.style.display='block';var l=document.getElementById('qrLoading');if(l)l.remove();"
+              onerror="handleQRError(this)">
+          </div>
+        </div>
+        <div class="payment-info">
+          <p><strong>💰 ยอดชำระ:</strong> ${data.depositAmount.toLocaleString()} บาท</p>
+          <p><strong>📱 เลขพร้อมเพย์:</strong> 1103100835163</p>
+          <p><strong>🏢 ชื่อบัญชี:</strong> นาย พัสกร ราชชมภู</p>
+          <p><strong>🆔 Ref:</strong> ${data.field.replace('สนาม ','F')}-${data.date.replace(/-/g,'')}</p>
+        </div>
+        <div class="upload-section">
+          <label class="upload-label">📤 อัพโหลดสลิปการโอนเงิน</label>
+          <div class="upload-area" id="uploadArea" onclick="document.getElementById('slipInput').click()">
+            <p>📎 คลิกเพื่ออัพโหลดรูปสลิป</p>
+            <p style="font-size:0.9em;color:#6b7280;margin-top:10px;">หรือลากไฟล์มาวางที่นี่<br>รองรับ: JPG, PNG</p>
+          </div>
+          <input type="file" id="slipInput" accept="image/*" style="display:none;" onchange="handleSlipUpload(event)">
+          <img id="slipPreview" style="display:none;">
+        </div>
+        <div class="payment-terms">
+          <h4>💡 สรุปการชำระเงิน</h4>
+          <ul>
+            <li style="color:#059669;font-weight:bold;">✅ มาตามนัด: จ่ายเพิ่มเพียง <strong>${data.remainingAmount.toLocaleString()} บาท</strong> ที่สนาม<br><small style="font-weight:normal;color:#374151;">เพราะค่ามัดจำ ${data.depositAmount.toLocaleString()} บาท หักจ่ายมาแล้ว รวมเป็น ${data.totalPrice.toLocaleString()} บาท</small></li>
+            <li style="color:red;font-weight:bold;">❌ ไม่มาตามที่จอง: โดนหักเก็บค่ามัดจำ ${data.depositAmount.toLocaleString()} บาท ทันที ไม่มีการคืนเงิน</li>
+            <li style="color:#b45309;font-weight:bold;">⚠️ ค่ามัดจำจะคืนเฉพาะกรณียกเลิกการจองหรือถูกปฏิเสธเท่านั้น</li>
+            <li>📌 กรุณามาถึงก่อนเวลา 15 นาที</li>
+          </ul>
+        </div>
+        <div class="payment-buttons">
+          <button class="cancel-payment-btn" onclick="closePaymentModal()">❌ ยกเลิก</button>
+          <button class="upload-slip-btn" id="confirmPaymentBtn" disabled onclick="submitPayment()">⬆️ อัพโหลดสลิป</button>
+        </div>
+        <div class="timer-warning" id="paymentTimer">⏰ กรุณาชำระภายใน 15 นาที</div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  generateQRCode(data);
+  startPaymentTimer();
+  setupDragDrop();
+}
+ 
+function generateQRCode(data) { console.log('✅ QR Code loaded for deposit:', data.depositAmount, 'บาท'); }
+function handleQRError(img) {
+  img.style.display = 'none';
+  img.parentElement.innerHTML = `<div style="padding:20px;text-align:center;color:#ef4444;"><p style="font-size:1.2em;margin-bottom:10px;">⚠️ ไม่พบ QR Code</p><p style="font-size:0.9em;color:#6b7280;">กรุณาโอนเงินไปที่:<br><strong style="color:#1f2937;">เลขพร้อมเพย์: 1103100835163</strong><br><strong style="color:#1f2937;">ชื่อบัญชี: นาย พัสกร ราชชมภู</strong></p></div>`;
+}
+ 
+function handleSlipUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!['image/jpeg','image/jpg','image/png'].includes(file.type)) { alert('❌ กรุณาอัพโหลดไฟล์ภาพเท่านั้น (JPG, PNG)'); event.target.value = ''; return; }
+  if (file.size > MAX_FILE_SIZE_BYTES) { alert('❌ ไฟล์ใหญ่เกินไป! กรุณาเลือกไฟล์ขนาดไม่เกิน ' + MAX_FILE_SIZE_MB + ' MB'); event.target.value = ''; return; }
+  uploadedSlipFile = file;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const preview = document.getElementById('slipPreview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    document.getElementById('confirmPaymentBtn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+ 
+function setupDragDrop() {
+  const uploadArea = document.getElementById('uploadArea');
+  const handleDragOver = (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); };
+  const handleDragLeave = () => uploadArea.classList.remove('dragover');
+  const handleDrop = (e) => {
+    e.preventDefault(); uploadArea.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const input = document.getElementById('slipInput');
+      const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files;
+      handleSlipUpload({ target: input });
+    }
+  };
+  uploadArea.addEventListener('dragover', handleDragOver, { passive: false });
+  uploadArea.addEventListener('dragleave', handleDragLeave, { passive: true });
+  uploadArea.addEventListener('drop', handleDrop, { passive: false });
+  uploadArea._dragHandlers = { handleDragOver, handleDragLeave, handleDrop };
+}
+ 
+function startPaymentTimer() {
+  let timeLeft = PAYMENT_TIMEOUT_MINUTES * 60;
+  const timerDiv = document.getElementById('paymentTimer');
+  paymentTimer = setInterval(() => {
+    timeLeft--;
+    const m = Math.floor(timeLeft / 60), s = timeLeft % 60;
+    timerDiv.textContent = `⏰ เหลือเวลา ${m}:${s.toString().padStart(2,'0')} นาที`;
+    if (timeLeft <= 0) { clearInterval(paymentTimer); alert('❌ หมดเวลาชำระเงิน กรุณาทำการจองใหม่อีกครั้ง'); closePaymentModal(); }
+  }, 1000);
+}
+ 
+function closePaymentModal() {
+  clearInterval(paymentTimer);
+  cleanupBookingLock();
+  const uploadArea = document.getElementById('uploadArea');
+  if (uploadArea && uploadArea._dragHandlers) {
+    uploadArea.removeEventListener('dragover', uploadArea._dragHandlers.handleDragOver);
+    uploadArea.removeEventListener('dragleave', uploadArea._dragHandlers.handleDragLeave);
+    uploadArea.removeEventListener('drop', uploadArea._dragHandlers.handleDrop);
+    delete uploadArea._dragHandlers;
+  }
+
+  const modal = document.getElementById('paymentModal');
+  if (modal) modal.remove();
+
+  currentBookingData = null;
+  uploadedSlipFile = null;
+
+  // safety: ensure global booking modal/lock overlay isn't left behind
+  try {
+    const overlay = document.getElementById('global-loading');
+    if (overlay) overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  } catch (e) {}
+}
+
+ 
+function cleanupBookingLock() {
+  if (currentBookingData) {
+    const uniqueKey = `${currentBookingData.field}_${currentBookingData.date}_${currentBookingData.time}`;
+    database.ref('booking_locks/' + uniqueKey).remove();
+  }
+}
+ 
+function submitPayment() {
+  if (!uploadedSlipFile) { alert('❌ กรุณาอัพโหลดสลิปการโอนเงิน'); return; }
+  const btn = document.getElementById('confirmPaymentBtn');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ กำลังอัพโหลด... <span class="spinner"></span>';
+  uploadSlipAndCreateBooking();
+}
+ 
+function uploadSlipAndCreateBooking() {
+  const data = currentBookingData;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const slipBase64 = e.target.result;
+    const bookingRef = database.ref('bookings').push();
+    const uniqueKey = `${data.field}_${data.date}_${data.time}`;
+    const bookingData = {
+      userId: currentUser.uid,
+      username: currentUser.fullname,
+      fullname: currentUser.fullname,
+      phone: currentUser.phone,
+      field: data.field,
+      date: data.date,
+      time: data.time,
+      totalPrice: data.totalPrice,
+      depositAmount: data.depositAmount,
+      remainingAmount: data.remainingAmount,
+      depositStatus: 'pending',
+      depositSlipUrl: slipBase64,
+      depositPaidAt: new Date().toISOString(),
+      remainingStatus: 'unpaid',
+      remainingPaidAt: null,
+      bookingStatus: 'pending_payment',
+      checkedInAt: null,
+      completedAt: null,
+      depositRefunded: false,
+      depositRefundedAt: null,
+      depositForfeited: false,
+      depositForfeitedAt: null,
+      field_date_time: uniqueKey,
+      createdAt: new Date().toISOString()
+    };
+    database.ref('booking_locks/' + uniqueKey).transaction((currentData) => {
+      if (currentData === null) return { locked: true, timestamp: Date.now() };
+      else return undefined;
+    }, (error, committed, snapshot) => {
+      if (error) {
+        alert('❌ ' + error.message);
+        document.getElementById('confirmPaymentBtn').disabled = false;
+        document.getElementById('confirmPaymentBtn').textContent = '⬆️ อัพโหลดสลิป';
+      } else if (!committed) {
+        alert('❌ ช่วงเวลานี้ถูกจองไปแล้ว กรุณาเลือกช่วงเวลาอื่น');
+        closePaymentModal(); checkAvailability();
+      } else {
+        bookingRef.set(bookingData).then(() => {
+          clearInterval(paymentTimer);
+          const displayDate = formatDateThai(data.date);
+          alert(`✅ อัพโหลดสลิปสำเร็จ!\n\n📋 เลขที่การจอง: #${bookingRef.key.substr(-6).toUpperCase()}\n\nระบบจะตรวจสอบการชำระเงินภายใน 5 นาที\n\n📍 สนาม: ${data.field}\n📅 วันที่: ${displayDate}\n⏰ เวลา: ${data.time}\n💰 มัดจำ: ${data.depositAmount.toLocaleString()} บาท ✅\n💸 ค่าบริการคงเหลือ: ${data.remainingAmount.toLocaleString()} บาท\n\n⚠️ ค่ามัดจำจะคืนเฉพาะกรณียกเลิกการจองหรือถูกปฏิเสธเท่านั้น`);
+          closePaymentModal(); resetBookingForm();
+          document.location.href = '#checkBookingSection';
+          updateBookingList();
+        }).catch((error) => {
+          database.ref('booking_locks/' + uniqueKey).remove();
+          alert('❌ ' + error.message);
+          document.getElementById('confirmPaymentBtn').disabled = false;
+          document.getElementById('confirmPaymentBtn').textContent = '⬆️ อัพโหลดสลิป';
+        });
+      }
+    });
+  };
+  reader.readAsDataURL(uploadedSlipFile);
+}
+ 
+function updateBookingList() {
+  const bookingListDiv = document.getElementById('bookingList');
+  if (!bookingListDiv) return;
+  const user = auth.currentUser;
+  if (!user) {
+    bookingListDiv.innerHTML = `<div style="text-align:center;padding:40px;"><p style="color:#6b7280;font-size:1.1em;margin-bottom:20px;">กรุณา Login เพื่อดูรายการจอง</p><button onclick="openLoginModal()" style="background:#22c55e;color:white;padding:12px 24px;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:1em;">🔐 เข้าสู่ระบบ</button></div>`;
+    return;
+  }
+  bookingListDiv.innerHTML = '<p style="text-align:center;color:#666;">⏳ กำลังโหลดข้อมูล...</p>';
+  database.ref('bookings').orderByChild('userId').equalTo(user.uid).once('value').then((snapshot) => {
+    if (!snapshot.exists()) {
+      bookingListDiv.innerHTML = `<div style="text-align:center;padding:40px;"><p style="color:#6b7280;font-size:1.1em;">⚽ ยังไม่มีรายการจอง</p><p style="color:#9ca3af;margin-top:10px;">เริ่มจองสนามได้เลย!</p></div>`;
+      return;
+    }
+    const bookings = [];
+    snapshot.forEach((childSnapshot) => {
+      const booking = childSnapshot.val();
+      booking.id = childSnapshot.key;
+      if (booking.bookingStatus !== 'rejected') bookings.push(booking);
+    });
+    if (bookings.length === 0) { bookingListDiv.innerHTML = '<p style="text-align:center;color:#666;">ยังไม่มีรายการจอง</p>'; return; }
+    bookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    bookingListDiv.innerHTML = bookings.map(booking => generateBookingCard(booking)).join('');
+    initializeBookingCardEvents();
+  }).catch((error) => {
+    bookingListDiv.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;"><p>❌ โหลดข้อมูลไม่สำเร็จ</p><p style="color:#6b7280;font-size:0.9em;">${error.message}</p><button onclick="updateBookingList()" style="margin-top:20px;background:#22c55e;color:white;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;">🔄 ลองใหม่</button></div>`;
+  });
+}
+ 
+function generateBookingCard(booking) {
+  const safeBooking = {
+    id: booking.id,
+    field: SecurityUtils.escapeHtml(booking.field || 'ไม่ระบุสนาม'),
+    date: booking.date,
+    time: SecurityUtils.escapeHtml(booking.time || '-'),
+    username: SecurityUtils.escapeHtml(booking.fullname || booking.username || ''),
+    phone: SecurityUtils.sanitizePhone(booking.phone || ''),
+    totalPrice: parseInt(booking.totalPrice) || 0,
+    depositAmount: parseInt(booking.depositAmount) || 0,
+    remainingAmount: parseInt(booking.remainingAmount) || 0,
+    bookingStatus: booking.bookingStatus || 'pending',
+    depositStatus: booking.depositStatus,
+    remainingStatus: booking.remainingStatus,
+    createdAt: booking.createdAt
+  };
+ 
+  let statusColor = '#f59e0b', statusText = 'รอตรวจสอบ', statusBg = '#fef3c7';
+  if (safeBooking.bookingStatus === 'approved') { statusColor = '#10b981'; statusText = 'อนุมัติแล้ว ✅'; statusBg = '#d1fae5'; }
+  else if (safeBooking.bookingStatus === 'remaining_payment_pending') { statusColor = '#f97316'; statusText = 'รอยืนยันการชำระ 💸'; statusBg = '#fff7ed'; }
+  else if (safeBooking.bookingStatus === 'playing') { statusColor = '#7c3aed'; statusText = '⚽ กำลังใช้สนาม'; statusBg = '#f5f3ff'; }
+  else if (safeBooking.bookingStatus === 'completed') { statusColor = '#6b7280'; statusText = 'เล่นเสร็จแล้ว ✔️'; statusBg = '#f3f4f6'; }
+  else if (['pending_payment','pending'].includes(safeBooking.bookingStatus)) { statusColor = '#f59e0b'; statusText = 'รอตรวจสอบ ⏳'; statusBg = '#fef3c7'; }
+  else if (safeBooking.bookingStatus === 'cancelled') { statusColor = '#6b7280'; statusText = 'ยกเลิกแล้ว'; statusBg = '#f3f4f6'; }
+ 
+  const fmtDate = (ds) => {
+    if (!ds) return '-';
+    try {
+      const d = new Date(ds);
+      if (isNaN(d.getTime())) return '-';
+      const day = String(d.getDate()).padStart(2,'0');
+      const month = String(d.getMonth()+1).padStart(2,'0');
+      const year = d.getFullYear() + 543;
+      return `${day}/${month}/${year}`;
+    } catch(e) { return '-'; }
+  };
+ 
+  const fmtDateTime = (ds) => {
+    if (!ds) return '-';
+    try {
+      const d = new Date(ds);
+      if (isNaN(d.getTime())) return '-';
+      return fmtDate(ds) + ' ' + d.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+    } catch(e) { return '-'; }
+  };
+ 
+  let extensionButton = '';
+  if (safeBooking.bookingStatus === 'approved') {
+    try {
+      const bookingDateStr = safeBooking.date;
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (bookingDateStr === todayStr) {
+        const bookingDataStr = JSON.stringify(booking).replace(/"/g, '&quot;');
+        extensionButton = `<button class="extend-booking-btn" data-booking-id="${safeBooking.id}" data-booking-data="${bookingDataStr}" id="extend-btn-${safeBooking.id}"><span>🔄</span><span>ต่อเวลา 1 ชั่วโมง</span></button><div class="next-slot-info" id="next-slot-${safeBooking.id}">กำลังตรวจสอบช่วงถัดไป...</div>`;
+      }
+    } catch(e) {}
+  }
+ 
+  // ปุ่มจ่ายค่าคงเหลือ — แสดงเมื่อถึงเวลาจองและยังไม่ได้จ่าย
+  let payRemainingButton = '';
+  if (safeBooking.bookingStatus === 'approved' && safeBooking.remainingStatus !== 'paid' && safeBooking.remainingAmount > 0) {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (safeBooking.date === todayStr) {
+        const [startHour] = safeBooking.time.split(':').map(Number);
+        const now = new Date();
+        const minutesUntilStart = (startHour * 60) - (now.getHours() * 60 + now.getMinutes());
+        if (minutesUntilStart <= 30) {
+          payRemainingButton = `
+            <div style="background:#fff7ed;border:2px solid #f97316;border-radius:10px;padding:14px;margin-top:10px;">
+              <p style="margin:0 0 8px;color:#c2410c;font-weight:700;font-size:14px;">💸 ถึงเวลาจ่ายค่าสนามคงเหลือ!</p>
+              <p style="margin:0 0 10px;color:#374151;font-size:13px;">จ่ายเพิ่ม <strong style="color:#dc2626;">${safeBooking.remainingAmount.toLocaleString()} บาท</strong> ก่อนเข้าใช้สนาม</p>
+              <button onclick="openPayRemainingModal('${safeBooking.id}')"
+                style="width:100%;padding:10px;background:#f97316;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;">
+                💳 ชำระค่าสนามคงเหลือ ${safeBooking.remainingAmount.toLocaleString()} บาท
+              </button>
+            </div>`;
+        }
+      }
+    } catch(e) {}
+  }
+ 
+  // แบนเนอร์กำลังใช้สนาม
+  let playingBanner = '';
+  if (safeBooking.bookingStatus === 'playing') {
+    playingBanner = `
+      <div style="background:#f5f3ff;border:2px solid #7c3aed;border-radius:10px;padding:12px;margin-top:10px;text-align:center;">
+        <p style="margin:0;color:#7c3aed;font-weight:700;font-size:15px;">⚽ กำลังใช้สนามอยู่</p>
+        <p style="margin:4px 0 0;color:#6b7280;font-size:12px;">Staff จะอัปเดตสถานะเมื่อเล่นเสร็จ</p>
+      </div>`;
+  }
+ 
+  // แบนเนอร์รอยืนยันการชำระ
+  let waitingBanner = '';
+  if (safeBooking.bookingStatus === 'remaining_payment_pending') {
+    waitingBanner = `
+      <div style="background:#fff7ed;border:2px solid #f97316;border-radius:10px;padding:12px;margin-top:10px;text-align:center;">
+        <p style="margin:0;color:#f97316;font-weight:700;">⏳ รอ Staff ยืนยันการรับเงิน</p>
+        <p style="margin:4px 0 0;color:#6b7280;font-size:12px;">กรุณารอสักครู่ หรือแจ้ง Staff โดยตรง</p>
+      </div>`;
+  }
+ 
+  let cancelButton = '';
+  if (['pending','pending_payment','approved'].includes(safeBooking.bookingStatus)) {
+    cancelButton = `<button class="cancel-btn" id="cancel-btn-${safeBooking.id}" data-booking-id="${safeBooking.id}" style="background:#ef4444;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;margin-top:10px;">❌ ยกเลิกการจอง</button>`;
+  }
+ 
+  return `
+    <div class="booking-card" style="background:white;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);border-left:4px solid ${statusColor};">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+        <h3 style="margin:0;color:#1f2937;font-size:18px;">📋 ${safeBooking.field}</h3>
+        <span style="background:${statusBg};color:${statusColor};padding:6px 12px;border-radius:20px;font-weight:600;font-size:14px;">${statusText}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:15px;">
+        <div><p style="margin:0;color:#6b7280;font-size:13px;">📅 วันที่เล่น</p><p style="margin:5px 0 0 0;color:#1f2937;font-weight:600;">${fmtDate(safeBooking.date)}</p></div>
+        <div><p style="margin:0;color:#6b7280;font-size:13px;">⏰ เวลา</p><p style="margin:5px 0 0 0;color:#1f2937;font-weight:600;">${safeBooking.time}</p></div>
+        <div><p style="margin:0;color:#6b7280;font-size:13px;">💰 ราคารวม</p><p style="margin:5px 0 0 0;color:#1f2937;font-weight:600;">${safeBooking.totalPrice.toLocaleString()} บาท</p></div>
+        <div><p style="margin:0;color:#6b7280;font-size:13px;">📱 เบอร์ติดต่อ</p><p style="margin:5px 0 0 0;color:#1f2937;font-weight:600;">${safeBooking.phone}</p></div>
+      </div>
+      <div style="background:#f9fafb;padding:12px;border-radius:8px;margin-bottom:15px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="color:#6b7280;font-size:13px;">💵 ค่ามัดจำ 30%</span>
+          <span style="font-weight:600;color:${safeBooking.depositStatus==='approved'?'#10b981':'#f59e0b'}">${safeBooking.depositAmount.toLocaleString()} บาท ${safeBooking.depositStatus==='approved'?'✅':'⏳'}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="color:#6b7280;font-size:13px;">💸 ค่าบริการคงเหลือจ่ายที่สนาม</span>
+          <span style="font-weight:600;color:${safeBooking.remainingStatus==='paid'?'#10b981':'#ef4444'}">${safeBooking.remainingAmount.toLocaleString()} บาท${safeBooking.remainingStatus==='paid'?' ✅':''}</span>
+        </div>
+      </div>
+      ${extensionButton}
+      ${payRemainingButton}
+      ${waitingBanner}
+      ${playingBanner}
+      ${cancelButton}
+      <div style="margin-top:15px;padding-top:15px;border-top:1px solid #e5e7eb;">
+        <p style="margin:0;color:#9ca3af;font-size:12px;">📋 จองเมื่อ: ${fmtDateTime(safeBooking.createdAt)}</p>
+      </div>
+    </div>`;
+}
+ 
+function initializeBookingCardEvents() {
+  document.querySelectorAll('.extend-booking-btn').forEach(btn => {
+    const bookingId = btn.getAttribute('data-booking-id');
+    const bookingDataStr = btn.getAttribute('data-booking-data');
+    if (bookingDataStr) {
+      try {
+        const booking = JSON.parse(bookingDataStr.replace(/&quot;/g, '"'));
+        checkNextSlotForBooking(booking);
+      } catch(e) {}
+    }
+    btn.addEventListener('click', function() {
+      if (bookingId) requestBookingExtension(bookingId);
+    });
+  });
+  document.querySelectorAll('.cancel-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const bookingId = this.getAttribute('data-booking-id');
+      if (bookingId) cancelBooking(bookingId);
+    });
+  });
+}
+ 
+// ========== จ่ายค่าสนามคงเหลือ ==========
+function openPayRemainingModal(bookingId) {
+  const booking = null; // ดึงจาก Firebase
+  database.ref('bookings/' + bookingId).once('value').then(snap => {
+    const b = snap.val();
+    if (!b) { showToast('❌ ไม่พบข้อมูลการจอง', 'error'); return; }
+    const remaining = b.remainingAmount || 0;
+    const modalHtml = `
+      <div id="payRemainingModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:white;border-radius:16px;padding:24px;max-width:400px;width:100%;max-height:90vh;overflow-y:auto;">
+          <h3 style="color:#c2410c;margin:0 0 16px;text-align:center;">💸 ชำระค่าสนามคงเหลือ</h3>
+          <div style="background:#fff7ed;border-radius:10px;padding:12px;margin-bottom:14px;font-size:0.9em;line-height:1.8;">
+            <div>📍 <strong>สนาม:</strong> ${b.field}</div>
+            <div>⏰ <strong>เวลา:</strong> ${b.time}</div>
+            <div>💰 <strong>ยอดที่ต้องชำระ:</strong> <span style="color:#dc2626;font-weight:700;font-size:1.1em;">${remaining.toLocaleString()} บาท</span></div>
+          </div>
+          <div style="background:#f9fafb;border-radius:10px;padding:12px;margin-bottom:14px;text-align:center;">
+            <p style="margin:0 0 8px;font-weight:600;">📱 สแกน QR Code พร้อมเพย์</p>
+            <img src="qr-promptpay.png" alt="QR Code" style="max-width:200px;width:100%;border-radius:8px;" onerror="this.parentElement.innerHTML='<p style=color:#ef4444>⚠️ กรุณาโอนที่เลขพร้อมเพย์: <strong>1103100835163</strong></p>'">
+            <p style="margin:8px 0 0;font-size:13px;color:#374151;"><strong>ชื่อบัญชี:</strong> นาย พัสกร ราชชมภู</p>
+            <p style="margin:4px 0 0;font-size:13px;color:#374151;"><strong>ยอด:</strong> ${remaining.toLocaleString()} บาท</p>
+          </div>
+          <div style="margin-bottom:14px;">
+            <label style="display:block;margin-bottom:8px;font-weight:600;font-size:14px;">📤 แนบสลิปการโอนเงิน</label>
+            <div onclick="document.getElementById('remainingSlipInput').click()"
+              style="border:2px dashed #f97316;border-radius:10px;padding:20px;text-align:center;cursor:pointer;background:#fff7ed;">
+              <p style="margin:0;color:#f97316;">📎 คลิกเพื่ออัพโหลดสลิป</p>
             </div>
+            <input type="file" id="remainingSlipInput" accept="image/*" style="display:none;" onchange="previewRemainingSlip(event)">
+            <img id="remainingSlipPreview" style="display:none;max-width:100%;border-radius:8px;margin-top:8px;">
           </div>
- 
-        </div>
- 
-        <!-- ตารางรายการจอง -->
-        <div style="background:white;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.08);overflow:hidden;">
-          <div style="padding:16px 22px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;">
-            <p style="margin:0;font-size:14px;font-weight:600;color:#374151;">รายการจองในช่วงเวลา</p>
+          <div style="display:flex;gap:10px;">
+            <button onclick="document.getElementById('payRemainingModal').remove()"
+              style="flex:1;padding:11px;border:2px solid #e5e7eb;background:white;border-radius:10px;cursor:pointer;font-family:inherit;">
+              ยกเลิก
+            </button>
+            <button id="confirmRemainingBtn" onclick="submitRemainingPayment('${bookingId}',${remaining})" disabled
+              style="flex:2;padding:11px;background:#f97316;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">
+              ✅ ยืนยันการชำระ
+            </button>
           </div>
-          <div style="overflow-x:auto;" id="rptTableContainer">
-            <p style="text-align:center;color:#9ca3af;padding:30px;font-size:13px;">กำลังโหลดข้อมูล...</p>
-          </div>
         </div>
+      </div>`;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  }).catch(err => showToast('❌ ' + err.message, 'error'));
+}
  
-      </div>
-    </div>
+function previewRemainingSlip(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!['image/jpeg','image/jpg','image/png'].includes(file.type)) { alert('❌ กรุณาอัพโหลดไฟล์ภาพ JPG หรือ PNG'); return; }
+  if (file.size > 5 * 1024 * 1024) { alert('❌ ไฟล์ใหญ่เกินไป (ไม่เกิน 5MB)'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const preview = document.getElementById('remainingSlipPreview');
+    preview.src = e.target.result;
+    preview.style.display = 'block';
+    document.getElementById('confirmRemainingBtn').disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
  
-    <!-- ===== TAB: IMAGES    <!-- ===== TAB: IMAGES ===== -->
-    <div class="tab-content" id="imagesTab">
-      <div class="bookings-section">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-          <h2>🖼️ จัดการรูปภาพแกลเลอรี่</h2>
-          <button class="btn-add" onclick="openAddImageModal()">➕ เพิ่มรูปภาพ</button>
-        </div>
-        <div class="image-grid" id="imageGrid"></div>
-      </div>
-    </div>
+function submitRemainingPayment(bookingId, remainingAmount) {
+  const slipInput = document.getElementById('remainingSlipInput');
+  const file = slipInput ? slipInput.files[0] : null;
+  if (!file) { alert('❌ กรุณาแนบสลิปการโอนเงิน'); return; }
+  const btn = document.getElementById('confirmRemainingBtn');
+  btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...';
+  const reader = new FileReader();
+  reader.onload = e => {
+    database.ref('bookings/' + bookingId).update({
+      bookingStatus: 'remaining_payment_pending',
+      remainingSlipUrl: e.target.result,
+      remainingPaidAt: new Date().toISOString()
+    }).then(() => {
+      document.getElementById('payRemainingModal').remove();
+      showToast('✅ ส่งสลิปแล้ว รอ Staff ยืนยัน', 'success', 4000);
+      updateBookingList();
+    }).catch(err => {
+      btn.disabled = false; btn.textContent = '✅ ยืนยันการชำระ';
+      showToast('❌ ' + err.message, 'error');
+    });
+  };
+  reader.readAsDataURL(file);
+}
  
-    <!-- ===== TAB: ACTIVITIES ===== -->
-    <div class="tab-content" id="activitiesTab">
-      <div class="bookings-section">
-        <h2>📢 จัดการกิจกรรม/ประกาศ</h2>
-        <button class="btn-add" onclick="openAddActivityModal()">➕ เพิ่มกิจกรรมใหม่</button>
-        <div class="activity-list" id="activityList"></div>
-      </div>
-    </div>
-  </div><!-- /container -->
+function cancelBooking(bookingId) {
+  if (isCancelling) return;
+  if (!confirm("⚠️ ต้องการยกเลิกการจองนี้ใช่หรือไม่?\n\nข้อมูลการจองจะถูกลบออกจากระบบทันที")) return;
+  isCancelling = true;
+  const cancelBtn = document.getElementById(`cancel-btn-${bookingId}`);
+  const originalButtonText = cancelBtn ? cancelBtn.textContent : '❌ ยกเลิก';
+  if (cancelBtn) { cancelBtn.textContent = '⏳ กำลังยกเลิก...'; cancelBtn.disabled = true; }
+  database.ref('bookings/' + bookingId).once('value').then((snapshot) => {
+    const booking = snapshot.val();
+    if (!booking) throw new Error('ไม่พบข้อมูลการจอง');
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) throw new Error('กรุณา Login ก่อนยกเลิกการจอง');
+    if (booking.userId !== firebaseUser.uid) throw new Error('คุณไม่มีสิทธิ์ยกเลิกการจองนี้');
+    const uniqueKey = `${booking.field}_${booking.date}_${booking.time}`;
+    return Promise.all([database.ref('bookings/' + bookingId).remove(), database.ref('booking_locks/' + uniqueKey).remove()]);
+  }).then(() => {
+    alert("✅ ยกเลิกการจองเรียบร้อยแล้ว");
+    updateBookingList();
+  }).catch((error) => {
+    alert("❌ " + error.message);
+  }).finally(() => {
+    isCancelling = false;
+    if (cancelBtn) { cancelBtn.textContent = originalButtonText; cancelBtn.disabled = false; }
+  });
+}
  
-  <!-- Modal: Booking Detail -->
-  <div class="modal" id="bookingModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>รายละเอียดการจอง</h2>
-        <button class="close-modal" onclick="closeBookingModal()">×</button>
-      </div>
-      <div id="bookingDetailContent"></div>
-    </div>
-  </div>
+// ========== DOM READY ==========
+document.addEventListener("DOMContentLoaded", () => {
+  initNavigation();
+  startSlider();
+  const sliderWrapper = document.querySelector('.slider-container');
+  if (sliderWrapper) {
+    let stX = 0, etX = 0;
+    sliderWrapper.addEventListener('touchstart', e => { stX = e.changedTouches[0].screenX; }, { passive: true });
+    sliderWrapper.addEventListener('touchend', e => { etX = e.changedTouches[0].screenX; const d = etX - stX; if (d < -50) changeSlide(1); if (d > 50) changeSlide(-1); }, { passive: true });
+  }
+  const staffModal = document.getElementById('staffGalleryModal');
+  if (staffModal) {
+    let tsY = 0;
+    staffModal.addEventListener('touchstart', e => { tsY = e.changedTouches[0].screenY; }, { passive: true });
+    staffModal.addEventListener('touchend', e => { if (e.changedTouches[0].screenY - tsY > 100) closeStaffModal(); }, { passive: true });
+  }
+  const loginModal = document.getElementById('loginModal');
+  if (loginModal) loginModal.addEventListener('click', e => { if (e.target.id === 'loginModal') closeLoginModal(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (typeof closeLoginModal === 'function') closeLoginModal();
+      const overlay = document.getElementById('menuOverlay');
+      if (overlay && overlay.classList.contains('active')) closeMobileMenu();
+      const extModal = document.getElementById('extensionModal');
+      if (extModal && extModal.classList.contains('show')) closeExtensionModal();
+    }
+  });
+  window.addEventListener("resize", debounce(() => {
+    if (window.innerWidth > 768) {
+      const overlay = document.getElementById("menuOverlay");
+      const hamburger = document.getElementById("hamburgerBtn");
+      if (overlay) overlay.classList.remove("active");
+      if (hamburger) hamburger.classList.remove("active");
+      document.body.style.overflow = "";
+    }
+  }, 150));
+});
  
-  <!-- Modal: Activity -->
-  <div class="modal" id="activityModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="activityModalTitle">เพิ่มกิจกรรม</h2>
-        <button class="close-modal" onclick="closeActivityModal()">×</button>
-      </div>
-      <form id="activityForm" onsubmit="saveActivity(event)">
-        <div class="form-group"><label>หัวข้อ:</label><input type="text" id="activityTitle" required></div>
-        <div class="form-group"><label>รายละเอียด:</label><textarea id="activityContent" required></textarea></div>
-        <div class="form-actions">
-          <button type="button" class="btn-secondary" onclick="closeActivityModal()">ยกเลิก</button>
-          <button type="submit" class="btn-primary">บันทึก</button>
-        </div>
-      </form>
-    </div>
-  </div>
+// ========== TOAST ==========
+const ToastSystem = {
+  container: null,
+  init() {
+    if (!this.container) {
+      this.container = document.getElementById('toast-container');
+      if (!this.container) { this.container = document.createElement('div'); this.container.id = 'toast-container'; document.body.appendChild(this.container); }
+    }
+  },
+  show(message, type = 'success', duration = 3000) {
+    this.init();
+    const icons = { success:'✅', error:'❌', warning:'⚠️', info:'ℹ️' };
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `<span class="toast-icon">${icons[type]}</span><span class="toast-message">${message}</span><button class="toast-close" onclick="this.parentElement.remove()">×</button>`;
+    this.container.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, duration);
+    return toast;
+  }
+};
+function showToast(message, type = 'success', duration = 3000) { return ToastSystem.show(message, type, duration); }
  
-  <!-- Modal: Image -->
-  <div class="modal" id="imageModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="imageModalTitle">เพิ่มรูปภาพใหม่</h2>
-        <button class="close-modal" onclick="closeImageModal()">×</button>
-      </div>
-      <form id="imageForm" onsubmit="saveImage(event)">
-        <div class="form-group"><label>ชื่อรูปภาพ:</label><input type="text" id="imageTitle" placeholder="กรอกชื่อรูปภาพ" required></div>
-        <div class="form-group"><label>ลำดับการแสดง:</label><input type="number" id="imageOrder" value="0" min="0"></div>
-        <div class="form-group">
-          <label>เลือกรูปภาพ:</label>
-          <input type="file" id="imageFile" accept="image/*" onchange="previewImage(event)">
-          <img id="imagePreview" style="max-width:100%;height:auto;border-radius:8px;margin-top:10px;display:none;border:2px solid #e5e7eb;" alt="Preview">
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn-secondary" onclick="closeImageModal()">ยกเลิก</button>
-          <button type="submit" class="btn-primary">บันทึก</button>
-        </div>
-      </form>
-    </div>
-  </div>
+// ========== LOADING ==========
+const LoadingSystem = {
+  overlay: null, loadingText: null,
+  init() {
+    if (!this.overlay) {
+      this.overlay = document.getElementById('global-loading');
+      if (!this.overlay) { this.overlay = document.createElement('div'); this.overlay.id = 'global-loading'; this.overlay.innerHTML = '<div class="loading-overlay"><div class="spinner"></div><p class="loading-text">กำลังโหลด...</p></div>'; document.body.appendChild(this.overlay); }
+      this.loadingText = this.overlay.querySelector('.loading-text');
+    }
+  },
+  show(message = 'กำลังโหลด...') { this.init(); if (this.loadingText) this.loadingText.textContent = message; this.overlay.classList.add('active'); document.body.style.overflow = 'hidden'; },
+  hide() { if (this.overlay) { this.overlay.classList.remove('active'); document.body.style.overflow = ''; } }
+};
+function showLoading(message) { LoadingSystem.show(message); }
+function hideLoading() { LoadingSystem.hide(); }
  
-  <!-- Modal: Refund -->
-  <div class="modal" id="refundModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>เพิ่มรายการคืนมัดจำ</h2>
-        <button class="close-modal" onclick="closeRefundModal()">×</button>
-      </div>
-      <form id="refundForm" onsubmit="saveRefund(event)">
-        <div class="form-group"><label>ชื่อ-นามสกุล:</label><input type="text" id="refundName" placeholder="ชื่อ-นามสกุล" required></div>
-        <div class="form-group"><label>เบอร์โทร:</label><input type="text" id="refundPhone" placeholder="08x-xxx-xxxx"></div>
-        <div class="form-group"><label>สนาม:</label><input type="text" id="refundField" placeholder="เช่น สนาม 1"></div>
-        <div class="form-group"><label>วันที่:</label><input type="date" id="refundDate"></div>
-        <div class="form-group"><label>เวลา:</label><input type="text" id="refundTime" placeholder="เช่น 18:00 - 19:00"></div>
-        <div class="form-group"><label>ยอดมัดจำ (บาท):</label><input type="number" id="refundDeposit" value="300" min="0"></div>
-        <div class="form-actions">
-          <button type="button" class="btn-secondary" onclick="closeRefundModal()">ยกเลิก</button>
-          <button type="submit" class="btn-primary">บันทึก</button>
-        </div>
-      </form>
-    </div>
-  </div>
+// ========== STAFF GALLERY + ACTIVITIES ==========
+function loadStaffGallery() {
+  const container = document.getElementById('staffGalleryContainer');
+  if (!container) return;
+  container.innerHTML = '<div class="content-loading-state">🔄 กำลังโหลดรูปภาพ...</div>';
+  database.ref('gallery').get().then((snapshot) => {
+    container.innerHTML = '';
+    if (!snapshot.exists()) { container.innerHTML = '<div class="content-loading-state">📷 ยังไม่มีรูปภาพ</div>'; return; }
+    const items = [];
+    snapshot.forEach(child => { const val = child.val(); if (val && val.url) items.push({ id: child.key, ...val }); });
+    items.sort((a, b) => (a.order != null ? Number(a.order) : 9999) - (b.order != null ? Number(b.order) : 9999));
+    items.forEach(item => {
+      const safeTitle = SecurityUtils.escapeHtml(item.title || 'ไม่มีชื่อ');
+      const safeUrl = (item.url || '').replace(/[<>"'`]/g, '');
+      const card = document.createElement('div');
+      card.className = 'staff-gallery-card';
+      card.setAttribute('data-image-url', safeUrl);
+      card.addEventListener('click', function() { const url = this.getAttribute('data-image-url'); if (url) openStaffModal(url); });
+      card.innerHTML = `<img src="${safeUrl}" alt="${safeTitle}" loading="lazy" onerror="this.src='placeholder.jpg'"><div class="staff-gallery-card-title">${safeTitle}</div>`;
+      container.appendChild(card);
+    });
+    console.log('✅ gallery loaded:', items.length, 'items');
+  }).catch(err => {
+    console.error('❌ gallery error:', err);
+    container.innerHTML = '<div class="content-loading-state">⚠️ โหลดรูปภาพไม่สำเร็จ</div>';
+  });
+}
  
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <script>
+function loadActivities() {
+  const container = document.getElementById('activitiesContainer');
+  if (!container) return;
+  container.innerHTML = '<div class="content-loading-state">🔄 กำลังโหลดข่าวสาร...</div>';
+  database.ref('activities').get().then((snapshot) => {
+    container.innerHTML = '';
+    if (!snapshot.exists()) { container.innerHTML = '<div class="content-loading-state">📝 ยังไม่มีข่าวสาร</div>'; return; }
+    const items = [];
+    snapshot.forEach(child => { const val = child.val(); if (val) items.push({ id: child.key, ...val }); });
+    items.sort((a, b) => {
+      const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return db - da;
+    });
+    items.forEach(item => {
+      const safeTitle = SecurityUtils.escapeHtml(item.title || 'ไม่มีหัวข้อ');
+      const safeContent = SecurityUtils.escapeHtml(item.content || '');
+      const card = document.createElement('div');
+      card.className = 'activity-card';
+      card.innerHTML = `<div class="activity-header"><div class="activity-title">${safeTitle}</div><div class="activity-date">${formatDate(item.createdAt)}</div></div><div class="activity-content">${safeContent}</div>`;
+      container.appendChild(card);
+    });
+    console.log('✅ activities loaded:', items.length, 'items');
+  }).catch(err => {
+    console.error('❌ activities error:', err);
+    container.innerHTML = '<div class="content-loading-state">⚠️ โหลดข่าวสารไม่สำเร็จ</div>';
+  });
+}
+ 
+// formatDate สำหรับ activity (แสดงเวลาด้วย)
+function formatDate(iso) {
+  if (!iso) return '-';
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '-';
+    const day   = String(d.getDate()).padStart(2,'0');
+    const month = String(d.getMonth()+1).padStart(2,'0');
+    const year  = d.getFullYear() + 543;
+    const time  = d.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
+    return `${day}/${month}/${year} ${time}`;
+  } catch(e) { return '-'; }
+}
+ 
+// ========== FIREBASE INIT ==========
+let firebaseInitRetryCount = 0;
+const MAX_FIREBASE_RETRIES = 50;
+ 
+function initializeFirebase() {
+  firebaseInitRetryCount++;
+  if (window.firebaseLoadError) { console.error('❌ Firebase scripts failed to load'); alert('⚠️ ไม่สามารถโหลด Firebase ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต'); return; }
+  if (typeof firebase === 'undefined') {
+    if (firebaseInitRetryCount > MAX_FIREBASE_RETRIES) { alert('⚠️ ไม่สามารถเชื่อมต่อ Firebase ได้ กรุณาตรวจสอบการเชื่อมต่อ'); return; }
+    setTimeout(initializeFirebase, 100);
+    return;
+  }
+  try {
     const firebaseConfig = {
       apiKey: "AIzaSyB6jVc8qcyS9zIJvfi-E1BL7BaxrUorO7w",
       authDomain: "prijit-sport.firebaseapp.com",
@@ -545,1013 +1391,248 @@
       appId: "1:19782245186:web:8ff3e2e17a214edc3546db"
     };
     firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const database = firebase.database();
-    const IMGBB_API_KEY = '945c86ce6da8961a5b136c8472251f41';
-    const DEPOSIT_AMOUNT = 300;
-    const DEPOSIT_PERCENTAGE = 0.30;
-    const SCHEDULE_FIELDS = [1,2,3,4,5,6];
-    const SCHEDULE_START_HOUR = 7;   // เปิด 07:00
-    const SCHEDULE_END_HOUR   = 19;  // ปิด 20:00 (slot สุดท้าย 19:00-20:00)
- 
-    function getBookingDeposit(b) {
-      if (!b) return DEPOSIT_AMOUNT;
-      if (b.depositAmount != null) return b.depositAmount;
-      if (b.totalPrice != null) return Math.round(b.totalPrice * DEPOSIT_PERCENTAGE);
-      return DEPOSIT_AMOUNT;
-    }
- 
-    let allBookings = [], filteredBookings = [], currentBooking = null;
-    let currentActivityId = null, currentImageId = null, allRefunds = [];
- 
-    // ===== FORMAT DATE DD/MM/YYYY พ.ศ. =====
-    function formatDate(dateStr) {
-      if (!dateStr) return '-';
-      try {
-        const d = new Date(dateStr);
-        if (isNaN(d.getTime())) return '-';
-        const day   = String(d.getDate()).padStart(2,'0');
-        const month = String(d.getMonth()+1).padStart(2,'0');
-        const year  = d.getFullYear() + 543;
-        return `${day}/${month}/${year}`;
-      } catch(e) { return '-'; }
-    }
-    function formatDateTime(iso) {
-      if (!iso) return '-';
-      try {
-        const d = new Date(iso);
-        if (isNaN(d.getTime())) return '-';
-        return formatDate(iso) + ' ' + d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
-      } catch(e) { return '-'; }
-    }
- 
-    // ===== AUTH =====
+    auth = firebase.auth();
+    database = firebase.database();
+    console.log("✅ Firebase ready!");
+    initializeTimeSlots();
     auth.onAuthStateChanged((user) => {
       if (user) {
-        database.ref('users/'+user.uid).once('value').then((snapshot) => {
-          const userData = snapshot.val();
-          if (userData && userData.role === 'staff') {
-            document.getElementById('staffName').textContent = userData.fullname || userData.username || user.email;
-            loadBookings(); loadImages(); loadActivities(); loadRefunds();
-          } else {
-            alert('⚠️ คุณไม่มีสิทธิ์เข้าถึงระบบ Admin');
-            auth.signOut(); window.location.href = 'staff-login.html';
-          }
-        }).catch(() => { auth.signOut(); window.location.href = 'staff-login.html'; });
-      } else { window.location.href = 'staff-login.html'; }
-    });
- 
-    // ===== TABS =====
-    function switchTab(tabName, event) {
-      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      if (event && event.target) event.target.classList.add('active');
-      const map = { bookings:'bookingsTab', schedule:'scheduleTab', refunds:'refundsTab', report:'reportTab', images:'imagesTab', activities:'activitiesTab' };
-      if (map[tabName]) document.getElementById(map[tabName]).classList.add('active');
-      if (tabName === 'schedule') renderSchedule();
-      if (tabName === 'refunds') renderRefunds();
-      if (tabName === 'report') { REPORT_RANGE_DAYS = 7; renderReport(); }
-      if (tabName === 'images') loadImages();
-      if (tabName === 'activities') loadActivities();
-    }
- 
-    // ===== BOOKINGS =====
-    function loadBookings() {
-      showLoading();
-      database.ref('bookings').on('value', (snapshot) => {
-        allBookings = [];
-        snapshot.forEach((child) => allBookings.push({ id: child.key, ...child.val() }));
-        allBookings.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-        updateStats(); applyFilters(); renderSchedule(); checkAndDeleteExpiredBookings();
-        if (document.getElementById("reportTab") && document.getElementById("reportTab").classList.contains("active")) renderReport();
-        hideLoading();
-      });
-    }
- 
-    function updateStats() {
-      const pending  = allBookings.filter(b => ['pending','pending_payment'].includes(b.bookingStatus)).length;
-      const approved = allBookings.filter(b => ['approved','remaining_payment_pending','playing'].includes(b.bookingStatus)).length;
-      document.getElementById('statPending').textContent  = pending;
-      document.getElementById('statApproved').textContent = approved;
-      document.getElementById('statTotal').textContent    = allBookings.length;
-    }
- 
-    function applyFilters() {
-      const sf = document.getElementById('filterStatus').value;
-      const ff = document.getElementById('filterField').value;
-      const df = document.getElementById('filterDate').value;
-      filteredBookings = allBookings.filter(b => {
-        let m = true;
-        if (sf !== 'all') {
-          // pending และ pending_payment ถือเป็นกลุ่มเดียวกันเมื่อกรอง 'pending'
-          if (sf === 'pending') {
-            m = m && (b.bookingStatus === 'pending' || b.bookingStatus === 'pending_payment');
-          } else {
-            m = m && b.bookingStatus === sf;
-          }
-        }
-        if (ff !== 'all') m = m && b.field === ff;
-        if (df) m = m && b.date === df;
-        return m;
-      });
-      renderBookings();
-    }
- 
-    function getStatusInfo(status) {
-      const map = {
-        'pending':                   { cls:'status-pending',   text:'รอตรวจสอบ ⏳' },
-        'pending_payment':           { cls:'status-pending',   text:'รอตรวจสอบ ⏳' },
-        'approved':                  { cls:'status-approved',  text:'อนุมัติแล้ว ✅' },
-        'remaining_payment_pending': { cls:'',                 text:'รอยืนยันการชำระ 💸', style:'background:#fff7ed;color:#c2410c;' },
-        'playing':                   { cls:'',                 text:'⚽ กำลังใช้สนาม',    style:'background:#f5f3ff;color:#7c3aed;' },
-        'completed':                 { cls:'',                 text:'เสร็จแล้ว ✔️',       style:'background:#f3f4f6;color:#6b7280;' },
-        'rejected':                  { cls:'status-rejected',  text:'ปฏิเสธ ❌' },
-      };
-      return map[status] || { cls:'status-pending', text:status };
-    }
- 
-    function getActionButtons(booking) {
-      const id = booking.id;
-      const st = booking.bookingStatus;
-      let btns = `<button class="btn-view" onclick="viewBooking('${id}')">ดู</button>`;
-      if (st === 'pending' || st === 'pending_payment') {
-        btns += `<button class="btn-approve" onclick="approveBooking('${id}')">อนุมัติ</button>
-                 <button class="btn-reject"  onclick="rejectBooking('${id}')">ปฏิเสธ</button>`;
-      }
-      if (st === 'remaining_payment_pending') {
-        btns += `<button class="btn-approve" onclick="confirmRemainingPayment('${id}')" style="background:#f97316;">✅ ยืนยันรับเงิน</button>`;
-      }
-      if (st === 'playing') {
-        btns += `<button class="btn-approve" onclick="markCompleted('${id}')" style="background:#7c3aed;">🏁 เล่นเสร็จ</button>`;
-      }
-      return btns;
-    }
- 
-    function renderBookings() {
-      const container = document.getElementById('bookingsContainer');
-      if (filteredBookings.length === 0) { container.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">ไม่พบข้อมูลการจอง</p>'; return; }
- 
-      let runNo = 1;
-      let tableHtml = `<table class="bookings-table"><thead><tr>
-        <th>ลำดับ</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>สนาม</th>
-        <th>วันที่</th><th>เวลา</th><th>ราคาเต็ม</th><th>มัดจำ</th><th>ค่าคงค้าง</th>
-        <th>สถานะ</th><th>จัดการ</th>
-      </tr></thead><tbody>`;
-      let mobileHtml = '<div class="mobile-bookings">';
- 
-      filteredBookings.forEach(booking => {
-        const si = getStatusInfo(booking.bookingStatus);
-        const badgeStyle = si.style ? `style="${si.style}padding:6px 12px;border-radius:20px;font-weight:600;font-size:13px;display:inline-block;"` : `class="status-badge ${si.cls}"`;
-        const name   = booking.fullname || booking.name || booking.username || '-';
-        const dep    = getBookingDeposit(booking);
-        const remaining = Math.max((booking.totalPrice||0) - dep, 0);
-        const no     = String(runNo++).padStart(2,'0');
-        const actionBtns = getActionButtons(booking);
- 
-        tableHtml += `<tr${booking.bookingStatus==='playing'?' style="background:#faf5ff;"':booking.bookingStatus==='completed'?' style="background:#f9fafb;opacity:0.75;"':''}>
-          <td>${no}</td><td>${name}</td><td>${booking.phone||'-'}</td>
-          <td>${booking.field}</td><td>${formatDate(booking.date)}</td><td>${booking.time}</td>
-          <td>฿${(booking.totalPrice||0).toLocaleString()}</td>
-          <td style="color:#10b981;font-weight:600;">฿${dep.toLocaleString()}</td>
-          <td style="color:#ef4444;font-weight:600;">฿${remaining.toLocaleString()}</td>
-          <td><span ${badgeStyle}>${si.text}</span></td>
-          <td><div class="action-buttons">${actionBtns}</div></td>
-        </tr>`;
- 
-        mobileHtml += `<div class="booking-card" style="${booking.bookingStatus==='playing'?'border-left:4px solid #7c3aed;':booking.bookingStatus==='completed'?'opacity:0.75;':booking.bookingStatus==='remaining_payment_pending'?'border-left:4px solid #f97316;':''}">
-          <div class="booking-card-header"><span class="booking-card-id">${no}</span><span ${badgeStyle}>${si.text}</span></div>
-          <div class="booking-card-body">
-            <div class="booking-card-row"><span class="booking-card-label">ชื่อ-นามสกุล:</span><span>${name}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">สนาม:</span><span>${booking.field}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">วันที่:</span><span>${formatDate(booking.date)}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">เวลา:</span><span>${booking.time}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">ราคาเต็ม:</span><span>฿${(booking.totalPrice||0).toLocaleString()}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">มัดจำ:</span><span style="color:#10b981;font-weight:600;">฿${dep.toLocaleString()}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">ค่าคงค้าง:</span><span style="color:#ef4444;font-weight:600;">฿${remaining.toLocaleString()}</span></div>
-          </div>
-          <div class="booking-card-actions">${actionBtns}</div>
-        </div>`;
-      });
- 
-      tableHtml += '</tbody></table>';
-      mobileHtml += '</div>';
-      container.innerHTML = tableHtml + mobileHtml;
-    }
- 
-    function depositStatusText(s) {
-      const m = { pending:'รอตรวจสอบ', verified:'ยืนยันแล้ว', paid:'ชำระแล้ว', refunded:'คืนแล้ว', forfeited:'ริบมัดจำ', not_required:'ไม่ต้องมัดจำ', cancelled:'ยกเลิก' };
-      return m[s] || (s||'รอตรวจสอบ');
-    }
- 
-    function viewBooking(bookingId) {
-      currentBooking = allBookings.find(b => b.id === bookingId);
-      if (!currentBooking) return;
-      const name = currentBooking.fullname || currentBooking.name || currentBooking.username || '-';
-      const dep  = getBookingDeposit(currentBooking);
-      const remaining = currentBooking.remainingAmount ?? Math.max((currentBooking.totalPrice||0) - dep, 0);
-      const payStatus = currentBooking.paymentVerified ? '<span style="color:#10b981;">✅ ตรวจสอบแล้ว</span>' : '<span style="color:#f59e0b;">⏳ รอตรวจสอบ</span>';
- 
-      let html = `
-        <div class="booking-detail"><label>ชื่อ-นามสกุล:</label><span>${name}</span></div>
-        <div class="booking-detail"><label>เบอร์โทร:</label><span>${currentBooking.phone||'-'}</span></div>
-        <div class="booking-detail"><label>สนาม:</label><span>${currentBooking.field}</span></div>
-        <div class="booking-detail"><label>วันที่เล่น:</label><span>${formatDate(currentBooking.date)}</span></div>
-        <div class="booking-detail"><label>เวลา:</label><span>${currentBooking.time}</span></div>
-        <div class="booking-detail"><label>ราคาเต็ม:</label><span>฿${(currentBooking.totalPrice||0).toLocaleString()}</span></div>
-        <div class="booking-detail"><label>มัดจำที่โอนมา:</label><span style="color:#10b981;font-weight:700;">฿${dep.toLocaleString()} <span style="font-weight:400;color:#666;">(${depositStatusText(currentBooking.depositStatus)})</span></span></div>
-        <div class="booking-detail"><label>ยอดคงค้าง (จ่ายหน้าร้าน):</label><span style="color:#ef4444;font-weight:700;">฿${remaining.toLocaleString()}</span></div>
-        <div class="booking-detail"><label>สถานะการชำระ:</label><span>${payStatus}</span></div>`;
- 
-      if (currentBooking.depositSlipUrl) {
-        html += `<div class="booking-detail"><label>สลิปโอนเงิน:</label>
-          <div style="text-align:center;margin-top:10px;">
-            <img src="${currentBooking.depositSlipUrl}" alt="Payment Slip" class="slip-image" onclick="window.open('${currentBooking.depositSlipUrl}','_blank')" style="cursor:pointer;">
-            <p style="font-size:12px;color:#666;margin-top:5px;">คลิกเพื่อดูขนาดเต็ม</p>
-          </div></div>`;
-      }
- 
-      if (currentBooking.bookingStatus !== 'approved') {
-        html += `<div class="modal-actions">
-          <button class="btn-approve" onclick="approveBookingFromModal()">✅ อนุมัติการจอง</button>
-          <button class="btn-reject" onclick="rejectBookingFromModal()">❌ ปฏิเสธการจอง</button>
-        </div>`;
+        database.ref('users/' + user.uid).once('value').then((snapshot) => {
+          currentUser = { uid: user.uid, ...snapshot.val() };
+          document.getElementById("currentUser").textContent = currentUser.fullname;
+          document.getElementById("loginNavBtn").style.display = "none";
+          document.getElementById("userInfo").style.display = "flex";
+          updateBookingList();
+        }).catch(error => console.error("❌ Failed to load user:", error));
       } else {
-        html += `<div class="modal-actions">
-          <button class="btn-reject" onclick="cancelApprovedBooking()">❌ ยกเลิกการจอง (คืนมัดจำ)</button>
-        </div>`;
+        currentUser = null;
+        document.getElementById("loginNavBtn").style.display = "inline-block";
+        document.getElementById("userInfo").style.display = "none";
       }
- 
-      document.getElementById('bookingDetailContent').innerHTML = html;
-      document.getElementById('bookingModal').classList.add('active');
-    }
- 
-    function closeBookingModal() { document.getElementById('bookingModal').classList.remove('active'); currentBooking = null; }
- 
-    function approveBooking(bookingId) {
-      if (!confirm('ยืนยันการอนุมัติการจองนี้?')) return;
-      showLoading();
-      const booking = allBookings.find(b => b.id === bookingId);
-      const deleteTime = calculateBookingEndTime(booking.date, booking.time);
-      database.ref('bookings/'+bookingId).update({
-        bookingStatus:'approved', paymentVerified:true,
-        approvedAt:new Date().toISOString(), approvedBy:auth.currentUser.uid, autoDeleteAt:deleteTime
-      }).then(() => {
-        hideLoading();
-        const dep = getBookingDeposit(booking);
-        if (booking.depositSlipUrl && dep > 0) createRefundRecord(booking, 'อนุมัติการจอง — รอคืนมัดจำหลังลูกค้าเล่นเสร็จ', 'pending');
-        showToast('อนุมัติการจองเรียบร้อยแล้ว','success');
-        if (deleteTime) scheduleAutoDelete(bookingId, deleteTime);
-      }).catch(err => { hideLoading(); showToast(err.message,'error'); });
-    }
- 
-    function approveBookingFromModal() { if (currentBooking) { approveBooking(currentBooking.id); closeBookingModal(); } }
- 
-    function rejectBooking(bookingId) {
-      const booking = allBookings.find(b => b.id === bookingId);
-      const reason = prompt('กรุณาระบุเหตุผลในการปฏิเสธ:');
-      if (!reason || !reason.trim()) { showToast('กรุณาระบุเหตุผล','warning'); return; }
-      if (!confirm('⚠️ การปฏิเสธจะลบรายการจองนี้ออกจากระบบทันที\nยืนยันการปฏิเสธ?')) return;
-      if (booking && booking.depositSlipUrl) {
-        const doRefund = confirm('ลูกค้าได้แนบสลิปมัดจำไว้\nตกลง = บันทึกเป็นรายการรอคืนมัดจำ\nยกเลิก = ริบมัดจำ');
-        createRefundRecord(booking, reason, doRefund ? 'pending' : 'forfeit');
-      }
-      showLoading();
-      database.ref('bookings/'+bookingId).remove().then(() => { hideLoading(); showToast('ปฏิเสธและลบการจองเรียบร้อยแล้ว','success'); }).catch(err => { hideLoading(); showToast(err.message,'error'); });
-    }
- 
-    function rejectBookingFromModal() { if (currentBooking) { rejectBooking(currentBooking.id); closeBookingModal(); } }
- 
-    function cancelApprovedBooking() {
-      if (!currentBooking) return;
-      if (!confirm('⚠️ ยืนยันการยกเลิกการจองที่อนุมัติแล้ว?')) return;
-      const reason = prompt('เหตุผลในการยกเลิก:', 'ยกเลิกการจอง') || 'ยกเลิกการจอง';
-      createRefundRecord(currentBooking, reason, 'pending');
-      showLoading();
-      database.ref('bookings/'+currentBooking.id).remove().then(() => { hideLoading(); closeBookingModal(); showToast('ยกเลิกการจองและบันทึกการคืนมัดจำแล้ว','success'); }).catch(err => { hideLoading(); showToast(err.message,'error'); });
-    }
- 
-    function calculateBookingEndTime(dateString, timeString) {
-      try {
-        const m = timeString.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/);
-        if (!m) return null;
-        const dt = new Date(dateString+'T'+m[2]+':00');
-        dt.setMinutes(dt.getMinutes()+30);
-        return dt.toISOString();
-      } catch(e) { return null; }
-    }
- 
-    function scheduleAutoDelete(bookingId, deleteTime) {
-      if (!deleteTime) return;
-      const now = new Date(), dt = new Date(deleteTime), delay = dt - now;
-      if (delay > 0) setTimeout(() => database.ref('bookings/'+bookingId).remove().catch(()=>{}), delay);
-      else database.ref('bookings/'+bookingId).remove();
-    }
- 
-    // ===== ยืนยันรับเงินค่าสนามคงเหลือ → playing =====
-    function confirmRemainingPayment(bookingId) {
-      const booking = allBookings.find(b => b.id === bookingId);
-      if (!booking) { showToast('ไม่พบข้อมูลการจอง', 'error'); return; }
-      // แสดง modal สลิปค่าคงเหลือ
-      const slipUrl = booking.remainingSlipUrl || '';
-      const modalHtml = `
-        <div id="confirmRemModal" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">
-          <div style="background:white;border-radius:16px;padding:24px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">
-            <h3 style="color:#c2410c;margin:0 0 14px;text-align:center;">💸 ยืนยันการรับเงินค่าสนาม</h3>
-            <div style="background:#fff7ed;border-radius:10px;padding:12px;margin-bottom:14px;font-size:0.9em;line-height:1.8;">
-              <div>👤 <strong>${booking.fullname||booking.username||'-'}</strong></div>
-              <div>📍 <strong>${booking.field}</strong> | ⏰ ${booking.time}</div>
-              <div>💰 ยอดที่รับ: <strong style="color:#dc2626;">${(booking.remainingAmount||0).toLocaleString()} บาท</strong></div>
-            </div>
-            ${slipUrl ? `<div style="margin-bottom:14px;text-align:center;">
-              <p style="font-weight:600;margin-bottom:8px;">📎 สลิปที่แนบมา</p>
-              <img src="${slipUrl}" style="max-width:100%;border-radius:8px;max-height:300px;object-fit:contain;" onclick="window.open('${slipUrl}','_blank')">
-            </div>` : '<p style="color:#ef4444;text-align:center;">⚠️ ไม่มีสลิปแนบมา</p>'}
-            <div style="display:flex;gap:10px;margin-top:16px;">
-              <button onclick="document.getElementById('confirmRemModal').remove()"
-                style="flex:1;padding:11px;border:2px solid #e5e7eb;background:white;border-radius:10px;cursor:pointer;font-family:inherit;">ยกเลิก</button>
-              <button onclick="document.getElementById('confirmRemModal').remove(); doConfirmRemaining('${bookingId}')"
-                style="flex:2;padding:11px;background:#7c3aed;color:white;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">
-                ✅ รับเงินแล้ว → เปิดสนาม
-              </button>
-            </div>
-          </div>
-        </div>`;
-      document.body.insertAdjacentHTML('beforeend', modalHtml);
-    }
- 
-    function doConfirmRemaining(bookingId) {
-      showLoading();
-      const now = new Date().toISOString();
-      database.ref('bookings/' + bookingId).update({
-        bookingStatus: 'playing',
-        remainingStatus: 'paid',
-        remainingConfirmedAt: now,
-        remainingConfirmedBy: auth.currentUser ? auth.currentUser.uid : 'staff',
-        playingStartedAt: now
-      }).then(() => {
-        hideLoading();
-        showToast('✅ ยืนยันรับเงินแล้ว สนามเปิดใช้งาน', 'success');
-      }).catch(err => { hideLoading(); showToast('❌ ' + err.message, 'error'); });
-    }
- 
-    // ===== เล่นเสร็จ → completed → ลบหลัง 24 ชม. =====
-    function markCompleted(bookingId) {
-      if (!confirm('ยืนยันว่าลูกค้าเล่นเสร็จแล้ว?')) return;
-      showLoading();
-      const autoDeleteAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      database.ref('bookings/' + bookingId).update({
-        bookingStatus: 'completed',
-        completedAt: new Date().toISOString(),
-        autoDeleteAt: autoDeleteAt
-      }).then(() => {
-        hideLoading();
-        showToast('✅ บันทึกเสร็จแล้ว จะลบอัตโนมัติใน 24 ชม.', 'success');
-        scheduleAutoDelete(bookingId, autoDeleteAt);
-      }).catch(err => { hideLoading(); showToast('❌ ' + err.message, 'error'); });
-    }
- 
-        function checkAndDeleteExpiredBookings() {
-      const now = new Date();
-      allBookings.forEach(b => {
-        // ลบเฉพาะ completed เท่านั้น — ไม่ลบ approved/pending/playing
-        if (b.autoDeleteAt && b.bookingStatus === 'completed') {
-          const dt = new Date(b.autoDeleteAt);
-          if (dt <= now) database.ref('bookings/'+b.id).remove();
-          else scheduleAutoDelete(b.id, b.autoDeleteAt);
-        }
-      });
-    }
- 
-    // ===== SCHEDULE =====
-    function pad2(n) { return String(n).padStart(2,'0'); }
-    function getFieldNo(f) { const m = String(f||'').match(/\d+/); return m ? parseInt(m[0]) : null; }
-    function getStartHour(t) { const m = String(t||'').match(/(\d{1,2}):(\d{2})/); return m ? parseInt(m[1]) : null; }
-    function getEndHour(t) { const m = String(t||'').match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/); return m ? parseInt(m[3]) : null; }
- 
-    function changeScheduleDay(delta) {
-      const input = document.getElementById('scheduleDate');
-      const base = input.value ? new Date(input.value) : new Date();
-      base.setDate(base.getDate()+delta);
-      input.value = base.toISOString().split('T')[0];
-      renderSchedule();
-    }
- 
-    const TH_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-    function formatThaiDateFull(dateStr) {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      return `${d.getDate()} ${TH_MONTHS[d.getMonth()]} ${d.getFullYear()+543}`;
-    }
- 
-    function renderSchedule() {
-      const input = document.getElementById('scheduleDate');
-      if (!input) return;
-      if (!input.value) input.value = new Date().toISOString().split('T')[0];
-      const [year,month,day] = input.value.split('-');
-      const disp = document.getElementById('scheduleDateDisplay');
-      if (disp) disp.value = `${day}/${month}/${year.slice(-2)}`;
-      const labelEl = document.getElementById('scheduleDateLabel');
-      if (labelEl) labelEl.textContent = formatThaiDateFull(input.value);
- 
-      let head = '<tr><th class="time-head">เวลา</th>';
-      SCHEDULE_FIELDS.forEach(f => head += `<th>สนาม ${f}</th>`);
-      head += '</tr>';
-      document.getElementById('scheduleHead').innerHTML = head;
- 
-      const dayBookings = allBookings.filter(b => (b.date||'').substring(0,10)===input.value && b.bookingStatus!=='rejected');
-      let body='', freeCount=0, pendingCount=0, approvedCount=0, playingCount=0;
- 
-      for (let h = SCHEDULE_START_HOUR; h <= SCHEDULE_END_HOUR; h++) {
-        const label = `${pad2(h)}:00 - ${pad2(h+1)}:00`;
-        body += `<tr><td class="time-cell">${label}</td>`;
-        SCHEDULE_FIELDS.forEach(f => {
-          const b = dayBookings.find(x => {
-            if (getFieldNo(x.field)!==f) return false;
-            const s = getStartHour(x.time);
-            if (s==null) return false;
-            let e = getEndHour(x.time);
-            if (e==null) e = s+1;
-            return h>=s && h<e;
-          });
-          if (b) {
-            const st = b.bookingStatus;
-            let cls, txt;
-            if (st === 'playing') {
-              cls = 'slot-playing'; txt = '⚽ กำลังเล่น'; playingCount++;
-            } else if (st === 'remaining_payment_pending') {
-              cls = 'slot-remaining'; txt = '💸 รอจ่าย'; approvedCount++;
-            } else if (st === 'completed') {
-              cls = 'slot-completed'; txt = '✔️ เสร็จแล้ว';
-            } else if (st === 'approved') {
-              cls = 'slot-approved'; txt = 'จองแล้ว'; approvedCount++;
-            } else {
-              cls = 'slot-pending'; txt = 'รออนุมัติ'; pendingCount++;
-            }
-            const name = ((b.fullname||b.name||b.username||'')).split(' ')[0]||'';
-            body += `<td class="slot ${cls}" onclick="viewBooking('${b.id}')">${txt}<small>${name}</small></td>`;
-          } else { freeCount++; body += `<td class="slot slot-free">ว่าง</td>`; }
-        });
-        body += '</tr>';
-      }
- 
-      document.getElementById('scheduleBody').innerHTML = body;
-      document.getElementById('schFree').textContent     = freeCount;
-      document.getElementById('schPending').textContent  = pendingCount;
-      document.getElementById('schApproved').textContent = approvedCount;
-      const sp = document.getElementById('schPlaying'); if(sp) sp.textContent = playingCount;
-    }
- 
-    // ===== REFUNDS =====
-    function createRefundRecord(booking, reason, status) {
-      const data = {
-        bookingId: booking.id||'manual',
-        fullname: booking.fullname||booking.username||booking.name||'-',
-        phone: booking.phone||'-',
-        field: booking.field||'-',
-        date: booking.date||'',
-        time: booking.time||'',
-        deposit: getBookingDeposit(booking),
-        reason: reason||'-',
-        status: status||'pending',
-        createdAt: new Date().toISOString(),
-        createdBy: auth.currentUser ? auth.currentUser.uid : 'system'
-      };
-      if (status!=='pending') { data.processedAt=new Date().toISOString(); data.processedBy=auth.currentUser?auth.currentUser.uid:'system'; }
-      database.ref('refunds').push(data).catch(err => console.error('บันทึกการคืนมัดจำไม่สำเร็จ:',err));
-    }
- 
-    function loadRefunds() {
-      database.ref('refunds').on('value', (snapshot) => {
-        allRefunds = [];
-        snapshot.forEach(child => allRefunds.push({ id:child.key, ...child.val() }));
-        allRefunds.sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
-        renderRefunds();
-      });
-    }
- 
-    function refundStatusInfo(s) {
-      if (s==='refunded') return { cls:'status-refunded', text:'✅ คืนแล้ว' };
-      if (s==='forfeit')  return { cls:'status-forfeit',  text:'⛔ ริบมัดจำ' };
-      return { cls:'status-pending', text:'⏳ รอคืนเงิน' };
-    }
- 
-    function renderRefunds() {
-      let pendingSum=0, refundedSum=0, forfeitSum=0, pendingCount=0;
-      allRefunds.forEach(r => {
-        const a = r.deposit||0;
-        if (r.status==='refunded') refundedSum+=a;
-        else if (r.status==='forfeit') forfeitSum+=a;
-        else { pendingSum+=a; pendingCount++; }
-      });
-      const total = pendingSum+refundedSum+forfeitSum;
-      const s = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
-      s('refTotalReceived','฿'+total.toLocaleString()); s('refTotalCount',allRefunds.length+' รายการ');
-      s('refPendingAmt','฿'+pendingSum.toLocaleString()); s('refPendingCount',pendingCount+' รายการ');
-      s('refRefunded','฿'+refundedSum.toLocaleString()); s('refForfeit','฿'+forfeitSum.toLocaleString());
- 
-      const container = document.getElementById('refundsContainer');
-      if (!container) return;
-      if (allRefunds.length===0) { container.innerHTML='<p style="text-align:center;color:#666;padding:40px;">ยังไม่มีรายการคืนมัดจำ</p>'; return; }
- 
-      let tableHtml = `<table class="bookings-table"><thead><tr>
-        <th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>สนาม</th><th>วันที่ / เวลา</th>
-        <th>มัดจำ</th><th>สถานะ</th><th>จัดการ</th>
-      </tr></thead><tbody>`;
-      let mobileHtml = '<div class="mobile-bookings">';
- 
-      allRefunds.forEach(r => {
-        const st = refundStatusInfo(r.status);
-        const actions = r.status==='pending'
-          ? `<button class="btn-approve" onclick="processRefund('${r.id}','refunded')">คืนเงิน</button><button class="btn-reject" onclick="processRefund('${r.id}','forfeit')">ริบ</button>`
-          : `<button class="btn-reject" onclick="deleteRefund('${r.id}')">ลบ</button>`;
-        tableHtml += `<tr>
-          <td>${r.fullname||'-'}</td><td>${r.phone||'-'}</td><td>${r.field||'-'}</td>
-          <td>${r.date?formatDate(r.date):'-'}<br><small style="color:#999;">${r.time||''}</small></td>
-          <td>฿${(r.deposit||0).toLocaleString()}</td>
-          <td><span class="status-badge ${st.cls}">${st.text}</span></td>
-          <td><div class="action-buttons">${actions}</div></td>
-        </tr>`;
-        mobileHtml += `<div class="booking-card">
-          <div class="booking-card-header"><span class="booking-card-id">${r.fullname||'-'}</span><span class="status-badge ${st.cls}">${st.text}</span></div>
-          <div class="booking-card-body">
-            <div class="booking-card-row"><span class="booking-card-label">เบอร์:</span><span>${r.phone||'-'}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">สนาม:</span><span>${r.field||'-'}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">วันที่:</span><span>${r.date?formatDate(r.date):'-'}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">มัดจำ:</span><span>฿${(r.deposit||0).toLocaleString()}</span></div>
-          </div>
-          <div class="booking-card-actions">${actions}</div>
-        </div>`;
-      });
- 
-      tableHtml += '</tbody></table>'; mobileHtml += '</div>';
-      container.innerHTML = tableHtml + mobileHtml;
-    }
- 
-    function processRefund(refundId, status) {
-      const msg = status==='refunded' ? '✅ ยืนยันการคืนเงินมัดจำให้ลูกค้า?' : '⛔ ยืนยันการริบมัดจำ (ไม่คืนเงิน)?';
-      if (!confirm(msg)) return;
-      showLoading();
-      database.ref('refunds/'+refundId).update({ status, processedAt:new Date().toISOString(), processedBy:auth.currentUser.uid })
-        .then(() => { hideLoading(); showToast(status==='refunded'?'คืนเงินมัดจำเรียบร้อย':'ริบมัดจำเรียบร้อย','success'); })
-        .catch(err => { hideLoading(); showToast(err.message,'error'); });
-    }
- 
-    function deleteRefund(refundId) {
-      if (!confirm('ยืนยันการลบรายการนี้?')) return;
-      showLoading();
-      database.ref('refunds/'+refundId).remove().then(()=>{ hideLoading(); showToast('ลบรายการแล้ว','success'); }).catch(err=>{ hideLoading(); showToast(err.message,'error'); });
-    }
- 
-    function openAddRefundModal() {
-      document.getElementById('refundForm').reset();
-      document.getElementById('refundDeposit').value = DEPOSIT_AMOUNT;
-      document.getElementById('refundDate').value = new Date().toISOString().split('T')[0];
-      document.getElementById('refundModal').classList.add('active');
-    }
-    function closeRefundModal() { document.getElementById('refundModal').classList.remove('active'); document.getElementById('refundForm').reset(); }
- 
-    function saveRefund(event) {
-      event.preventDefault();
-      const get = id => document.getElementById(id).value.trim();
-      const fullname = get('refundName');
-      if (!fullname) { showToast('กรุณากรอกชื่อผู้จอง','warning'); return; }
-      const data = {
-        bookingId:'manual', fullname, phone:get('refundPhone')||'-', field:get('refundField')||'-',
-        date:get('refundDate')||'', time:get('refundTime')||'',
-        deposit:parseInt(document.getElementById('refundDeposit').value,10)||DEPOSIT_AMOUNT,
-        reason:'ยกเลิกการจอง', status:'pending',
-        createdAt:new Date().toISOString(), createdBy:auth.currentUser.uid
-      };
-      showLoading();
-      database.ref('refunds').push(data).then(()=>{ hideLoading(); closeRefundModal(); showToast('เพิ่มรายการคืนมัดจำสำเร็จ','success'); }).catch(err=>{ hideLoading(); showToast(err.message,'error'); });
-    }
- 
-    // ===== REPORT =====
-    // ===== IMAGES =====
-    function loadImages() {
-      const imageGrid = document.getElementById('imageGrid');
-      if (!imageGrid) return;
-      imageGrid.innerHTML = '<p style="text-align:center;padding:20px;color:#666;">⏳ กำลังโหลดรูปภาพ...</p>';
- 
-      // ดึงด้วย SDK — ไม่ใช้ orderByChild เพื่อให้ได้รูปทุกรูปแม้ไม่มี field 'order'
-      database.ref('gallery').get()
-        .then(snapshot => {
-          imageGrid.innerHTML = '';
-          if (!snapshot.exists()) {
-            imageGrid.innerHTML = '<p style="text-align:center;color:#666;padding:40px;grid-column:1/-1;">ยังไม่มีรูปภาพ</p>';
-            return;
-          }
-          const images = [];
-          snapshot.forEach(child => {
-            const val = child.val();
-            if (val && (val.url || val.thumbnailUrl)) {
-              images.push({ id: child.key, ...val });
-            }
-          });
-          images.sort((a, b) => {
-            const oa = (a.order != null) ? Number(a.order) : 9999;
-            const ob = (b.order != null) ? Number(b.order) : 9999;
-            return oa - ob;
-          });
-          console.log('✅ gallery loaded:', images.length, 'items');
-          renderImageGrid(images);
-        })
-        .catch(err => {
-          console.error('❌ gallery load error:', err);
-          imageGrid.innerHTML = `<p style="text-align:center;color:#ef4444;padding:40px;grid-column:1/-1;">โหลดรูปภาพไม่สำเร็จ: ${err.message}</p>`;
-        });
-    }
- 
-        function renderImageGrid(images) {
-      const imageGrid = document.getElementById('imageGrid');
-      if (!imageGrid) return;
-      imageGrid.innerHTML = '';
-      if (images.length === 0) {
-        imageGrid.innerHTML = '<p style="text-align:center;color:#666;padding:40px;grid-column:1/-1;">ยังไม่มีรูปภาพ</p>';
-        return;
-      }
-      images.forEach(image => {
-        const imgUrl   = (image.url || '').replace(/'/g, "\\'");
-        const delUrl   = (image.deleteUrl || '').replace(/'/g, "\\'");
-        const imgTitle = image.title || 'ไม่มีชื่อ';
-        const imgOrder = image.order != null ? image.order : '-';
-        const imgDate  = formatDateTime(image.createdAt);
-        const card = document.createElement('div');
-        card.className = 'image-card';
-        card.innerHTML = `
-          <img src="${image.url || ''}" class="image-preview" alt="${imgTitle}"
-               onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22150%22%3E%3Crect fill=%22%23f3f4f6%22 width=%22200%22 height=%22150%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23999%22%3EError%3C/text%3E%3C/svg%3E'">
-          <div class="image-info">
-            <div class="image-name">${imgTitle}</div>
-            <div style="font-size:12px;color:#999;margin-top:5px;">ลำดับ: ${imgOrder} | ${imgDate}</div>
-            <div class="image-actions">
-              <button class="btn-edit" onclick="editImage('${image.id}')">✏️ แก้ไข</button>
-              <button class="btn-delete" onclick="deleteImage('${image.id}','${image.deleteUrl||''}')">🗑️ ลบ</button>
-            </div>
-          </div>`;
-        imageGrid.appendChild(card);
-      });
-    }
- 
-        function openAddImageModal() {
-      currentImageId = null;
-      document.getElementById('imageModalTitle').textContent = 'เพิ่มรูปภาพใหม่';
-      document.getElementById('imageForm').reset();
-      document.getElementById('imagePreview').style.display = 'none';
-      document.getElementById('imageModal').classList.add('active');
-    }
- 
-    function editImage(imageId) {
-      currentImageId = imageId;
-      database.ref('gallery/'+imageId).once('value', (snapshot) => {
-        const image = snapshot.val();
-        document.getElementById('imageModalTitle').textContent = 'แก้ไขรูปภาพ';
-        document.getElementById('imageTitle').value = image.title||'';
-        document.getElementById('imageOrder').value = image.order||0;
-        const preview = document.getElementById('imagePreview');
-        preview.src = image.url; preview.style.display = 'block';
-        document.getElementById('imageModal').classList.add('active');
-      });
-    }
- 
-    function closeImageModal() {
-      document.getElementById('imageModal').classList.remove('active');
-      document.getElementById('imageForm').reset();
-      document.getElementById('imagePreview').style.display = 'none';
-      currentImageId = null;
-    }
- 
-    function previewImage(event) {
-      const file = event.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = e => { const p=document.getElementById('imagePreview'); p.src=e.target.result; p.style.display='block'; };
-        reader.readAsDataURL(file);
-      }
-    }
- 
-    async function compressImage(file, maxWidth=1920, maxHeight=1920, quality=0.85) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = () => reject(new Error('ไม่สามารถอ่านไฟล์ได้'));
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onerror = () => reject(new Error('ไฟล์รูปภาพไม่ถูกต้อง'));
-          img.onload = () => {
-            let w=img.width, h=img.height;
-            if (w>maxWidth) { h=h*maxWidth/w; w=maxWidth; }
-            if (h>maxHeight) { w=w*maxHeight/h; h=maxHeight; }
-            const canvas = document.createElement('canvas');
-            canvas.width=w; canvas.height=h;
-            const ctx = canvas.getContext('2d');
-            ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-            ctx.drawImage(img,0,0,w,h);
-            canvas.toBlob(blob => { if(!blob) reject(new Error('บีบอัดรูปภาพไม่สำเร็จ')); else resolve(blob); }, 'image/jpeg', quality);
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      });
-    }
- 
-    async function saveImage(event) {
-      event.preventDefault();
-      const title = document.getElementById('imageTitle').value;
-      const order = parseInt(document.getElementById('imageOrder').value)||0;
-      const file  = document.getElementById('imageFile').files[0];
-      if (!title) { showToast('กรุณากรอกชื่อรูปภาพ','warning'); return; }
-      if (currentImageId && !file) {
-        showLoading();
-        database.ref('gallery/'+currentImageId).update({ title, order, updatedAt:new Date().toISOString(), updatedBy:auth.currentUser.uid })
-          .then(()=>{ hideLoading(); closeImageModal(); showToast('แก้ไขข้อมูลสำเร็จ','success'); })
-          .catch(err=>{ hideLoading(); showToast(err.message,'error'); });
-        return;
-      }
-      if (!file) { showToast('กรุณาเลือกไฟล์รูปภาพ','warning'); return; }
-      if (!file.type.startsWith('image/')) { showToast('กรุณาเลือกไฟล์รูปภาพเท่านั้น','error'); return; }
-      if (file.size > 5*1024*1024) { showToast('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 5MB','error'); return; }
-      showLoading();
-      try {
-        let fileToUpload = file;
-        if (file.size > 500*1024) fileToUpload = new File([await compressImage(file)], file.name, { type:'image/jpeg', lastModified:Date.now() });
-        const formData = new FormData();
-        formData.append('image', fileToUpload);
-        const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method:'POST', body:formData });
-        const result = await response.json();
-        if (!result.success) throw new Error(result.error?.message||'อัพโหลดรูปภาพไม่สำเร็จ');
-        const imageData = { title, order, url:result.data.url, thumbnailUrl:result.data.thumb.url, deleteUrl:result.data.delete_url, updatedAt:new Date().toISOString(), updatedBy:auth.currentUser.uid };
-        if (currentImageId) await database.ref('gallery/'+currentImageId).update(imageData);
-        else { imageData.createdAt=new Date().toISOString(); await database.ref('gallery').push(imageData); }
-        hideLoading(); closeImageModal(); showToast(currentImageId?'แก้ไขรูปภาพสำเร็จ':'เพิ่มรูปภาพสำเร็จ','success');
-      } catch(error) { hideLoading(); showToast(error.message,'error'); }
-    }
- 
-    function deleteImage(imageId, deleteUrl) {
-      if (!confirm('ยืนยันการลบรูปภาพนี้?')) return;
-      showLoading();
-      database.ref('gallery/'+imageId).remove().then(()=>{ hideLoading(); showToast('ลบรูปภาพสำเร็จ','success'); if(deleteUrl) fetch(deleteUrl).catch(()=>{}); }).catch(err=>{ hideLoading(); showToast(err.message,'error'); });
-    }
- 
-    // ===== ACTIVITIES =====
-    function loadActivities() {
-      const activityList = document.getElementById('activityList');
-      if (!activityList) return;
-      activityList.innerHTML = '<p style="text-align:center;color:#666;padding:20px;">⏳ กำลังโหลด...</p>';
- 
-      // ใช้ get() แทน once() เพื่อดึงข้อมูลทั้งหมดจาก Firebase
-      database.ref('activities').get()
-        .then(snapshot => {
-          activityList.innerHTML = '';
-          if (!snapshot.exists()) {
-            activityList.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">ยังไม่มีกิจกรรม</p>';
-            return;
-          }
-          const activities = [];
-          snapshot.forEach(child => {
-            const val = child.val();
-            if (val) activities.push({ id: child.key, ...val });
-          });
-          console.log('✅ activities raw count:', activities.length);
- 
-          // เรียงจากใหม่ไปเก่าด้วย createdAt
-          activities.sort((a, b) => {
-            const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-            const db = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            return db - da;
-          });
- 
-          if (activities.length === 0) {
-            activityList.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">ยังไม่มีกิจกรรม</p>';
-            return;
-          }
- 
-          activities.forEach(activity => {
-            const div = document.createElement('div');
-            div.className = 'activity-item';
-            div.innerHTML = `
-              <div class="activity-header">
-                <div>
-                  <div class="activity-title">${activity.title || '-'}</div>
-                  <div class="activity-date">${formatDateTime(activity.createdAt)}</div>
-                </div>
-                <div class="activity-actions">
-                  <button class="btn-edit" onclick="editActivity('${activity.id}')">✏️ แก้ไข</button>
-                  <button class="btn-delete" onclick="deleteActivity('${activity.id}')">🗑️ ลบ</button>
-                </div>
-              </div>
-              <div class="activity-content">${activity.content || ''}</div>`;
-            activityList.appendChild(div);
-          });
-          console.log('✅ activities rendered:', activities.length);
-        })
-        .catch(err => {
-          console.error('❌ activities error:', err);
-          activityList.innerHTML = `<p style="text-align:center;color:#ef4444;padding:40px;">โหลดไม่สำเร็จ: ${err.message}</p>`;
-        });
-    }
- 
-    function openAddActivityModal() {
-      currentActivityId = null;
-      document.getElementById('activityModalTitle').textContent = 'เพิ่มกิจกรรมใหม่';
-      document.getElementById('activityForm').reset();
-      document.getElementById('activityModal').classList.add('active');
-    }
- 
-    function editActivity(activityId) {
-      currentActivityId = activityId;
-      database.ref('activities/'+activityId).once('value', (snapshot) => {
-        const a = snapshot.val();
-        document.getElementById('activityModalTitle').textContent = 'แก้ไขกิจกรรม';
-        document.getElementById('activityTitle').value   = a.title;
-        document.getElementById('activityContent').value = a.content;
-        document.getElementById('activityModal').classList.add('active');
-      });
-    }
- 
-    function closeActivityModal() {
-      document.getElementById('activityModal').classList.remove('active');
-      document.getElementById('activityForm').reset();
-      currentActivityId = null;
-    }
- 
-    function saveActivity(event) {
-      event.preventDefault();
-      const title   = document.getElementById('activityTitle').value;
-      const content = document.getElementById('activityContent').value;
-      if (!title || !content) { showToast('กรุณากรอกข้อมูลให้ครบถ้วน','warning'); return; }
-      showLoading();
-      const activityData = { title, content, updatedAt:new Date().toISOString(), updatedBy:auth.currentUser.uid };
-      if (currentActivityId) {
-        database.ref('activities/'+currentActivityId).update(activityData).then(()=>{ hideLoading(); closeActivityModal(); showToast('แก้ไขกิจกรรมสำเร็จ','success'); }).catch(err=>{ hideLoading(); showToast(err.message,'error'); });
-      } else {
-        activityData.createdAt = new Date().toISOString();
-        database.ref('activities').push(activityData).then(()=>{ hideLoading(); closeActivityModal(); showToast('เพิ่มกิจกรรมสำเร็จ','success'); }).catch(err=>{ hideLoading(); showToast(err.message,'error'); });
-      }
-    }
- 
-    function deleteActivity(activityId) {
-      if (!confirm('ยืนยันการลบกิจกรรมนี้?')) return;
-      showLoading();
-      database.ref('activities/'+activityId).remove().then(()=>{ hideLoading(); showToast('ลบกิจกรรมสำเร็จ','success'); }).catch(err=>{ hideLoading(); showToast(err.message,'error'); });
-    }
- 
-    // ===== UTILITIES =====
-    function showLoading() { const o=document.getElementById('loadingOverlay'); if(o) o.classList.add('active'); }
-    function hideLoading() { const o=document.getElementById('loadingOverlay'); if(o) o.classList.remove('active'); }
- 
-    function showToast(message, type='success') {
-      const toast=document.getElementById('toast'), msg=document.getElementById('toastMessage');
-      if(!toast||!msg) return;
-      msg.textContent=message; toast.className='toast'; toast.classList.add(type,'show');
-      setTimeout(()=>toast.classList.remove('show'),3000);
-    }
- 
-    function handleStaffLogout() {
-      if (confirm('ต้องการออกจากระบบ?')) auth.signOut().then(()=>window.location.href='staff-login.html');
-    }
- 
-    // Close modals on outside click
-    ['bookingModal','activityModal','imageModal','refundModal'].forEach(id => {
-      document.getElementById(id).addEventListener('click', e => {
-        if (e.target.id===id) { if(id==='bookingModal') closeBookingModal(); else if(id==='activityModal') closeActivityModal(); else if(id==='imageModal') closeImageModal(); else if(id==='refundModal') closeRefundModal(); }
-      });
     });
-  
-    // =========================
-    // REPORT TAB
-    // =========================
-    let REPORT_RANGE_DAYS = 7;
- 
-    function setReportRange(days) {
-      REPORT_RANGE_DAYS = Number(days) || 7;
-      document.querySelectorAll('.rpt-range-btn').forEach(b => b.classList.remove('active'));
-      const btnMap = {1:'rBtn1',7:'rBtn7',30:'rBtn30',90:'rBtn90'};
-      const btn = document.getElementById(btnMap[days]);
-      if (btn) btn.classList.add('active');
-      renderReport();
-    }
- 
-    function renderReport() {
-      const now = new Date();
-      const start = new Date(now);
-      start.setDate(start.getDate() - REPORT_RANGE_DAYS);
-      start.setHours(0,0,0,0);
-      const startStr = start.toISOString().split('T')[0];
-      const todayStr = now.toISOString().split('T')[0];
- 
-      // กรองจาก bookings ตามวันที่จอง
-      const data = allBookings.filter(b => b.date && b.date >= startStr && b.date <= todayStr);
- 
-      // ===== 1. รายรับทั้งหมด (ราคาเต็ม) =====
-      let fullIncome=0, approvedIncome=0, pendingIncome=0;
-      let approvedCount=0, pendingCount=0, cancelCount=0;
- 
-      data.forEach(b => {
-        const price = b.totalPrice || 0;
-        if (b.bookingStatus === 'approved') {
-          fullIncome += price; approvedIncome += price; approvedCount++;
-        } else if (b.bookingStatus === 'rejected') {
-          cancelCount++;
-        } else {
-          fullIncome += price; pendingIncome += price; pendingCount++;
-        }
-      });
- 
-      const s = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
-      s('rptFullIncome',    '฿' + fullIncome.toLocaleString());
-      s('rptApprovedIncome','฿' + approvedIncome.toLocaleString());
-      s('rptApprovedCount', approvedCount + ' รายการ');
-      s('rptPendingIncome', '฿' + pendingIncome.toLocaleString());
-      s('rptPendingCount',  pendingCount + ' รายการ');
-      s('rptCancelCount',   cancelCount + ' รายการ');
-      s('rptBookingCount',  data.length + ' รายการ');
- 
-      // ===== 2. รายการจองทั้งหมด + ลูกค้า =====
-      const uniqueCustomers = new Set(data.map(b => b.userId || b.fullname || b.username).filter(Boolean));
-      s('rptTotalBookings',  data.length);
-      s('rptTotalCustomers', uniqueCustomers.size);
- 
-      // ===== 3. สนามที่ใช้มากที่สุด =====
-      const fieldCount = {};
-      data.forEach(b => { if(b.field) fieldCount[b.field] = (fieldCount[b.field]||0) + 1; });
-      const topFields = Object.entries(fieldCount).sort((a,b) => b[1]-a[1]);
-      const maxCount  = topFields.length > 0 ? topFields[0][1] : 1;
- 
-      const topDiv = document.getElementById('rptTopFields');
-      if (topDiv) {
-        if (topFields.length === 0) {
-          topDiv.innerHTML = '<p style="text-align:center;color:#999;">ยังไม่มีข้อมูลในช่วงนี้</p>';
-        } else {
-          let topHtml = '';
-          topFields.forEach(([field, count], i) => {
-            const pct      = Math.round(count / maxCount * 100);
-            const medal    = i===0 ? '🥇' : i===1 ? '🥈' : i===2 ? '🥉' : '&nbsp;&nbsp;';
-            const barColor = i===0 ? '#667eea' : i===1 ? '#10b981' : i===2 ? '#f59e0b' : '#9ca3af';
-            topHtml += `
-              <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-                <span style="font-size:1.3em;min-width:34px;text-align:center;">${medal}</span>
-                <span style="min-width:80px;font-weight:600;color:#333;">${field}</span>
-                <div style="flex:1;background:#e5e7eb;border-radius:8px;height:26px;overflow:hidden;">
-                  <div style="width:${pct}%;background:${barColor};height:100%;border-radius:8px;
-                       display:flex;align-items:center;justify-content:flex-end;padding-right:8px;
-                       transition:width 0.5s ease;">
-                    ${pct > 25 ? `<span style="color:white;font-size:12px;font-weight:700;">${pct}%</span>` : ''}
-                  </div>
-                </div>
-                <span style="min-width:65px;text-align:right;font-weight:700;color:#374151;">
-                  ${count} ครั้ง
-                </span>
-              </div>`;
-          });
-          topDiv.innerHTML = topHtml;
-        }
+    const dateInput = document.getElementById('dateSelect');
+    if (dateInput) dateInput.setAttribute('min', new Date().toISOString().split('T')[0]);
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        const modal = document.getElementById('staffGalleryModal');
+        if (modal && modal.classList.contains('show')) closeStaffModal();
       }
+    });
+    const modalContent = document.querySelector('.staff-gallery-modal img');
+    if (modalContent) modalContent.addEventListener('click', e => e.stopPropagation());
+    const closeButton = document.querySelector('.staff-gallery-close');
+    if (closeButton) closeButton.addEventListener('click', e => { e.stopPropagation(); closeStaffModal(); });
+    loadStaffGallery();
+    loadActivities();
+  } catch (error) {
+    console.error('❌ Firebase initialization error:', error);
+    alert('❌ เชื่อมต่อ Firebase ไม่สำเร็จ: ' + error.message);
+  }
+}
  
-      // ===== 4. ตารางรายการจอง =====
-      const tableDiv = document.getElementById('rptTableContainer');
-      if (!tableDiv) return;
+initializeFirebase();
  
-      if (data.length === 0) {
-        tableDiv.innerHTML = '<p style="text-align:center;color:#999;padding:30px;">ไม่มีข้อมูลในช่วงเวลานี้</p>';
-        return;
-      }
- 
-      const sorted = [...data].sort((a,b) => (b.date||'').localeCompare(a.date||''));
-      let tHtml = `
-        <table class="bookings-table">
-          <thead><tr>
-            <th>#</th>
-            <th>ชื่อ-นามสกุล</th>
-            <th>สนาม</th>
-            <th>วันที่</th>
-            <th>เวลา</th>
-            <th>ราคาเต็ม</th>
-            <th>สถานะ</th>
-          </tr></thead>
-          <tbody>`;
- 
-      sorted.forEach((b, i) => {
-        const sText  = b.bookingStatus==='approved' ? 'อนุมัติแล้ว'
-                     : b.bookingStatus==='rejected'  ? 'ยกเลิก' : 'รอตรวจสอบ';
-        const sColor = b.bookingStatus==='approved' ? '#10b981'
-                     : b.bookingStatus==='rejected'  ? '#ef4444' : '#f59e0b';
-        const name   = b.fullname || b.name || b.username || '-';
-        tHtml += `
-          <tr>
-            <td>${String(i+1).padStart(2,'0')}</td>
-            <td>${name}</td>
-            <td>${b.field||'-'}</td>
-            <td>${formatDate(b.date)}</td>
-            <td>${b.time||'-'}</td>
-            <td style="font-weight:700;">฿${(b.totalPrice||0).toLocaleString()}</td>
-            <td style="color:${sColor};font-weight:600;">${sText}</td>
-          </tr>`;
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      registrations.forEach(registration => {
+        if (registration.navigationPreload) registration.navigationPreload.disable().catch(() => {});
       });
+    }).catch(() => {});
+  });
+}
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && event.reason.message && event.reason.message.includes('service worker')) event.preventDefault();
+});
  
-      tHtml += '</tbody></table>';
-      tableDiv.innerHTML = tHtml;
+// ========== EXTENSION SYSTEM ==========
+let currentExtensionBooking = null;
+let extensionCountdownInterval = null;
+ 
+async function checkNextSlotForBooking(booking) {
+  const parts = booking.time.split(' - ');
+  if (parts.length < 2) return;
+  const endTime = parts[1];
+  const nextEndTime = addOneHourToTime(endTime);
+  if (nextEndTime === null) {
+    const info = document.getElementById(`next-slot-${booking.id}`);
+    const btn = document.getElementById(`extend-btn-${booking.id}`);
+    if (info) info.innerHTML = '<span style="color:#f59e0b;">⏰ ไม่สามารถต่อเวลาได้ (เกินเวลาทำการ)</span>';
+    if (btn) btn.style.display = 'none';
+    return;
+  }
+  try {
+    const snapshot = await database.ref('bookings').orderByChild('field_date_time').equalTo(`${booking.field}_${booking.date}_${endTime} - ${nextEndTime}`).once('value');
+    const info = document.getElementById(`next-slot-${booking.id}`);
+    if (!info) return;
+    if (snapshot.exists()) {
+      info.innerHTML = `<span style="color:#ef4444;">❌ ช่วงถัดไป ${endTime} - ${nextEndTime} ถูกจองแล้ว</span>`;
+      const btn = document.getElementById(`extend-btn-${booking.id}`);
+      if (btn) btn.disabled = true;
+    } else {
+      info.innerHTML = `<span style="color:#22c55e;">✓ ช่วงถัดไป ${endTime} - ${nextEndTime} ว่าง</span>`;
     }
-</script>
-</body>
-</html>
+  } catch(error) { console.error('Error checking next slot:', error); }
+}
+ 
+async function requestBookingExtension(bookingId) {
+  try {
+    const snapshot = await database.ref(`bookings/${bookingId}`).once('value');
+    const booking = snapshot.val();
+    if (!booking) { showToast('❌ ไม่พบข้อมูลการจอง', 'error'); return; }
+    currentExtensionBooking = { ...booking, id: bookingId };
+    const endTime = booking.time.split(' - ')[1];
+    const nextEndTime = addOneHourToTime(endTime);
+    if (nextEndTime === null) { showToast('⏰ ไม่สามารถต่อเวลาได้ เนื่องจากเกินเวลาทำการสนาม (07:00-20:00)', 'error'); return; }
+    const nextSlotSnapshot = await database.ref('bookings').orderByChild('field_date_time').equalTo(`${booking.field}_${booking.date}_${endTime} - ${nextEndTime}`).once('value');
+    const modal = document.getElementById('extensionModal');
+    modal.classList.add('show');
+    if (!nextSlotSnapshot.exists()) {
+      document.getElementById('availableExtensionSlot').style.display = 'block';
+      document.getElementById('bookedExtensionSlot').style.display = 'none';
+      document.getElementById('extensionSlotTime').textContent = `${endTime} - ${nextEndTime}`;
+      document.getElementById('extensionSlotPrice').textContent = calculateFieldPrice(booking.field, parseInt(endTime.split(':')[0]));
+      startExtensionCountdown(300);
+    } else {
+      document.getElementById('availableExtensionSlot').style.display = 'none';
+      document.getElementById('bookedExtensionSlot').style.display = 'block';
+      document.getElementById('bookedExtensionSlotTime').textContent = `${endTime} - ${nextEndTime}`;
+      await findAlternativeSlots(booking);
+    }
+  } catch(error) { showToast('❌ ' + error.message, 'error'); }
+}
+ 
+function startExtensionCountdown(seconds) {
+  let remaining = seconds;
+  const countdownDisplay = document.getElementById('extensionCountdown');
+  const confirmBtn = document.getElementById('confirmExtensionBtn');
+  if (extensionCountdownInterval) clearInterval(extensionCountdownInterval);
+  extensionCountdownInterval = setInterval(() => {
+    remaining--;
+    const m = Math.floor(remaining/60), s = remaining % 60;
+    countdownDisplay.textContent = `${m}:${s.toString().padStart(2,'0')}`;
+    if (remaining <= 60) countdownDisplay.style.color = '#dc2626';
+    if (remaining <= 0) { clearInterval(extensionCountdownInterval); confirmBtn.disabled = true; showToast('⏰ หมดเวลายืนยัน กรุณาลองใหม่อีกครั้ง', 'error'); setTimeout(() => closeExtensionModal(), 2000); }
+  }, 1000);
+}
+ 
+async function confirmExtensionPayment() {
+  if (!currentExtensionBooking) return;
+  const confirmBtn = document.getElementById('confirmExtensionBtn');
+  confirmBtn.textContent = 'กำลังดำเนินการ...'; confirmBtn.disabled = true;
+  try {
+    const booking = currentExtensionBooking;
+    const endTime = booking.time.split(' - ')[1];
+    const nextEndTime = addOneHourToTime(endTime);
+    if (nextEndTime === null) { showToast('⏰ ไม่สามารถต่อเวลาได้ เนื่องจากเกินเวลาทำการสนาม (07:00-20:00)', 'error'); confirmBtn.textContent = 'ยืนยันชำระเงิน'; confirmBtn.disabled = false; return; }
+    const timeSlot = `${endTime} - ${nextEndTime}`;
+    const price = calculateFieldPrice(booking.field, parseInt(endTime.split(':')[0]));
+    const newBookingRef = database.ref('bookings').push();
+    const uniqueKey = `${booking.field}_${booking.date}_${timeSlot}`;
+    await newBookingRef.set({
+      userId: booking.userId, username: booking.username, fullname: booking.fullname || booking.username,
+      phone: booking.phone, field: booking.field, date: booking.date, time: timeSlot,
+      totalPrice: price, depositAmount: 0, remainingAmount: price,
+      depositStatus: 'not_required', remainingStatus: 'unpaid', bookingStatus: 'approved',
+      extendedFrom: booking.id, field_date_time: uniqueKey, createdAt: new Date().toISOString()
+    });
+    await database.ref(`bookings/${booking.id}`).update({ extendedTo: newBookingRef.key });
+    showToast('✅ ต่อเวลาสำเร็จ! ขอบคุณที่ใช้บริการ', 'success');
+    closeExtensionModal(); updateBookingList();
+  } catch(error) { showToast('❌ ' + error.message, 'error'); confirmBtn.textContent = 'ยืนยันชำระเงิน'; confirmBtn.disabled = false; }
+}
+ 
+async function findAlternativeSlots(booking) {
+  const container = document.getElementById('alternativeSlotsList');
+  container.innerHTML = '<div class="alternative-title">💡 ช่วงเวลาอื่นที่ว่าง</div>';
+  try {
+    const endTime = booking.time.split(' - ')[1];
+    const allSlots = ['08:00','09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+    const currentIndex = allSlots.indexOf(endTime);
+    const startIndex = currentIndex !== -1 ? currentIndex : allSlots.findIndex(t => parseInt(t.split(':')[0]) === parseInt(endTime.split(':')[0]));
+    const alternativesFound = [];
+    for (let i = startIndex + 1; i < allSlots.length && alternativesFound.length < 5; i++) {
+      const start = allSlots[i];
+      const end = addOneHourToTime(start);
+      if (end === null) continue;
+      const timeSlot = `${start} - ${end}`;
+      const snapshot = await database.ref('bookings').orderByChild('field_date_time').equalTo(`${booking.field}_${booking.date}_${timeSlot}`).once('value');
+      if (!snapshot.exists()) {
+        const price = calculateFieldPrice(booking.field, parseInt(start.split(':')[0]));
+        const slotDiv = document.createElement('div');
+        slotDiv.className = 'alternative-slot';
+        slotDiv.innerHTML = `<span class="alternative-slot-time">${timeSlot}</span><span class="alternative-slot-price">${price} บาท</span>`;
+        slotDiv.onclick = () => selectAlternativeSlot(timeSlot, price);
+        container.appendChild(slotDiv);
+        alternativesFound.push(timeSlot);
+      }
+    }
+    if (alternativesFound.length === 0) container.innerHTML += '<p style="text-align:center;color:#6b7280;padding:20px;">ไม่มีช่วงเวลาอื่นที่ว่าง</p>';
+  } catch(error) { console.error('Error finding alternatives:', error); }
+}
+ 
+function selectAlternativeSlot(timeSlot, price) {
+  if (confirm(`ต้องการจอง ${timeSlot} ในราคา ${price} บาทหรือไม่?`)) createAlternativeBooking(timeSlot, price);
+}
+ 
+async function createAlternativeBooking(timeSlot, price) {
+  if (!currentExtensionBooking) { showToast('❌ ไม่พบข้อมูลการจอง', 'error'); return; }
+  const booking = currentExtensionBooking;
+  const uniqueKey = `${booking.field}_${booking.date}_${timeSlot}`;
+  showLoading('กำลังตรวจสอบความว่าง...');
+  try {
+    const availabilityCheck = await database.ref('bookings').orderByChild('field_date_time').equalTo(uniqueKey).once('value');
+    if (availabilityCheck.exists()) { hideLoading(); showToast('❌ ช่วงเวลานี้ถูกจองไปแล้ว กรุณาเลือกช่วงเวลาอื่น', 'error'); return; }
+    showLoading('กำลังสร้างการจอง...');
+    const lockRef = database.ref('booking_locks/' + uniqueKey);
+    await lockRef.set({ userId: booking.userId, timestamp: Date.now() });
+    const newBookingRef = database.ref('bookings').push();
+    await newBookingRef.set({
+      userId: booking.userId, username: booking.username, fullname: booking.fullname || booking.username,
+      phone: booking.phone, field: booking.field, date: booking.date, time: timeSlot,
+      totalPrice: price, depositAmount: 0, remainingAmount: price,
+      depositStatus: 'not_required', remainingStatus: 'unpaid', bookingStatus: 'approved',
+      field_date_time: uniqueKey, createdAt: new Date().toISOString(), alternativeBooking: true
+    });
+    await lockRef.remove();
+    hideLoading();
+    showToast('✅ จองช่วงเวลาใหม่สำเร็จ! กรุณาชำระเงิน', 'success');
+    closeExtensionModal(); updateBookingList();
+    setTimeout(() => { const section = document.getElementById('checkBookingSection'); if (section) section.scrollIntoView({ behavior:'smooth', block:'start' }); }, 500);
+  } catch(error) { hideLoading(); showToast('❌ ' + error.message, 'error'); }
+}
+ 
+function closeExtensionModal() {
+  const modal = document.getElementById('extensionModal');
+  modal.classList.remove('show');
+  if (extensionCountdownInterval) clearInterval(extensionCountdownInterval);
+  const confirmBtn = document.getElementById('confirmExtensionBtn');
+  confirmBtn.textContent = 'ยืนยันชำระเงิน'; confirmBtn.disabled = false;
+  currentExtensionBooking = null;
+}
+ 
+function addOneHourToTime(timeStr) {
+  const [hours, minutes] = timeStr.split(':').map(Number);
+  const newHours = hours + 1;
+  if (newHours > 20) return null;
+  return `${newHours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}`;
+}
+ 
+function calculateFieldPrice(field, hour) {
+  if (field.includes('สนาม 1') || field.includes('สนาม 2') || field.includes('สนาม 3')) return hour >= 18 ? 1200 : 1000;
+  if (field.includes('สนาม 4')) return hour >= 18 ? 1300 : 1100;
+  if (field.includes('สนาม 5')) return hour >= 18 ? 1100 : 900;
+  if (field.includes('สนาม 6')) return hour >= 18 ? 900 : 700;
+  return 0;
+}
+ 
+window.addEventListener('beforeunload', () => {
+  if (database) { database.ref('bookings').off(); database.ref('users').off(); }
+  if (typeof paymentTimer !== 'undefined' && paymentTimer) clearInterval(paymentTimer);
+  if (typeof extensionCountdownInterval !== 'undefined' && extensionCountdownInterval) clearInterval(extensionCountdownInterval);
+  if (typeof currentBookingData !== 'undefined' && currentBookingData) {
+    const uniqueKey = `${currentBookingData.field}_${currentBookingData.date}_${currentBookingData.time}`;
+    database.ref('booking_locks/' + uniqueKey).remove().catch(() => {});
+  }
+});
  

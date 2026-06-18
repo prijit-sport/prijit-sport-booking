@@ -443,7 +443,25 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" onerror="console.error('Firebase app load error'); window.firebaseLoadError = true;"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" onerror="console.error('Firebase auth load error'); window.firebaseLoadError = true;"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js" onerror="console.error('Firebase database load error'); window.firebaseLoadError = true;"></script>
-    <script src="app.js" defer></script>
+<script src="app.js" defer></script>
+<script>
+// --- fail-safe: ปิด global loading หาก app.js ค้าง ---
+(function(){
+  const OVERLAY_ID = 'global-loading';
+  const MAX_WAIT_MS = 15000; // 15 วินาที
+  const t0 = Date.now();
+  function hide(){
+    const el = document.getElementById(OVERLAY_ID);
+    if(el) el.classList.remove('active');
+  }
+  window.addEventListener('load', function(){
+    hide();
+  });
+  setTimeout(function(){
+    hide();
+  }, MAX_WAIT_MS);
+})();
+</script>
  
     <!-- Toast Container -->
     <div id="toast-container"></div>

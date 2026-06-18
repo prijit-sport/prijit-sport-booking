@@ -616,7 +616,17 @@
     }
  
     // ===== BOOKINGS =====
-    function loadBookings() {
+function loadBookings() {
+      // แก้ปัญหา: ค่าตัวกรองสนามค้างทำให้มองเห็นแค่สนามเดียว
+      // ให้เริ่มต้นเป็น "ทุกสนาม" เสมอเมื่อเปิดหน้า Admin
+      const ff = document.getElementById('filterField');
+      const fstatus = document.getElementById('filterStatus');
+      // reset ตัวกรองให้เป็นค่าเริ่มต้นทุกครั้งที่โหลด bookings
+      if (ff) ff.value = 'all';
+      if (fstatus) fstatus.value = 'all';
+      const df = document.getElementById('filterDate');
+      if (df) df.value = '';
+
       showLoading();
       database.ref('bookings').on('value', (snapshot) => {
         allBookings = [];
