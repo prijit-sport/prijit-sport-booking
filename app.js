@@ -405,7 +405,6 @@ function checkAvailability() {
     if (currentAvailabilityCheck !== query) return;
     statusDiv.className = 'availability-notice';
     statusDiv.style.display = 'block';
-    statusDiv.innerHTML = '<strong style="color:#ef4444;">❌ ตรวจสอบไม่สำเร็จ กรุณาลองใหม่อีกครั้ง</strong>';
     currentAvailabilityCheck = null;
   });
 }
