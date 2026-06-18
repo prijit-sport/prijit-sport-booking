@@ -913,7 +913,8 @@
         function checkAndDeleteExpiredBookings() {
       const now = new Date();
       allBookings.forEach(b => {
-        if (b.autoDeleteAt && b.bookingStatus==='approved') {
+        // ลบเฉพาะ completed เท่านั้น — ไม่ลบ approved/pending/playing
+        if (b.autoDeleteAt && b.bookingStatus === 'completed') {
           const dt = new Date(b.autoDeleteAt);
           if (dt <= now) database.ref('bookings/'+b.id).remove();
           else scheduleAutoDelete(b.id, b.autoDeleteAt);
