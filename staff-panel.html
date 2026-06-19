@@ -616,26 +616,51 @@
     }
  
     // ===== BOOKINGS =====
-function loadBookings() {
-      // แก้ปัญหา: ค่าตัวกรองสนามค้างทำให้มองเห็นแค่สนามเดียว
-      // ให้เริ่มต้นเป็น "ทุกสนาม" เสมอเมื่อเปิดหน้า Admin
+    function loadBookings() {
+      // reset filters
       const ff = document.getElementById('filterField');
       const fstatus = document.getElementById('filterStatus');
-      // reset ตัวกรองให้เป็นค่าเริ่มต้นทุกครั้งที่โหลด bookings
       if (ff) ff.value = 'all';
       if (fstatus) fstatus.value = 'all';
       const df = document.getElementById('filterDate');
       if (df) df.value = '';
-
+ 
       showLoading();
-      database.ref('bookings').on('value', (snapshot) => {
+      // แก้ปัญหา: depositSlipUrl เป็น base64 ขนาดใหญ่ทำให้โหลดไม่ครบ
+      database.ref('bookings').get().then((snapshot) => {
         allBookings = [];
-        snapshot.forEach((child) => allBookings.push({ id: child.key, ...child.val() }));
+        snapshot.forEach((child) => {
+          const val = child.val();
+          const { depositSlipUrl, remainingSlipUrl, ...rest } = val;
+          allBookings.push({ id: child.key, ...rest, hasDepositSlip: !!depositSlipUrl, hasRemainingSlip: !!remainingSlipUrl });
+        });
         allBookings.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
         updateStats(); applyFilters(); renderSchedule(); checkAndDeleteExpiredBookings();
         if (document.getElementById("reportTab") && document.getElementById("reportTab").classList.contains("active")) renderReport();
         hideLoading();
-      });
+ 
+        database.ref('bookings').on('child_changed', (child) => {
+          const val = child.val();
+          const { depositSlipUrl, remainingSlipUrl, ...rest } = val;
+          const idx = allBookings.findIndex(b => b.id === child.key);
+          const updated = { id: child.key, ...rest, hasDepositSlip: !!depositSlipUrl, hasRemainingSlip: !!remainingSlipUrl };
+          if (idx >= 0) allBookings[idx] = updated; else allBookings.unshift(updated);
+          allBookings.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+          updateStats(); applyFilters(); renderSchedule();
+        });
+        database.ref('bookings').on('child_removed', (child) => {
+          allBookings = allBookings.filter(b => b.id !== child.key);
+          updateStats(); applyFilters(); renderSchedule();
+        });
+        database.ref('bookings').on('child_added', (child) => {
+          if (allBookings.find(b => b.id === child.key)) return;
+          const val = child.val();
+          const { depositSlipUrl, remainingSlipUrl, ...rest } = val;
+          allBookings.unshift({ id: child.key, ...rest, hasDepositSlip: !!depositSlipUrl, hasRemainingSlip: !!remainingSlipUrl });
+          allBookings.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+          updateStats(); applyFilters(); renderSchedule();
+        });
+      }).catch(err => { hideLoading(); console.error('loadBookings error:', err); });
     }
  
     function updateStats() {
@@ -754,7 +779,15 @@ function loadBookings() {
     }
  
     function viewBooking(bookingId) {
-      currentBooking = allBookings.find(b => b.id === bookingId);
+      // โหลดข้อมูลเต็มรวม slip url จาก Firebase
+      showLoading();
+      database.ref('bookings/' + bookingId).once('value').then(snap => {
+        currentBooking = { id: bookingId, ...snap.val() };
+        hideLoading();
+        _renderBookingModal(currentBooking);
+      }).catch(err => { hideLoading(); showToast('โหลดข้อมูลไม่สำเร็จ', 'error'); });
+    }
+    function _renderBookingModal(currentBooking) {
       if (!currentBooking) return;
       const name = currentBooking.fullname || currentBooking.name || currentBooking.username || '-';
       const dep  = getBookingDeposit(currentBooking);
