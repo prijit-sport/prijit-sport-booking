@@ -1073,32 +1073,41 @@
     }
  
     function loadRefunds() {
-      // แก้ปัญหา: ใช้ .get() แทน .on('value') เพราะ refunds อาจมี depositSlipUrl ฝังอยู่
+      // ปิด listener เก่าก่อน
+      database.ref('refunds').off();
+ 
+      // โหลดครั้งแรกด้วย .get() เพื่อดึงครบ
       database.ref('refunds').get().then((snapshot) => {
         allRefunds = [];
         snapshot.forEach(child => allRefunds.push({ id:child.key, ...child.val() }));
         allRefunds.sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
         renderRefunds();
-      }).catch(err => console.error('loadRefunds error:', err));
  
-      // real-time updates
-      database.ref('refunds').on('child_added', (child) => {
-        if (allRefunds.find(r => r.id === child.key)) return;
-        allRefunds.unshift({ id:child.key, ...child.val() });
-        allRefunds.sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
-        renderRefunds();
-      });
-      database.ref('refunds').on('child_changed', (child) => {
-        const idx = allRefunds.findIndex(r => r.id === child.key);
-        if (idx >= 0) allRefunds[idx] = { id:child.key, ...child.val() };
-        else allRefunds.unshift({ id:child.key, ...child.val() });
-        allRefunds.sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
-        renderRefunds();
-      });
-      database.ref('refunds').on('child_removed', (child) => {
-        allRefunds = allRefunds.filter(r => r.id !== child.key);
-        renderRefunds();
-      });
+        // subscribe real-time หลังโหลดเสร็จ — ใช้ timestamp เป็น boundary
+        // child_added จะ fire เฉพาะรายการใหม่ที่เกิดหลังจากนี้
+        const now = Date.now();
+        database.ref('refunds').on('child_added', (child) => {
+          const r = child.val();
+          const createdTs = r.createdAt ? new Date(r.createdAt).getTime() : 0;
+          // เพิ่มเฉพาะรายการใหม่ (createdAt หลัง loadRefunds เรียก)
+          if (createdTs < now && allRefunds.find(x => x.id === child.key)) return;
+          if (allRefunds.find(x => x.id === child.key)) return;
+          allRefunds.unshift({ id:child.key, ...r });
+          allRefunds.sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
+          renderRefunds();
+        });
+        database.ref('refunds').on('child_changed', (child) => {
+          const idx = allRefunds.findIndex(r => r.id === child.key);
+          if (idx >= 0) allRefunds[idx] = { id:child.key, ...child.val() };
+          else allRefunds.unshift({ id:child.key, ...child.val() });
+          allRefunds.sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
+          renderRefunds();
+        });
+        database.ref('refunds').on('child_removed', (child) => {
+          allRefunds = allRefunds.filter(r => r.id !== child.key);
+          renderRefunds();
+        });
+      }).catch(err => console.error('loadRefunds error:', err));
     }
  
     function refundStatusInfo(s) {
