@@ -264,12 +264,8 @@
             <select id="filterStatus" onchange="applyFilters()">
               <option value="all">ทั้งหมด</option>
               <option value="pending">รอตรวจสอบ</option>
-              <option value="pending_payment">รอตรวจสอบ (มัดจำ)</option>
-              <option value="approved">อนุมัติแล้ว</option>
-              <option value="remaining_payment_pending">รอยืนยันการชำระ</option>
-              <option value="playing">กำลังใช้สนาม</option>
-              <option value="completed">เสร็จแล้ว</option>
-              <option value="rejected">ปฏิเสธ</option>
+              <option value="approved">อนุมัติแล้ว</option>             
+              <option value="playing">กำลังใช้สนาม</option>          
             </select>
           </div>
           <div class="filter-group">
@@ -322,9 +318,7 @@
           <span><i class="dot dot-free"></i> ว่าง</span>
           <span><i class="dot dot-pending"></i> รออนุมัติ</span>
           <span><i class="dot dot-approved"></i> จองแล้ว (อนุมัติ)</span>
-          <span><i class="dot" style="background:#fed7aa;border:1px solid #f97316;"></i> รอจ่ายค่าคงเหลือ</span>
           <span><i class="dot" style="background:#7c3aed;"></i> ⚽ กำลังเล่น</span>
-          <span><i class="dot" style="background:#d1d5db;"></i> เสร็จแล้ว</span>
         </div>
         <div class="schedule-wrap">
           <table class="schedule-table">
@@ -339,9 +333,9 @@
     <div class="tab-content" id="refundsTab">
       <div class="stats-grid">
         <div class="stat-card" style="border-top:4px solid #6366f1;"><h3>💵 รับมัดจำทั้งหมด</h3><div class="stat-value" style="color:#6366f1;" id="refTotalReceived">฿0</div><div style="font-size:13px;color:#999;margin-top:4px;" id="refTotalCount">0 รายการ</div></div>
-        <div class="stat-card" style="border-top:4px solid #f59e0b;"><h3>⏳ รอคืนมัดจำ</h3><div class="stat-value stat-pending" id="refPendingAmt">฿0</div><div style="font-size:13px;color:#999;margin-top:4px;" id="refPendingCount">0 รายการ</div></div>
-        <div class="stat-card" style="border-top:4px solid #10b981;"><h3>✅ คืนแล้ว</h3><div class="stat-value stat-approved" id="refRefunded">฿0</div></div>
-        <div class="stat-card" style="border-top:4px solid #ef4444;"><h3>⛔ หักเก็บมัดจำ</h3><div class="stat-value" style="color:#ef4444;" id="refForfeit">฿0</div></div>
+        <div class="stat-card" style="border-top:4px solid #f59e0b;"><h3>⏳ รอคืนมัดจำ</h3><div class="stat-value stat-pending" id="refPendingCount">0 รายการ</div><div style="font-size:13px;color:#999;margin-top:4px;" id="refPendingAmt">฿0</div></div>
+        <div class="stat-card" style="border-top:4px solid #10b981;"><h3>✅ คืนแล้ว</h3><div class="stat-value stat-approved" id="refRefunded">0 รายการ</div><div style="font-size:13px;color:#999;margin-top:4px;" id="refRefundedAmt">฿0</div></div>
+        <div class="stat-card" style="border-top:4px solid #ef4444;"><h3>⛔ หักเก็บมัดจำ</h3><div class="stat-value" style="color:#ef4444;" id="refForfeitCount">0 รายการ</div><div style="font-size:13px;color:#999;margin-top:4px;" id="refForfeit">฿0</div></div>
       </div>
       <div class="bookings-section">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
@@ -1117,18 +1111,19 @@
     }
  
     function renderRefunds() {
-      let pendingSum=0, refundedSum=0, forfeitSum=0, pendingCount=0;
+      let pendingSum=0, refundedSum=0, forfeitSum=0, pendingCount=0, refundedCount=0, forfeitCount=0;
       allRefunds.forEach(r => {
         const a = r.deposit||0;
-        if (r.status==='refunded') refundedSum+=a;
-        else if (r.status==='forfeit') forfeitSum+=a;
-        else { pendingSum+=a; pendingCount++; }
+        if (r.status==='refunded') { refundedSum += a; refundedCount++; }
+        else if (r.status==='forfeit') { forfeitSum += a; forfeitCount++; }
+        else { pendingSum += a; pendingCount++; }
       });
-      const total = pendingSum+refundedSum+forfeitSum;
+      const total = pendingSum + refundedSum + forfeitSum;
       const s = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
       s('refTotalReceived','฿'+total.toLocaleString()); s('refTotalCount',allRefunds.length+' รายการ');
       s('refPendingAmt','฿'+pendingSum.toLocaleString()); s('refPendingCount',pendingCount+' รายการ');
-      s('refRefunded','฿'+refundedSum.toLocaleString()); s('refForfeit','฿'+forfeitSum.toLocaleString());
+      s('refRefunded', refundedCount+' รายการ'); s('refRefundedAmt', '฿'+refundedSum.toLocaleString());
+      s('refForfeitCount', forfeitCount+' รายการ'); s('refForfeit','฿'+forfeitSum.toLocaleString());
  
       const container = document.getElementById('refundsContainer');
       if (!container) return;

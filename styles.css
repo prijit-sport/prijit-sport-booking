@@ -1505,9 +1505,11 @@ body.modal-open {
         font-size: 1.1em;
       }
 
-      .payment-terms ul {
+      .payment-terms ul,
+      .payment-terms ol {
         list-style: none;
         padding: 0;
+        margin: 0;
       }
 
       .payment-terms li {
@@ -1521,6 +1523,15 @@ body.modal-open {
         color: #ef4444;
         font-weight: bold;
         margin-right: 8px;
+      }
+
+      .payment-terms ol li {
+        color: #000;
+        font-weight: 500;
+      }
+
+      .payment-terms ol li:before {
+        content: none;
       }
 
       .timer-warning {

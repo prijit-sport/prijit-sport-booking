@@ -740,13 +740,13 @@ function showPaymentModal() {
         </div>
         <div class="payment-terms">
           <h4>💡 สรุปการชำระเงิน</h4>
-          <ul>
-            <li style="color:#059669;font-weight:bold;">✅ มาตามนัด: จ่ายเพิ่มเพียง <strong>${data.remainingAmount.toLocaleString()} บาท</strong> ที่สนาม<br><small style="font-weight:normal;color:#374151;">เพราะค่ามัดจำ ${data.depositAmount.toLocaleString()} บาท หักจ่ายมาแล้ว รวมเป็น ${data.totalPrice.toLocaleString()} บาท</small></li>
-            <li style="color:red;font-weight:bold;">❌ ไม่มาตามที่จอง: โดนหักเก็บค่ามัดจำ ${data.depositAmount.toLocaleString()} บาท ทันที ไม่มีการคืนเงิน</li>
-            <li style="color:#b45309;font-weight:bold;">⚠️ ค่ามัดจำจะคืนเฉพาะกรณียกเลิกการจองหรือถูกปฏิเสธเท่านั้น</li>
-            <li>📌 กรุณามาถึงก่อนเวลา 15 นาที</li>
-          </ul>
-        </div>
+          <ol style="list-style:none;padding-left:0;color:#000;">
+            <li style="color:#000;font-weight:bold;">1. ✅ มาตามนัด: จ่ายเพิ่มเพียง <strong>${data.remainingAmount.toLocaleString()} บาท</strong> ที่สนาม</li>
+            <li style="color:#000;font-weight:bold;">2. ❌ ไม่มาตามที่จอง: โดนหักเก็บค่ามัดจำ ${data.depositAmount.toLocaleString()} บาท ทันที ไม่มีการคืนเงิน</li>
+            <li style="color:#000;font-weight:bold;">3. ⚠️ ค่ามัดจำจะคืนเฉพาะกรณียกเลิกการจองหรือถูกปฏิเสธเท่านั้น</li>
+            <li style="color:#000;">4. 📌 กรุณามาถึงก่อนเวลา 15 นาที</li>
+          </ol>
+        </div>                   
         <div class="payment-buttons">
           <button class="cancel-payment-btn" onclick="closePaymentModal()">❌ ยกเลิก</button>
           <button class="upload-slip-btn" id="confirmPaymentBtn" disabled onclick="submitPayment()">⬆️ อัพโหลดสลิป</button>
