@@ -931,11 +931,31 @@
       } catch(e) { return null; }
     }
  
+    // FIX (Medium/QA-review): เดิม auto-delete ลบแค่ bookings/{id} อย่างเดียว
+    // ไม่ได้ลบ availability/{field}/{date}/{time} และ user_bookings/{uid}/{id} คู่กัน
+    // ทำให้ user_bookings ค้างเป็น key ตายไปเรื่อย ๆ ทุกครั้งที่ completed booking
+    // ถูกลบอัตโนมัติหลัง 24 ชม. (ไม่ error เพราะ updateBookingList() มี null-check
+    // ดักไว้แล้ว แต่ node จะโตขึ้นไม่มีที่สิ้นสุด) ต้องดึง booking มาก่อนลบเพื่อรู้
+    // field/date/time/userId แล้วลบทั้ง 3 node พร้อมกันแบบ atomic เหมือนจุดอื่น ๆ
+    function deleteBookingWithMirrors(bookingId) {
+      return database.ref('bookings/' + bookingId).once('value').then(snap => {
+        const b = snap.val();
+        if (!b) return; // ถูกลบไปแล้ว (เช่นถูกลบซ้ำจากอีก path) ไม่ต้องทำอะไรต่อ
+        const updates = {};
+        updates['bookings/' + bookingId] = null;
+        if (b.field && b.date && b.time) {
+          updates['availability/' + b.field + '/' + b.date + '/' + b.time] = null;
+        }
+        if (b.userId) updates['user_bookings/' + b.userId + '/' + bookingId] = null;
+        return database.ref().update(updates);
+      }).catch(() => {});
+    }
+ 
     function scheduleAutoDelete(bookingId, deleteTime) {
       if (!deleteTime) return;
       const now = new Date(), dt = new Date(deleteTime), delay = dt - now;
-      if (delay > 0) setTimeout(() => database.ref('bookings/'+bookingId).remove().catch(()=>{}), delay);
-      else database.ref('bookings/'+bookingId).remove();
+      if (delay > 0) setTimeout(() => deleteBookingWithMirrors(bookingId), delay);
+      else deleteBookingWithMirrors(bookingId);
     }
  
     // ===== ยืนยันรับเงินค่าสนามคงเหลือ → playing =====
@@ -1011,7 +1031,7 @@
         // ลบเฉพาะ completed เท่านั้น — ไม่ลบ approved/pending/playing
         if (b.autoDeleteAt && b.bookingStatus === 'completed') {
           const dt = new Date(b.autoDeleteAt);
-          if (dt <= now) database.ref('bookings/'+b.id).remove();
+          if (dt <= now) deleteBookingWithMirrors(b.id);
           else scheduleAutoDelete(b.id, b.autoDeleteAt);
         }
       });
