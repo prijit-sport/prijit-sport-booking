@@ -294,14 +294,21 @@
  
     <!-- ===== TAB: SCHEDULE ===== -->
     <div class="tab-content" id="scheduleTab">
-      <div class="stats-grid">
-        <div class="stat-card"><h3>ช่องเวลาว่าง (วันนี้)</h3><div class="stat-value stat-approved" id="schFree">0</div></div>
-        <div class="stat-card"><h3>รออนุมัติ</h3><div class="stat-value stat-pending" id="schPending">0</div></div>
-        <div class="stat-card"><h3>จองแล้ว (อนุมัติ)</h3><div class="stat-value stat-total" id="schApproved">0</div></div>
-        <div class="stat-card" style="border-top:4px solid #7c3aed;"><h3>⚽ กำลังเล่น</h3><div class="stat-value" style="color:#7c3aed;" id="schPlaying">0</div></div>
+      <div class="bookings-section" style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
+          <h2 style="margin:0;">📋 ภาพรวมการจองทั้งหมด (ทุกสนาม ทุกวัน)</h2>
+          <select id="allBookingsFilter" onchange="renderAllBookingsSummary()"
+                  style="padding:8px 12px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:'Sarabun',sans-serif;">
+            <option value="upcoming">เฉพาะวันนี้เป็นต้นไป</option>
+            <option value="all">ทั้งหมด (รวมวันที่ผ่านมาแล้ว)</option>
+          </select>
+        </div>
+        <div id="allBookingsSummaryList" style="max-height:440px;overflow-y:auto;">
+          <p style="text-align:center;color:#999;padding:30px;">กำลังโหลดข้อมูล...</p>
+        </div>
       </div>
       <div class="bookings-section">
-        <h2>🗓️ ตารางสถานะสนาม</h2>
+        <h2>🗓️ ตารางสถานะสนาม (รายวัน)</h2>
         <div class="schedule-controls">
           <button class="nav-btn" onclick="changeScheduleDay(-1)">‹</button>
           <div style="position:relative;display:inline-flex;align-items:center;">
@@ -542,7 +549,16 @@
     const auth = firebase.auth();
     const database = firebase.database();
     const IMGBB_API_KEY = '945c86ce6da8961a5b136c8472251f41';
+    // DEPOSIT_AMOUNT: ใช้เป็นค่าเริ่มต้นในฟอร์ม "เพิ่มรายการคืนมัดจำแบบ manual" เท่านั้น
+    // (กรณีลูกค้าเดินมายกเลิกโดยไม่มี booking ในระบบ) ไม่ได้เป็นค่า fallback ที่กระทบ
+    // การคำนวณมัดจำของ booking จริงในระบบ — booking ทุกตัวมี totalPrice เสมอ จึงคำนวณ
+    // ผ่าน DEPOSIT_PERCENTAGE ด้านล่างได้ตรง ๆ ผ่าน getBookingDeposit() อยู่แล้ว
+    // (เคสต่อเวลา/alternative booking ที่ depositAmount = 0 ก็คืนค่า 0 ถูกต้อง เพราะ
+    // `0 != null` เป็น true ใน JavaScript ไม่ตกไปใช้ค่านี้)
     const DEPOSIT_AMOUNT = 300;
+    // หมายเหตุ: ค่านี้ต้องตรงกับ DEPOSIT_PERCENTAGE ใน app.js เสมอ (ปัจจุบัน = 0.3
+    // เท่ากัน) เพราะแยกไฟล์กันคนละที่ ไม่ได้ใช้ config กลางร่วมกัน — ถ้าจะปรับ % มัดจำ
+    // ต้องแก้ทั้ง 2 ไฟล์พร้อมกันเสมอ ไม่งั้นยอดมัดจำฝั่งลูกค้ากับฝั่งพนักงานจะไม่ตรงกัน
     const DEPOSIT_PERCENTAGE = 0.30;
     const SCHEDULE_FIELDS = [1,2,3,4,5,6];
     const SCHEDULE_START_HOUR = 7;   // เปิด 07:00
@@ -555,7 +571,21 @@
       return DEPOSIT_AMOUNT;
     }
  
+    // FIX (XSS): ก่อนหน้านี้ข้อมูลจาก Firebase (ชื่อ, สนาม, เวลา, กิจกรรม ฯลฯ)
+    // ถูกแทรกเข้า innerHTML ตรง ๆ โดยไม่ escape เลยทั้งไฟล์ ทำให้ถ้ามีอักขระ
+    // HTML/script ปนมาในข้อมูล (ไม่ว่าจะจากช่องโหว่อื่นหรือข้อมูลเก่าก่อนมี sanitize)
+    // จะถูกรันเป็น HTML จริงตอนพนักงานเปิดดู ฟังก์ชันนี้ใช้หลักการเดียวกับ
+    // SecurityUtils.escapeHtml() ใน app.js คือให้ browser เป็นคน escape ให้เอง
+    // ผ่าน textContent แทนการเขียน regex เอง (ปลอดภัยกว่าและครอบคลุมกว่า)
+    function escapeHtml(text) {
+      if (text === null || text === undefined) return '';
+      const div = document.createElement('div');
+      div.textContent = String(text);
+      return div.innerHTML;
+    }
+ 
     let allBookings = [], filteredBookings = [], currentBooking = null;
+    let allCancellationLog = []; // สถิติการยกเลิกที่ลูกค้ากดยกเลิกเอง (ดู renderReport)
     let currentActivityId = null, currentImageId = null, allRefunds = [];
  
     // ===== FORMAT DATE DD/MM/YYYY พ.ศ. =====
@@ -586,7 +616,7 @@
           const userData = snapshot.val();
           if (userData && userData.role === 'staff') {
             document.getElementById('staffName').textContent = userData.fullname || userData.username || user.email;
-            loadBookings(); loadImages(); loadActivities(); loadRefunds();
+            loadBookings(); loadImages(); loadActivities(); loadRefunds(); loadCancellationLog();
           } else {
             alert('⚠️ คุณไม่มีสิทธิ์เข้าถึงระบบ Admin');
             auth.signOut(); window.location.href = 'staff-login.html';
@@ -731,15 +761,18 @@
       filteredBookings.forEach(booking => {
         const si = getStatusInfo(booking.bookingStatus);
         const badgeStyle = si.style ? `style="${si.style}padding:6px 12px;border-radius:20px;font-weight:600;font-size:13px;display:inline-block;"` : `class="status-badge ${si.cls}"`;
-        const name   = booking.fullname || booking.name || booking.username || '-';
+        const name   = escapeHtml(booking.fullname || booking.name || booking.username || '-');
+        const phone  = escapeHtml(booking.phone || '-');
+        const field  = escapeHtml(booking.field || '-');
+        const time   = escapeHtml(booking.time || '-');
         const dep    = getBookingDeposit(booking);
         const remaining = Math.max((booking.totalPrice||0) - dep, 0);
         const no     = String(runNo++).padStart(2,'0');
         const actionBtns = getActionButtons(booking);
  
         tableHtml += `<tr${booking.bookingStatus==='playing'?' style="background:#faf5ff;"':booking.bookingStatus==='completed'?' style="background:#f9fafb;opacity:0.75;"':''}>
-          <td>${no}</td><td>${name}</td><td>${booking.phone||'-'}</td>
-          <td>${booking.field}</td><td>${formatDate(booking.date)}</td><td>${booking.time}</td>
+          <td>${no}</td><td>${name}</td><td>${phone}</td>
+          <td>${field}</td><td>${formatDate(booking.date)}</td><td>${time}</td>
           <td>฿${(booking.totalPrice||0).toLocaleString()}</td>
           <td style="color:#10b981;font-weight:600;">฿${dep.toLocaleString()}</td>
           <td style="color:#ef4444;font-weight:600;">฿${remaining.toLocaleString()}</td>
@@ -751,9 +784,9 @@
           <div class="booking-card-header"><span class="booking-card-id">${no}</span><span ${badgeStyle}>${si.text}</span></div>
           <div class="booking-card-body">
             <div class="booking-card-row"><span class="booking-card-label">ชื่อ-นามสกุล:</span><span>${name}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">สนาม:</span><span>${booking.field}</span></div>
+            <div class="booking-card-row"><span class="booking-card-label">สนาม:</span><span>${field}</span></div>
             <div class="booking-card-row"><span class="booking-card-label">วันที่:</span><span>${formatDate(booking.date)}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">เวลา:</span><span>${booking.time}</span></div>
+            <div class="booking-card-row"><span class="booking-card-label">เวลา:</span><span>${time}</span></div>
             <div class="booking-card-row"><span class="booking-card-label">ราคาเต็ม:</span><span>฿${(booking.totalPrice||0).toLocaleString()}</span></div>
             <div class="booking-card-row"><span class="booking-card-label">มัดจำ:</span><span style="color:#10b981;font-weight:600;">฿${dep.toLocaleString()}</span></div>
             <div class="booking-card-row"><span class="booking-card-label">ค่าคงค้าง:</span><span style="color:#ef4444;font-weight:600;">฿${remaining.toLocaleString()}</span></div>
@@ -783,17 +816,20 @@
     }
     function _renderBookingModal(currentBooking) {
       if (!currentBooking) return;
-      const name = currentBooking.fullname || currentBooking.name || currentBooking.username || '-';
+      const name = escapeHtml(currentBooking.fullname || currentBooking.name || currentBooking.username || '-');
+      const phone = escapeHtml(currentBooking.phone || '-');
+      const field = escapeHtml(currentBooking.field || '-');
+      const time = escapeHtml(currentBooking.time || '-');
       const dep  = getBookingDeposit(currentBooking);
       const remaining = currentBooking.remainingAmount ?? Math.max((currentBooking.totalPrice||0) - dep, 0);
       const payStatus = currentBooking.paymentVerified ? '<span style="color:#10b981;">✅ ตรวจสอบแล้ว</span>' : '<span style="color:#f59e0b;">⏳ รอตรวจสอบ</span>';
  
       let html = `
         <div class="booking-detail"><label>ชื่อ-นามสกุล:</label><span>${name}</span></div>
-        <div class="booking-detail"><label>เบอร์โทร:</label><span>${currentBooking.phone||'-'}</span></div>
-        <div class="booking-detail"><label>สนาม:</label><span>${currentBooking.field}</span></div>
+        <div class="booking-detail"><label>เบอร์โทร:</label><span>${phone}</span></div>
+        <div class="booking-detail"><label>สนาม:</label><span>${field}</span></div>
         <div class="booking-detail"><label>วันที่เล่น:</label><span>${formatDate(currentBooking.date)}</span></div>
-        <div class="booking-detail"><label>เวลา:</label><span>${currentBooking.time}</span></div>
+        <div class="booking-detail"><label>เวลา:</label><span>${time}</span></div>
         <div class="booking-detail"><label>ราคาเต็ม:</label><span>฿${(currentBooking.totalPrice||0).toLocaleString()}</span></div>
         <div class="booking-detail"><label>มัดจำที่โอนมา:</label><span style="color:#10b981;font-weight:700;">฿${dep.toLocaleString()} <span style="font-weight:400;color:#666;">(${depositStatusText(currentBooking.depositStatus)})</span></span></div>
         <div class="booking-detail"><label>ยอดคงค้าง (จ่ายหน้าร้าน):</label><span style="color:#ef4444;font-weight:700;">฿${remaining.toLocaleString()}</span></div>
@@ -858,7 +894,15 @@
         createRefundRecord(booking, reason, doRefund ? 'pending' : 'forfeit');
       }
       showLoading();
-      database.ref('bookings/'+bookingId).remove().then(() => { hideLoading(); showToast('ปฏิเสธและลบการจองเรียบร้อยแล้ว','success'); }).catch(err => { hideLoading(); showToast(err.message,'error'); });
+      // FIX (privacy/High): ลบ availability + user_bookings index คู่กับ booking
+      // ไม่งั้นช่วงเวลานี้จะค้างเป็น "ไม่ว่าง" และลูกค้าจะยังเห็น booking นี้ค้างอยู่ในรายการของตัวเอง
+      const updates = {};
+      updates['bookings/' + bookingId] = null;
+      if (booking) {
+        updates['availability/' + booking.field + '/' + booking.date + '/' + booking.time] = null;
+        if (booking.userId) updates['user_bookings/' + booking.userId + '/' + bookingId] = null;
+      }
+      database.ref().update(updates).then(() => { hideLoading(); showToast('ปฏิเสธและลบการจองเรียบร้อยแล้ว','success'); }).catch(err => { hideLoading(); showToast(err.message,'error'); });
     }
  
     function rejectBookingFromModal() { if (currentBooking) { rejectBooking(currentBooking.id); closeBookingModal(); } }
@@ -869,7 +913,12 @@
       const reason = prompt('เหตุผลในการยกเลิก:', 'ยกเลิกการจอง') || 'ยกเลิกการจอง';
       createRefundRecord(currentBooking, reason, 'pending');
       showLoading();
-      database.ref('bookings/'+currentBooking.id).remove().then(() => { hideLoading(); closeBookingModal(); showToast('ยกเลิกการจองและบันทึกการคืนมัดจำแล้ว','success'); }).catch(err => { hideLoading(); showToast(err.message,'error'); });
+      // FIX (privacy/High): ลบ availability + user_bookings index คู่กับ booking
+      const updates = {};
+      updates['bookings/' + currentBooking.id] = null;
+      updates['availability/' + currentBooking.field + '/' + currentBooking.date + '/' + currentBooking.time] = null;
+      if (currentBooking.userId) updates['user_bookings/' + currentBooking.userId + '/' + currentBooking.id] = null;
+      database.ref().update(updates).then(() => { hideLoading(); closeBookingModal(); showToast('ยกเลิกการจองและบันทึกการคืนมัดจำแล้ว','success'); }).catch(err => { hideLoading(); showToast(err.message,'error'); });
     }
  
     function calculateBookingEndTime(dateString, timeString) {
@@ -903,8 +952,8 @@
           <div style="background:white;border-radius:16px;padding:24px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">
             <h3 style="color:#c2410c;margin:0 0 14px;text-align:center;">💸 ยืนยันการรับเงินค่าสนาม</h3>
             <div style="background:#fff7ed;border-radius:10px;padding:12px;margin-bottom:14px;font-size:0.9em;line-height:1.8;">
-              <div>👤 <strong>${booking.fullname||booking.username||'-'}</strong></div>
-              <div>📍 <strong>${booking.field}</strong> | ⏰ ${booking.time}</div>
+              <div>👤 <strong>${escapeHtml(booking.fullname||booking.username||'-')}</strong></div>
+              <div>📍 <strong>${escapeHtml(booking.field||'-')}</strong> | ⏰ ${escapeHtml(booking.time||'-')}</div>
               <div>💰 ยอดที่รับ: <strong style="color:#dc2626;">${(booking.remainingAmount||0).toLocaleString()} บาท</strong></div>
             </div>
             ${slipUrl ? `<div style="margin-bottom:14px;text-align:center;">
@@ -1033,7 +1082,7 @@
             } else {
               cls = 'slot-pending'; txt = 'รออนุมัติ'; pendingCount++;
             }
-            const name = ((b.fullname||b.name||b.username||'')).split(' ')[0]||'';
+            const name = escapeHtml(((b.fullname||b.name||b.username||'')).split(' ')[0]||'');
             body += `<td class="slot ${cls}" onclick="viewBooking('${b.id}')">${txt}<small>${name}</small></td>`;
           } else { freeCount++; body += `<td class="slot slot-free">ว่าง</td>`; }
         });
@@ -1041,10 +1090,76 @@
       }
  
       document.getElementById('scheduleBody').innerHTML = body;
-      document.getElementById('schFree').textContent     = freeCount;
-      document.getElementById('schPending').textContent  = pendingCount;
-      document.getElementById('schApproved').textContent = approvedCount;
-      const sp = document.getElementById('schPlaying'); if(sp) sp.textContent = playingCount;
+      renderAllBookingsSummary();
+    }
+ 
+    // ===== ภาพรวมการจองทั้งหมด (ทุกสนาม ทุกวัน) — แทนที่การ์ดสถิติเดิม =====
+    // แสดงรายละเอียดการจองทุกรายการ จัดกลุ่มตามวันที่ เพื่อให้เห็นภาพรวมทั้งหมด
+    // โดยไม่ต้องกดเลื่อนดูตารางสนามทีละวัน
+    function renderAllBookingsSummary() {
+      const container = document.getElementById('allBookingsSummaryList');
+      if (!container) return;
+      const filterEl = document.getElementById('allBookingsFilter');
+      const filterVal = filterEl ? filterEl.value : 'upcoming';
+      const todayStr = new Date().toISOString().split('T')[0];
+ 
+      let list = allBookings.filter(b => b.bookingStatus !== 'rejected' && b.bookingStatus !== 'completed');
+      if (filterVal === 'upcoming') list = list.filter(b => (b.date || '') >= todayStr);
+ 
+      if (list.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#999;padding:30px;">ไม่มีรายการจอง</p>';
+        return;
+      }
+ 
+      // เรียงตามวันที่ก่อน แล้วเรียงตามเวลาเริ่มภายในวันเดียวกัน
+      list.sort((a, b) => {
+        const da = a.date || '', db = b.date || '';
+        if (da !== db) return da.localeCompare(db);
+        const sa = getStartHour(a.time) ?? 0, sb = getStartHour(b.time) ?? 0;
+        return sa - sb;
+      });
+ 
+      // จัดกลุ่มตามวันที่
+      const groups = {};
+      list.forEach(b => {
+        const key = b.date || 'ไม่ระบุวันที่';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(b);
+      });
+ 
+      let html = '';
+      Object.keys(groups).sort().forEach(dateKey => {
+        const items = groups[dateKey];
+        const isToday = dateKey === todayStr;
+        const dateLabel = dateKey === 'ไม่ระบุวันที่' ? dateKey : formatThaiDateFull(dateKey);
+        html += `<div style="margin-bottom:18px;">
+          <div style="font-weight:700;color:${isToday ? '#059669' : '#374151'};font-size:15px;padding:8px 4px;border-bottom:2px solid ${isToday ? '#a7f3d0' : '#f3f4f6'};margin-bottom:6px;">
+            📅 ${escapeHtml(dateLabel)}
+            ${isToday ? '<span style="background:#d1fae5;color:#059669;padding:2px 8px;border-radius:10px;font-size:12px;margin-left:6px;">วันนี้</span>' : ''}
+            <span style="font-weight:400;color:#9ca3af;font-size:12px;">(${items.length} รายการ)</span>
+          </div>`;
+        items.forEach(b => {
+          const si = getStatusInfo(b.bookingStatus);
+          const badgeStyle = si.style
+            ? `style="${si.style}padding:4px 10px;border-radius:14px;font-weight:600;font-size:12px;display:inline-block;white-space:nowrap;"`
+            : `class="status-badge ${si.cls}" style="font-size:12px;padding:4px 10px;white-space:nowrap;"`;
+          const name  = escapeHtml(b.fullname || b.name || b.username || '-');
+          const field = escapeHtml(b.field || '-');
+          const time  = escapeHtml(b.time || '-');
+          html += `<div onclick="viewBooking('${b.id}')"
+              style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:#f9fafb;border-radius:8px;margin-bottom:6px;cursor:pointer;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+              <span style="font-weight:700;color:#065f46;min-width:64px;">${field}</span>
+              <span style="color:#374151;min-width:110px;">⏰ ${time}</span>
+              <span style="color:#6b7280;">${name}</span>
+            </div>
+            <span ${badgeStyle}>${si.text}</span>
+          </div>`;
+        });
+        html += '</div>';
+      });
+ 
+      container.innerHTML = html;
     }
  
     // ===== REFUNDS =====
@@ -1070,12 +1185,22 @@
       // ปิด listener เก่าก่อน
       database.ref('refunds').off();
  
+      // FIX: หน้ารายงาน (report tab) ใช้ allRefunds ในการนับ "ยกเลิก" ด้วย
+      // (ดู renderReport()) ถ้ามีข้อมูล refund เปลี่ยนแปลงระหว่างที่ staff
+      // เปิดแท็บรายงานค้างอยู่ ต้องสั่ง renderReport() ซ้ำด้วย ไม่งั้นตัวเลข
+      // จะค้างไม่อัปเดตจนกว่าจะสลับแท็บไปมา
+      const refreshReportIfActive = () => {
+        const rt = document.getElementById('reportTab');
+        if (rt && rt.classList.contains('active')) renderReport();
+      };
+ 
       // โหลดครั้งแรกด้วย .get() เพื่อดึงครบ
       database.ref('refunds').get().then((snapshot) => {
         allRefunds = [];
         snapshot.forEach(child => allRefunds.push({ id:child.key, ...child.val() }));
         allRefunds.sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
         renderRefunds();
+        refreshReportIfActive();
  
         // subscribe real-time หลังโหลดเสร็จ — ใช้ timestamp เป็น boundary
         // child_added จะ fire เฉพาะรายการใหม่ที่เกิดหลังจากนี้
@@ -1089,6 +1214,7 @@
           allRefunds.unshift({ id:child.key, ...r });
           allRefunds.sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
           renderRefunds();
+          refreshReportIfActive();
         });
         database.ref('refunds').on('child_changed', (child) => {
           const idx = allRefunds.findIndex(r => r.id === child.key);
@@ -1096,12 +1222,43 @@
           else allRefunds.unshift({ id:child.key, ...child.val() });
           allRefunds.sort((a,b) => new Date(b.createdAt)-new Date(a.createdAt));
           renderRefunds();
+          refreshReportIfActive();
         });
         database.ref('refunds').on('child_removed', (child) => {
           allRefunds = allRefunds.filter(r => r.id !== child.key);
           renderRefunds();
+          refreshReportIfActive();
         });
       }).catch(err => console.error('loadRefunds error:', err));
+    }
+ 
+    // ===== CANCELLATION LOG (สถิติที่ลูกค้ายกเลิกเอง — ดู cancelBooking() ใน app.js) =====
+    // node นี้เป็นแค่สถิติสำหรับหน้ารายงาน ไม่มีผลด้านการเงิน จึงไม่มี UI จัดการเหมือน refunds
+    function loadCancellationLog() {
+      database.ref('cancellation_log').off();
+      const refreshReportIfActive = () => {
+        const rt = document.getElementById('reportTab');
+        if (rt && rt.classList.contains('active')) renderReport();
+      };
+      database.ref('cancellation_log').get().then((snapshot) => {
+        allCancellationLog = [];
+        snapshot.forEach(child => allCancellationLog.push({ id: child.key, ...child.val() }));
+        refreshReportIfActive();
+ 
+        const now = Date.now();
+        database.ref('cancellation_log').on('child_added', (child) => {
+          const r = child.val();
+          const createdTs = r.createdAt ? new Date(r.createdAt).getTime() : 0;
+          if (createdTs < now && allCancellationLog.find(x => x.id === child.key)) return;
+          if (allCancellationLog.find(x => x.id === child.key)) return;
+          allCancellationLog.unshift({ id: child.key, ...r });
+          refreshReportIfActive();
+        });
+        database.ref('cancellation_log').on('child_removed', (child) => {
+          allCancellationLog = allCancellationLog.filter(r => r.id !== child.key);
+          refreshReportIfActive();
+        });
+      }).catch(err => console.error('loadCancellationLog error:', err));
     }
  
     function refundStatusInfo(s) {
@@ -1140,18 +1297,22 @@
         const actions = r.status==='pending'
           ? `<button class="btn-approve" onclick="processRefund('${r.id}','refunded')">คืนเงิน</button><button class="btn-reject" onclick="processRefund('${r.id}','forfeit')">หักเก็บมัดจำ</button>`
           : `<button class="btn-reject" onclick="deleteRefund('${r.id}')">ลบ</button>`;
+        const rName  = escapeHtml(r.fullname||'-');
+        const rPhone = escapeHtml(r.phone||'-');
+        const rField = escapeHtml(r.field||'-');
+        const rTime  = escapeHtml(r.time||'');
         tableHtml += `<tr>
-          <td>${r.fullname||'-'}</td><td>${r.phone||'-'}</td><td>${r.field||'-'}</td>
-          <td>${r.date?formatDate(r.date):'-'}<br><small style="color:#999;">${r.time||''}</small></td>
+          <td>${rName}</td><td>${rPhone}</td><td>${rField}</td>
+          <td>${r.date?formatDate(r.date):'-'}<br><small style="color:#999;">${rTime}</small></td>
           <td>฿${(r.deposit||0).toLocaleString()}</td>
           <td><span class="status-badge ${st.cls}">${st.text}</span></td>
           <td><div class="action-buttons">${actions}</div></td>
         </tr>`;
         mobileHtml += `<div class="booking-card">
-          <div class="booking-card-header"><span class="booking-card-id">${r.fullname||'-'}</span><span class="status-badge ${st.cls}">${st.text}</span></div>
+          <div class="booking-card-header"><span class="booking-card-id">${rName}</span><span class="status-badge ${st.cls}">${st.text}</span></div>
           <div class="booking-card-body">
-            <div class="booking-card-row"><span class="booking-card-label">เบอร์:</span><span>${r.phone||'-'}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">สนาม:</span><span>${r.field||'-'}</span></div>
+            <div class="booking-card-row"><span class="booking-card-label">เบอร์:</span><span>${rPhone}</span></div>
+            <div class="booking-card-row"><span class="booking-card-label">สนาม:</span><span>${rField}</span></div>
             <div class="booking-card-row"><span class="booking-card-label">วันที่:</span><span>${r.date?formatDate(r.date):'-'}</span></div>
             <div class="booking-card-row"><span class="booking-card-label">มัดจำ:</span><span>฿${(r.deposit||0).toLocaleString()}</span></div>
           </div>
@@ -1249,7 +1410,7 @@
       images.forEach(image => {
         const imgUrl   = (image.url || '').replace(/'/g, "\\'");
         const delUrl   = (image.deleteUrl || '').replace(/'/g, "\\'");
-        const imgTitle = image.title || 'ไม่มีชื่อ';
+        const imgTitle = escapeHtml(image.title || 'ไม่มีชื่อ');
         const imgOrder = image.order != null ? image.order : '-';
         const imgDate  = formatDateTime(image.createdAt);
         const card = document.createElement('div');
@@ -1404,10 +1565,14 @@
           activities.forEach(activity => {
             const div = document.createElement('div');
             div.className = 'activity-item';
+            // FIX (XSS): เดิมจุดนี้ไม่ escape เลย ทำให้ title/content ที่มี
+            // อักขระ HTML/script ปนมาจะถูกรันเป็น HTML จริงตอนแสดงผล
+            const safeTitle = escapeHtml(activity.title || '-');
+            const safeContent = escapeHtml(activity.content || '');
             div.innerHTML = `
               <div class="activity-header">
                 <div>
-                  <div class="activity-title">${activity.title || '-'}</div>
+                  <div class="activity-title">${safeTitle}</div>
                   <div class="activity-date">${formatDateTime(activity.createdAt)}</div>
                 </div>
                 <div class="activity-actions">
@@ -1415,7 +1580,7 @@
                   <button class="btn-delete" onclick="deleteActivity('${activity.id}')">🗑️ ลบ</button>
                 </div>
               </div>
-              <div class="activity-content">${activity.content || ''}</div>`;
+              <div class="activity-content">${safeContent}</div>`;
             activityList.appendChild(div);
           });
           console.log('✅ activities rendered:', activities.length);
@@ -1520,18 +1685,34 @@
  
       // ===== 1. รายรับทั้งหมด (ราคาเต็ม) =====
       let fullIncome=0, approvedIncome=0, pendingIncome=0;
-      let approvedCount=0, pendingCount=0, cancelCount=0;
+      let approvedCount=0, pendingCount=0;
  
       data.forEach(b => {
         const price = b.totalPrice || 0;
         if (b.bookingStatus === 'approved') {
           fullIncome += price; approvedIncome += price; approvedCount++;
-        } else if (b.bookingStatus === 'rejected') {
-          cancelCount++;
         } else {
           fullIncome += price; pendingIncome += price; pendingCount++;
         }
       });
+ 
+      // FIX: นับ "ยกเลิก" จาก node 'refunds' แทนการเช็ค bookingStatus==='rejected'
+      // ใน bookings — เพราะ rejectBooking()/cancelApprovedBooking() จะ .remove()
+      // booking ออกจากระบบทันทีที่กดปฏิเสธ/ยกเลิก ไม่เคยเก็บสถานะ 'rejected'
+      // ไว้ให้ตรวจสอบภายหลังเลย เงื่อนไขเดิมจึงไม่มีทางเป็นจริง (นับได้ 0 ตลอด)
+      // ในขณะที่ node 'refunds' มีการบันทึกไว้จริงทุกครั้งที่ staff ปฏิเสธ/ยกเลิก
+      // (ผ่าน createRefundRecord()) จึงใช้เป็นแหล่งข้อมูลแทนได้
+      // FIX: นับ "ยกเลิก" รวมจาก 2 แหล่ง —
+      // 1) 'refunds' : ปฏิเสธ/ยกเลิกโดย staff (ผ่าน createRefundRecord())
+      // 2) 'cancellation_log' : ลูกค้ายกเลิกเอง (ผ่าน cancelBooking() ใน app.js)
+      // ไม่มีทางซ้ำกันเพราะคนละ flow กันโดยสิ้นเชิง จึงบวกรวมกันได้ตรง ๆ
+      const inRange = (dateField, createdAtField) => {
+        const d = dateField || (createdAtField ? createdAtField.split('T')[0] : '');
+        return d && d >= startStr && d <= todayStr;
+      };
+      const cancelledByStaff = allRefunds.filter(r => inRange(r.date, r.createdAt));
+      const cancelledByCustomer = allCancellationLog.filter(r => inRange(r.date, r.createdAt));
+      const cancelCount = cancelledByStaff.length + cancelledByCustomer.length;
  
       const s = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
       s('rptFullIncome',    '฿' + fullIncome.toLocaleString());
@@ -1566,7 +1747,7 @@
             topHtml += `
               <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
                 <span style="font-size:1.3em;min-width:34px;text-align:center;">${medal}</span>
-                <span style="min-width:80px;font-weight:600;color:#333;">${field}</span>
+                <span style="min-width:80px;font-weight:600;color:#333;">${escapeHtml(field)}</span>
                 <div style="flex:1;background:#e5e7eb;border-radius:8px;height:26px;overflow:hidden;">
                   <div style="width:${pct}%;background:${barColor};height:100%;border-radius:8px;
                        display:flex;align-items:center;justify-content:flex-end;padding-right:8px;
@@ -1611,14 +1792,16 @@
                      : b.bookingStatus==='rejected'  ? 'ยกเลิก' : 'รอตรวจสอบ';
         const sColor = b.bookingStatus==='approved' ? '#10b981'
                      : b.bookingStatus==='rejected'  ? '#ef4444' : '#f59e0b';
-        const name   = b.fullname || b.name || b.username || '-';
+        const name   = escapeHtml(b.fullname || b.name || b.username || '-');
+        const field  = escapeHtml(b.field||'-');
+        const time   = escapeHtml(b.time||'-');
         tHtml += `
           <tr>
             <td>${String(i+1).padStart(2,'0')}</td>
             <td>${name}</td>
-            <td>${b.field||'-'}</td>
+            <td>${field}</td>
             <td>${formatDate(b.date)}</td>
-            <td>${b.time||'-'}</td>
+            <td>${time}</td>
             <td style="font-weight:700;">฿${(b.totalPrice||0).toLocaleString()}</td>
             <td style="color:${sColor};font-weight:600;">${sText}</td>
           </tr>`;

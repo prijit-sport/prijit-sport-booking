@@ -141,6 +141,9 @@ let slideInterval = null;
 const galleryImages = ['f11.jpg', 'f8.jpg', 'f9.jpg', 'f1.jpg', 'f10.jpg', '2.jpg', 'f3.jpg'];
 let currentGalleryIndex = 0;
 let paymentTimer = null;
+// หมายเหตุ: ค่านี้ต้องตรงกับ DEPOSIT_PERCENTAGE ใน staff-panel.html เสมอ (ปัจจุบัน = 0.30
+// เท่ากัน) เพราะแยกไฟล์กันคนละที่ ไม่ได้ใช้ config กลางร่วมกัน — ถ้าจะปรับ % มัดจำ
+// ต้องแก้ทั้ง 2 ไฟล์พร้อมกันเสมอ ไม่งั้นยอดมัดจำฝั่งลูกค้ากับฝั่งพนักงานจะไม่ตรงกัน
 const DEPOSIT_PERCENTAGE = 0.3;
 const MAX_BOOKING_DAYS = 30;
 const MAX_FILE_SIZE_MB = 5;
@@ -387,26 +390,34 @@ function checkAvailability() {
   const timeoutId = setTimeout(() => {
     statusDiv.innerHTML = '<strong style="color:#ef4444;">⚠️ การเชื่อมต่อล่าช้า กรุณาลองใหม่อีกครั้ง</strong>';
   }, 10000);
-  const query = database.ref('bookings').orderByChild('field').equalTo(field);
-  currentAvailabilityCheck = query;
-  query.once('value').then((snapshot) => {
+  // FIX (privacy/High): เดิมจุดนี้ query ทั้ง node 'bookings' โดย field
+  // ซึ่งดึงข้อมูลส่วนตัวลูกค้าทุกคนกลับมาด้วย (ชื่อ, เบอร์โทร, สลิปมัดจำ)
+  // ทำให้ลูกค้าคนไหนก็ตามที่ login อยู่เห็นข้อมูลของคนอื่นได้ทั้งหมด
+  // เปลี่ยนมา query node 'availability/{field}/{date}' แทน ซึ่งเก็บแค่
+  // "เวลาไหนถูกจองแล้วบ้าง" ไม่มีข้อมูลส่วนตัวใด ๆ ปนอยู่เลย
+  const ref = database.ref('availability/' + field + '/' + date);
+  currentAvailabilityCheck = ref;
+  ref.once('value').then((snapshot) => {
     clearTimeout(timeoutId);
-    if (currentAvailabilityCheck !== query) return;
-    const bookedTimes = [];
-    snapshot.forEach((child) => {
-      const booking = child.val();
-      if (booking.date === date && booking.bookingStatus !== 'cancelled') bookedTimes.push(booking.time);
-    });
+    if (currentAvailabilityCheck !== ref) return;
+    const bookedTimes = snapshot.exists() ? Object.keys(snapshot.val()) : [];
     updateTimeSlotAvailability(bookedTimes);
     statusDiv.style.display = 'none';
     currentAvailabilityCheck = null;
   }).catch((error) => {
     clearTimeout(timeoutId);
-    if (currentAvailabilityCheck !== query) return;
+    if (currentAvailabilityCheck !== ref) return;
     statusDiv.className = 'availability-notice';
     statusDiv.style.display = 'block';
     currentAvailabilityCheck = null;
   });
+}
+ 
+// Helper: ตำแหน่งอ้างอิงของ node 'availability' ที่ mirror มาจาก bookings
+// เก็บแค่ field/date/time ที่ถูกจองแล้ว ไม่มีข้อมูลส่วนตัวใด ๆ — ใช้แทนการ
+// query 'bookings' โดยตรงในทุกจุดที่แค่ต้องการรู้ว่า "ช่วงเวลานี้ว่างไหม"
+function availabilityRef(field, date, time) {
+  return database.ref('availability/' + field + '/' + date + '/' + time);
 }
 function updateTimeSlotAvailability(bookedTimes) {
   const timeSlots = document.querySelectorAll('.time-slot-btn');
@@ -822,13 +833,13 @@ function closePaymentModal() {
     uploadArea.removeEventListener('drop', uploadArea._dragHandlers.handleDrop);
     delete uploadArea._dragHandlers;
   }
-
+ 
   const modal = document.getElementById('paymentModal');
   if (modal) modal.remove();
-
+ 
   currentBookingData = null;
   uploadedSlipFile = null;
-
+ 
   // safety: ensure global booking modal/lock overlay isn't left behind
   try {
     const overlay = document.getElementById('global-loading');
@@ -836,7 +847,7 @@ function closePaymentModal() {
     document.body.style.overflow = '';
   } catch (e) {}
 }
-
+ 
  
 function cleanupBookingLock() {
   if (currentBookingData) {
@@ -886,8 +897,12 @@ function uploadSlipAndCreateBooking() {
       field_date_time: uniqueKey,
       createdAt: new Date().toISOString()
     };
+    // FIX: เพิ่ม userId เข้าไปใน lock object ตอนสร้าง เพื่อให้ Firebase Rules
+    // ที่เช็ค data.child('userId').val() === auth.uid ตอนลบ/แก้ lock ทำงานได้ถูกต้อง
+    // (เดิมไม่มี userId เลย ทำให้ cleanupBookingLock()/beforeunload ลบ lock ตัวเองไม่ได้
+    // ถ้าใช้คู่กับ rules ใหม่ที่ล็อกสิทธิ์ตาม owner)
     database.ref('booking_locks/' + uniqueKey).transaction((currentData) => {
-      if (currentData === null) return { locked: true, timestamp: Date.now() };
+      if (currentData === null) return { locked: true, timestamp: Date.now(), userId: currentUser.uid };
       else return undefined;
     }, (error, committed, snapshot) => {
       if (error) {
@@ -898,7 +913,16 @@ function uploadSlipAndCreateBooking() {
         alert('❌ ช่วงเวลานี้ถูกจองไปแล้ว กรุณาเลือกช่วงเวลาอื่น');
         closePaymentModal(); checkAvailability();
       } else {
-        bookingRef.set(bookingData).then(() => {
+        // FIX (privacy/High): เปลี่ยนจาก bookingRef.set(bookingData) เดี่ยว ๆ
+        // เป็น multi-path update() เขียน bookings/{id} และ availability/{field}/{date}/{time}
+        // พร้อมกันแบบ atomic (Firebase RTDB รับประกันว่า multi-path update()
+        // เดียวจะสำเร็จหรือล้มเหลวพร้อมกันทั้งหมด) เพื่อให้ node availability ที่ใช้
+        // แสดงผล "ว่าง/ไม่ว่าง" กับลูกค้าคนอื่นไม่มีข้อมูลส่วนตัวปนอยู่เลย
+        const updates = {};
+        updates['bookings/' + bookingRef.key] = bookingData;
+        updates['availability/' + data.field + '/' + data.date + '/' + data.time] = true;
+        updates['user_bookings/' + currentUser.uid + '/' + bookingRef.key] = true;
+        database.ref().update(updates).then(() => {
           clearInterval(paymentTimer);
           const displayDate = formatDateThai(data.date);
           alert(`✅ อัพโหลดสลิปสำเร็จ!\n\n📋 เลขที่การจอง: #${bookingRef.key.substr(-6).toUpperCase()}\n\nระบบจะตรวจสอบการชำระเงินภายใน 5 นาที\n\n📍 สนาม: ${data.field}\n📅 วันที่: ${displayDate}\n⏰ เวลา: ${data.time}\n💰 มัดจำ: ${data.depositAmount.toLocaleString()} บาท ✅\n💸 ค่าบริการคงเหลือ: ${data.remainingAmount.toLocaleString()} บาท\n\n⚠️ ค่ามัดจำจะคืนเฉพาะกรณียกเลิกการจองหรือถูกปฏิเสธเท่านั้น`);
@@ -926,21 +950,33 @@ function updateBookingList() {
     return;
   }
   bookingListDiv.innerHTML = '<p style="text-align:center;color:#666;">⏳ กำลังโหลดข้อมูล...</p>';
-  database.ref('bookings').orderByChild('userId').equalTo(user.uid).once('value').then((snapshot) => {
-    if (!snapshot.exists()) {
+  // FIX (privacy/High): เดิมจุดนี้ query 'bookings' ทั้ง node ด้วย orderByChild('userId')
+  // ตรง ๆ ซึ่ง Firebase Rules ไม่รองรับ "กรองสิทธิ์อ่านตามผลลัพธ์ query" ได้ — สิทธิ์อ่าน
+  // ต้องอนุญาตทั้ง node 'bookings' แบบกว้าง ๆ ถึงจะ query ได้ ทำให้ข้อมูลส่วนตัวของ
+  // ทุกคนรั่วไหลออกไปเหมือนปัญหาที่แก้ใน checkAvailability() เปลี่ยนมาใช้ดัชนี
+  // 'user_bookings/{uid}' (เขียนคู่กันไปทุกครั้งที่สร้าง/ลบ booking) เก็บแค่ bookingId
+  // ของตัวเอง แล้วค่อยไปอ่าน 'bookings/{id}' ทีละรายการ ซึ่งอนุญาตเฉพาะเจ้าของ/staff
+  database.ref('user_bookings/' + user.uid).once('value').then((idsSnapshot) => {
+    if (!idsSnapshot.exists()) {
       bookingListDiv.innerHTML = `<div style="text-align:center;padding:40px;"><p style="color:#6b7280;font-size:1.1em;">⚽ ยังไม่มีรายการจอง</p><p style="color:#9ca3af;margin-top:10px;">เริ่มจองสนามได้เลย!</p></div>`;
       return;
     }
-    const bookings = [];
-    snapshot.forEach((childSnapshot) => {
-      const booking = childSnapshot.val();
-      booking.id = childSnapshot.key;
-      if (booking.bookingStatus !== 'rejected') bookings.push(booking);
+    const ids = Object.keys(idsSnapshot.val());
+    return Promise.all(ids.map(id => database.ref('bookings/' + id).once('value'))).then((snapshots) => {
+      const bookings = [];
+      snapshots.forEach((snap, i) => {
+        const booking = snap.val();
+        // booking อาจเป็น null ได้ถ้าถูกลบไปแล้ว (เช่น auto-delete หลัง completed 24 ชม.)
+        // แต่ index ยังไม่ถูกเก็บกวาดตาม — ข้ามรายการที่หายไปแบบเงียบ ๆ
+        if (!booking) return;
+        booking.id = ids[i];
+        if (booking.bookingStatus !== 'rejected') bookings.push(booking);
+      });
+      if (bookings.length === 0) { bookingListDiv.innerHTML = '<p style="text-align:center;color:#666;">ยังไม่มีรายการจอง</p>'; return; }
+      bookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      bookingListDiv.innerHTML = bookings.map(booking => generateBookingCard(booking)).join('');
+      initializeBookingCardEvents();
     });
-    if (bookings.length === 0) { bookingListDiv.innerHTML = '<p style="text-align:center;color:#666;">ยังไม่มีรายการจอง</p>'; return; }
-    bookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    bookingListDiv.innerHTML = bookings.map(booking => generateBookingCard(booking)).join('');
-    initializeBookingCardEvents();
   }).catch((error) => {
     bookingListDiv.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;"><p>❌ โหลดข้อมูลไม่สำเร็จ</p><p style="color:#6b7280;font-size:0.9em;">${error.message}</p><button onclick="updateBookingList()" style="margin-top:20px;background:#22c55e;color:white;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;">🔄 ลองใหม่</button></div>`;
   });
@@ -1208,7 +1244,30 @@ function cancelBooking(bookingId) {
     if (!firebaseUser) throw new Error('กรุณา Login ก่อนยกเลิกการจอง');
     if (booking.userId !== firebaseUser.uid) throw new Error('คุณไม่มีสิทธิ์ยกเลิกการจองนี้');
     const uniqueKey = `${booking.field}_${booking.date}_${booking.time}`;
-    return Promise.all([database.ref('bookings/' + bookingId).remove(), database.ref('booking_locks/' + uniqueKey).remove()]);
+    // FIX: บันทึก log การยกเลิกไว้ก่อนลบ booking ทิ้ง เพื่อให้หน้ารายงานฝั่ง staff
+    // นับจำนวน "ยกเลิก" ได้ครบ รวมกรณีลูกค้ายกเลิกเอง (ไม่ใช่แค่ staff ปฏิเสธ/ยกเลิก)
+    // node นี้เป็นแค่สถิติ ไม่มีผลด้านการเงินใด ๆ — เขียนได้ครั้งเดียว ห้ามแก้ไข/ลบทีหลัง
+    // (ดูเงื่อนไขใน Firebase Rules ที่ cancellation_log)
+    const logEntry = {
+      bookingId,
+      userId: firebaseUser.uid,
+      field: booking.field || '',
+      date: booking.date || '',
+      time: booking.time || '',
+      reason: 'ลูกค้ายกเลิกเอง',
+      createdAt: new Date().toISOString()
+    };
+    return Promise.all([
+      database.ref('cancellation_log').push(logEntry).catch(() => {}), // ไม่ให้การบันทึก log ล้มเหลวขวางการยกเลิกจริง
+      // FIX (privacy/High): ลบ availability/{field}/{date}/{time} คู่กันไปด้วย
+      // ไม่งั้นช่วงเวลานี้จะค้างเป็น "ไม่ว่าง" ตลอดไปทั้งที่ booking ถูกลบไปแล้ว
+      database.ref('availability/' + booking.field + '/' + booking.date + '/' + booking.time).remove(),
+      // FIX (privacy/High): ลบ index user_bookings ของตัวเองออกด้วย ไม่งั้น
+      // updateBookingList() จะพยายามอ่าน booking ที่ไม่มีอยู่แล้วทุกครั้งที่โหลด
+      database.ref('user_bookings/' + firebaseUser.uid + '/' + bookingId).remove(),
+      database.ref('bookings/' + bookingId).remove(),
+      database.ref('booking_locks/' + uniqueKey).remove()
+    ]);
   }).then(() => {
     alert("✅ ยกเลิกการจองเรียบร้อยแล้ว");
     updateBookingList();
@@ -1462,7 +1521,11 @@ async function checkNextSlotForBooking(booking) {
     return;
   }
   try {
-    const snapshot = await database.ref('bookings').orderByChild('field_date_time').equalTo(`${booking.field}_${booking.date}_${endTime} - ${nextEndTime}`).once('value');
+    // FIX (privacy/High): เดิม query 'bookings' โดย field_date_time ตรง ๆ
+    // ซึ่งจะพังทันทีถ้าเป็น booking ของคนอื่น หลังจากจำกัดสิทธิ์อ่าน 'bookings'
+    // ให้เหลือแค่เจ้าของ/staff แล้ว — เปลี่ยนมาเช็คจาก 'availability' แทน
+    const nextTimeSlot = `${endTime} - ${nextEndTime}`;
+    const snapshot = await availabilityRef(booking.field, booking.date, nextTimeSlot).once('value');
     const info = document.getElementById(`next-slot-${booking.id}`);
     if (!info) return;
     if (snapshot.exists()) {
@@ -1484,7 +1547,10 @@ async function requestBookingExtension(bookingId) {
     const endTime = booking.time.split(' - ')[1];
     const nextEndTime = addOneHourToTime(endTime);
     if (nextEndTime === null) { showToast('⏰ ไม่สามารถต่อเวลาได้ เนื่องจากเกินเวลาทำการสนาม (07:00-20:00)', 'error'); return; }
-    const nextSlotSnapshot = await database.ref('bookings').orderByChild('field_date_time').equalTo(`${booking.field}_${booking.date}_${endTime} - ${nextEndTime}`).once('value');
+    // FIX (privacy/High): เปลี่ยนจาก query 'bookings' ของคนอื่นตรง ๆ (จะถูก
+    // Firebase Rules ปฏิเสธหลังจำกัดสิทธิ์อ่านแล้ว) มาเช็คจาก 'availability' แทน
+    const nextTimeSlot = `${endTime} - ${nextEndTime}`;
+    const nextSlotSnapshot = await availabilityRef(booking.field, booking.date, nextTimeSlot).once('value');
     const modal = document.getElementById('extensionModal');
     modal.classList.add('show');
     if (!nextSlotSnapshot.exists()) {
@@ -1527,18 +1593,51 @@ async function confirmExtensionPayment() {
     if (nextEndTime === null) { showToast('⏰ ไม่สามารถต่อเวลาได้ เนื่องจากเกินเวลาทำการสนาม (07:00-20:00)', 'error'); confirmBtn.textContent = 'ยืนยันชำระเงิน'; confirmBtn.disabled = false; return; }
     const timeSlot = `${endTime} - ${nextEndTime}`;
     const price = calculateFieldPrice(booking.field, parseInt(endTime.split(':')[0]));
-    const newBookingRef = database.ref('bookings').push();
     const uniqueKey = `${booking.field}_${booking.date}_${timeSlot}`;
-    await newBookingRef.set({
-      userId: booking.userId, username: booking.username, fullname: booking.fullname || booking.username,
-      phone: booking.phone, field: booking.field, date: booking.date, time: timeSlot,
-      totalPrice: price, depositAmount: 0, remainingAmount: price,
-      depositStatus: 'not_required', remainingStatus: 'unpaid', bookingStatus: 'approved',
-      extendedFrom: booking.id, field_date_time: uniqueKey, createdAt: new Date().toISOString()
+ 
+    // FIX (race condition): เดิมจุดนี้เช็คว่าง (.once('value')) ตอนเปิด modal แล้วรอ
+    // นับถอยหลังสูงสุด 5 นาทีก่อนค่อยเขียนจริงตรงนี้ โดยไม่มีการล็อกใด ๆ คั่นระหว่างทาง
+    // ถ้ามี 2 คนกดต่อเวลาช่วงเวลาเดียวกันในหน้าต่างเวลานั้น ทั้งคู่จะผ่านและ
+    // เขียน booking ซ้ำกันได้ ใช้ transaction แบบเดียวกับ uploadSlipAndCreateBooking()
+    // เป็นตัวตัดสินแบบ atomic ก่อนค่อยสร้าง booking จริง
+    const lockResult = await database.ref('booking_locks/' + uniqueKey).transaction((currentData) => {
+      if (currentData === null) return { locked: true, timestamp: Date.now(), userId: booking.userId };
+      else return undefined;
     });
-    await database.ref(`bookings/${booking.id}`).update({ extendedTo: newBookingRef.key });
-    showToast('✅ ต่อเวลาสำเร็จ! ขอบคุณที่ใช้บริการ', 'success');
-    closeExtensionModal(); updateBookingList();
+    if (!lockResult.committed) {
+      showToast('❌ ช่วงเวลานี้ถูกจองไปแล้ว กรุณาลองใหม่อีกครั้ง', 'error');
+      confirmBtn.textContent = 'ยืนยันชำระเงิน'; confirmBtn.disabled = false;
+      closeExtensionModal();
+      return;
+    }
+ 
+    try {
+      const newBookingRef = database.ref('bookings').push();
+      const bookingData = {
+        userId: booking.userId, username: booking.username, fullname: booking.fullname || booking.username,
+        phone: booking.phone, field: booking.field, date: booking.date, time: timeSlot,
+        totalPrice: price, depositAmount: 0, remainingAmount: price,
+        depositStatus: 'not_required', remainingStatus: 'unpaid', bookingStatus: 'approved',
+        extendedFrom: booking.id, field_date_time: uniqueKey, createdAt: new Date().toISOString()
+      };
+      // FIX (privacy/High): เขียน bookings/{id}, availability/{field}/{date}/{time},
+      // และ extendedTo ของ booking เดิม พร้อมกันในครั้งเดียวแบบ atomic ผ่าน update()
+      const updates = {};
+      updates['bookings/' + newBookingRef.key] = bookingData;
+      updates['bookings/' + booking.id + '/extendedTo'] = newBookingRef.key;
+      updates['availability/' + booking.field + '/' + booking.date + '/' + timeSlot] = true;
+      updates['user_bookings/' + booking.userId + '/' + newBookingRef.key] = true;
+      await database.ref().update(updates);
+      // หมายเหตุ: จงใจไม่ลบ lock ทิ้งหลังสร้างสำเร็จ — ให้ lock คงอยู่ตราบเท่าที่
+      // booking ยังครองช่วงเวลานี้อยู่ (รูปแบบเดียวกับตอนจองปกติ) จะถูกลบก็ต่อเมื่อ
+      // มีการยกเลิก booking นี้ภายหลังผ่าน cancelBooking()
+      showToast('✅ ต่อเวลาสำเร็จ! ขอบคุณที่ใช้บริการ', 'success');
+      closeExtensionModal(); updateBookingList();
+    } catch (innerError) {
+      // สร้าง booking ไม่สำเร็จ ต้องปลด lock คืนไม่งั้นช่วงเวลานี้จะค้างเป็น "ไม่ว่าง" ตลอดไป
+      await database.ref('booking_locks/' + uniqueKey).remove().catch(() => {});
+      throw innerError;
+    }
   } catch(error) { showToast('❌ ' + error.message, 'error'); confirmBtn.textContent = 'ยืนยันชำระเงิน'; confirmBtn.disabled = false; }
 }
  
@@ -1556,7 +1655,8 @@ async function findAlternativeSlots(booking) {
       const end = addOneHourToTime(start);
       if (end === null) continue;
       const timeSlot = `${start} - ${end}`;
-      const snapshot = await database.ref('bookings').orderByChild('field_date_time').equalTo(`${booking.field}_${booking.date}_${timeSlot}`).once('value');
+      // FIX (privacy/High): เช็คจาก 'availability' แทน 'bookings' ของคนอื่น
+      const snapshot = await availabilityRef(booking.field, booking.date, timeSlot).once('value');
       if (!snapshot.exists()) {
         const price = calculateFieldPrice(booking.field, parseInt(start.split(':')[0]));
         const slotDiv = document.createElement('div');
@@ -1581,24 +1681,51 @@ async function createAlternativeBooking(timeSlot, price) {
   const uniqueKey = `${booking.field}_${booking.date}_${timeSlot}`;
   showLoading('กำลังตรวจสอบความว่าง...');
   try {
-    const availabilityCheck = await database.ref('bookings').orderByChild('field_date_time').equalTo(uniqueKey).once('value');
+    // FIX (privacy/High): เช็คเบื้องต้นจาก 'availability' แทน 'bookings' ของคนอื่น
+    // (จะถูก Firebase Rules ปฏิเสธหลังจำกัดสิทธิ์อ่านแล้ว) — ตัวตัดสินจริงคือ transaction ด้านล่าง
+    const availabilityCheck = await availabilityRef(booking.field, booking.date, timeSlot).once('value');
     if (availabilityCheck.exists()) { hideLoading(); showToast('❌ ช่วงเวลานี้ถูกจองไปแล้ว กรุณาเลือกช่วงเวลาอื่น', 'error'); return; }
     showLoading('กำลังสร้างการจอง...');
+ 
+    // FIX (race condition): เดิมจุดนี้ใช้ lockRef.set() ตรง ๆ ซึ่งไม่ atomic —
+    // ถ้ามี 2 คนเลือกช่วงเวลาเดียวกันพร้อมกัน ต่างฝ่ายต่าง .set() ทับกันได้ทั้งคู่
+    // "สำเร็จ" แล้วเขียน booking ซ้ำกัน เปลี่ยนมาใช้ .transaction() ที่คืนค่า
+    // undefined เมื่อมีข้อมูลอยู่แล้ว เพื่อให้มีผู้ชนะแค่คนเดียวจริง ๆ
     const lockRef = database.ref('booking_locks/' + uniqueKey);
-    await lockRef.set({ userId: booking.userId, timestamp: Date.now() });
-    const newBookingRef = database.ref('bookings').push();
-    await newBookingRef.set({
-      userId: booking.userId, username: booking.username, fullname: booking.fullname || booking.username,
-      phone: booking.phone, field: booking.field, date: booking.date, time: timeSlot,
-      totalPrice: price, depositAmount: 0, remainingAmount: price,
-      depositStatus: 'not_required', remainingStatus: 'unpaid', bookingStatus: 'approved',
-      field_date_time: uniqueKey, createdAt: new Date().toISOString(), alternativeBooking: true
+    const lockResult = await lockRef.transaction((currentData) => {
+      if (currentData === null) return { locked: true, timestamp: Date.now(), userId: booking.userId };
+      else return undefined;
     });
-    await lockRef.remove();
-    hideLoading();
-    showToast('✅ จองช่วงเวลาใหม่สำเร็จ! กรุณาชำระเงิน', 'success');
-    closeExtensionModal(); updateBookingList();
-    setTimeout(() => { const section = document.getElementById('checkBookingSection'); if (section) section.scrollIntoView({ behavior:'smooth', block:'start' }); }, 500);
+    if (!lockResult.committed) {
+      hideLoading();
+      showToast('❌ ช่วงเวลานี้ถูกจองไปแล้ว กรุณาเลือกช่วงเวลาอื่น', 'error');
+      return;
+    }
+ 
+    try {
+      const newBookingRef = database.ref('bookings').push();
+      const bookingData = {
+        userId: booking.userId, username: booking.username, fullname: booking.fullname || booking.username,
+        phone: booking.phone, field: booking.field, date: booking.date, time: timeSlot,
+        totalPrice: price, depositAmount: 0, remainingAmount: price,
+        depositStatus: 'not_required', remainingStatus: 'unpaid', bookingStatus: 'approved',
+        field_date_time: uniqueKey, createdAt: new Date().toISOString(), alternativeBooking: true
+      };
+      // FIX (privacy/High): เขียน booking ใหม่กับ availability mirror พร้อมกันแบบ atomic
+      const updates = {};
+      updates['bookings/' + newBookingRef.key] = bookingData;
+      updates['availability/' + booking.field + '/' + booking.date + '/' + timeSlot] = true;
+      updates['user_bookings/' + booking.userId + '/' + newBookingRef.key] = true;
+      await database.ref().update(updates);
+      // หมายเหตุ: จงใจไม่ลบ lock ทิ้งหลังสร้างสำเร็จ ด้วยเหตุผลเดียวกับ confirmExtensionPayment()
+      hideLoading();
+      showToast('✅ จองช่วงเวลาใหม่สำเร็จ! กรุณาชำระเงิน', 'success');
+      closeExtensionModal(); updateBookingList();
+      setTimeout(() => { const section = document.getElementById('checkBookingSection'); if (section) section.scrollIntoView({ behavior:'smooth', block:'start' }); }, 500);
+    } catch (innerError) {
+      await lockRef.remove().catch(() => {});
+      throw innerError;
+    }
   } catch(error) { hideLoading(); showToast('❌ ' + error.message, 'error'); }
 }
  

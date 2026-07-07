@@ -10,7 +10,7 @@
       padding: 0;
       box-sizing: border-box;
     }
-
+ 
     body {
       font-family: 'Sarabun', sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -20,7 +20,7 @@
       justify-content: center;
       padding: 20px;
     }
-
+ 
     .container {
       background: white;
       padding: 40px;
@@ -29,12 +29,12 @@
       max-width: 500px;
       width: 100%;
     }
-
+ 
     h1 {
       color: #667eea;
       margin-bottom: 10px;
     }
-
+ 
     .warning {
       background: #fef3c7;
       color: #92400e;
@@ -43,18 +43,18 @@
       margin-bottom: 20px;
       border-left: 4px solid #f59e0b;
     }
-
+ 
     .form-group {
       margin-bottom: 20px;
     }
-
+ 
     .form-group label {
       display: block;
       margin-bottom: 8px;
       color: #333;
       font-weight: 600;
     }
-
+ 
     .form-group input {
       width: 100%;
       padding: 12px;
@@ -62,12 +62,12 @@
       border-radius: 8px;
       font-size: 16px;
     }
-
+ 
     .form-group input:focus {
       outline: none;
       border-color: #667eea;
     }
-
+ 
     .btn {
       width: 100%;
       padding: 15px;
@@ -80,66 +80,66 @@
       cursor: pointer;
       transition: all 0.3s;
     }
-
+ 
     .btn:hover {
       background: #5568d3;
       transform: translateY(-2px);
     }
-
+ 
     .btn:disabled {
       background: #cbd5e1;
       cursor: not-allowed;
     }
-
+ 
     .result {
       margin-top: 20px;
       padding: 15px;
       border-radius: 8px;
       display: none;
     }
-
+ 
     .result.success {
       background: #d1fae5;
       color: #065f46;
       border-left: 4px solid #10b981;
       display: block;
     }
-
+ 
     .result.error {
       background: #fee2e2;
       color: #991b1b;
       border-left: 4px solid #ef4444;
       display: block;
     }
-
+ 
     .info {
       background: #f3f4f6;
       padding: 15px;
       border-radius: 8px;
       margin-top: 20px;
     }
-
+ 
     .info-title {
       font-weight: 600;
       margin-bottom: 10px;
       color: #333;
     }
-
+ 
     .info-item {
       display: flex;
       justify-content: space-between;
       padding: 8px 0;
       border-bottom: 1px solid #e5e7eb;
     }
-
+ 
     .info-item:last-child {
       border-bottom: none;
     }
-
+ 
     .info-label {
       color: #666;
     }
-
+ 
     .info-value {
       font-weight: 600;
       color: #333;
@@ -147,14 +147,17 @@
   </style>
 </head>
 <body>
-  <div class="container">
+  <div id="authCheckingNotice" style="text-align:center;padding:60px 20px;font-family:sans-serif;color:#666;">
+    ⏳ กำลังตรวจสอบสิทธิ์การเข้าถึง...
+  </div>
+  <div class="container" id="createStaffContainer" style="display:none;">
     <h1>👤 สร้างบัญชีพนักงาน</h1>
     <p style="color: #666; margin-bottom: 20px;">PRIJIT SPORT Admin Tool</p>
-
+ 
     <div class="warning">
       <strong>⚠️ คำเตือน:</strong> หน้านี้สำหรับ Admin เท่านั้น! ห้ามแชร์ลิงก์นี้กับบุคคลภายนอก
     </div>
-
+ 
     <form id="createStaffForm" onsubmit="handleCreateStaff(event)">
       <div class="form-group">
         <label>ชื่อผู้ใช้ (Username) *</label>
@@ -168,7 +171,7 @@
         >
         <small style="color: #666;">ใช้ได้เฉพาะตัวอักษร ตัวเลข - _</small>
       </div>
-
+ 
       <div class="form-group">
         <label>ชื่อ-นามสกุล *</label>
         <input 
@@ -178,7 +181,7 @@
           required
         >
       </div>
-
+ 
       <div class="form-group">
         <label>เบอร์โทรศัพท์ *</label>
         <input 
@@ -190,7 +193,7 @@
           title="กรอกเบอร์โทร 10 หลัก"
         >
       </div>
-
+ 
       <div class="form-group">
         <label>รหัสผ่าน *</label>
         <input 
@@ -202,14 +205,14 @@
         >
         <small style="color: #666;">ควรใช้รหัสที่ปลอดภัย (ตัวอักษร + ตัวเลข + สัญลักษณ์)</small>
       </div>
-
+ 
       <button type="submit" class="btn" id="createBtn">
         สร้างบัญชีพนักงาน
       </button>
     </form>
-
+ 
     <div class="result" id="resultMessage"></div>
-
+ 
     <div class="info" id="staffInfo" style="display: none;">
       <div class="info-title">ℹ️ ข้อมูลบัญชีที่สร้าง</div>
       <div class="info-item">
@@ -230,12 +233,12 @@
       </div>
     </div>
   </div>
-
+ 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
+ 
   <script>
     // Firebase Configuration
     const firebaseConfig = {
@@ -247,11 +250,36 @@
       messagingSenderId: "19782245186",
       appId: "1:19782245186:web:8ff3e2e17a214edc3546db"
     };
-
+ 
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const database = firebase.database();
-
+ 
+    // FIX (Medium): เดิมหน้านี้ไม่มีการเช็คสิทธิ์เลย ใครมี URL ก็เข้ามาสร้าง
+    // Firebase Auth account เปล่า ๆ ได้ (แม้ Firebase Rules จะกัน role:'staff'
+    // ไว้แล้วก็ตาม แต่ยังก่อกวนระบบ/เปลืองโควต้า Auth ได้) เพิ่ม guard ให้ต้อง
+    // login เป็น staff ที่มีอยู่แล้วก่อน ถึงจะเห็นฟอร์มสร้างพนักงานคนใหม่ได้
+    auth.onAuthStateChanged((user) => {
+      const notice = document.getElementById('authCheckingNotice');
+      const container = document.getElementById('createStaffContainer');
+      if (!user) {
+        window.location.href = 'staff-login.html';
+        return;
+      }
+      database.ref('users/' + user.uid).once('value').then((snapshot) => {
+        const userData = snapshot.val();
+        if (userData && userData.role === 'staff') {
+          if (notice) notice.style.display = 'none';
+          if (container) container.style.display = 'block';
+        } else {
+          alert('⚠️ คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
+          auth.signOut().finally(() => window.location.href = 'staff-login.html');
+        }
+      }).catch(() => {
+        auth.signOut().finally(() => window.location.href = 'staff-login.html');
+      });
+    });
+ 
     // Show Result Message
     function showResult(message, type) {
       const resultDiv = document.getElementById('resultMessage');
@@ -264,50 +292,50 @@
         }, 3000);
       }
     }
-
+ 
     // Handle Create Staff Account
     async function handleCreateStaff(event) {
       event.preventDefault();
-
+ 
       const username = document.getElementById('staffUsername').value.trim();
       const fullname = document.getElementById('staffFullname').value.trim();
       const phone = document.getElementById('staffPhone').value.trim();
       const password = document.getElementById('staffPassword').value;
-
+ 
       // Validation
       if (!username || !fullname || !phone || !password) {
         showResult('❌ กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
         return;
       }
-
+ 
       if (!/^[a-zA-Z0-9_-]{3,20}$/.test(username)) {
         showResult('❌ Username ไม่ถูกต้อง (ใช้ได้เฉพาะ a-z, 0-9, -, _)', 'error');
         return;
       }
-
+ 
       if (!/^[0-9]{10}$/.test(phone)) {
         showResult('❌ เบอร์โทรไม่ถูกต้อง (ต้องเป็นตัวเลข 10 หลัก)', 'error');
         return;
       }
-
+ 
       if (password.length < 6) {
         showResult('❌ รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'error');
         return;
       }
-
+ 
       // Disable button
       const createBtn = document.getElementById('createBtn');
       createBtn.disabled = true;
       createBtn.textContent = 'กำลังสร้างบัญชี...';
-
+ 
       try {
         // สร้าง Auth Account
         const email = username + '@staff.prijitsport.com';
         console.log('Creating account with email:', email);
-
+ 
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         console.log('✅ Auth account created:', userCredential.user.uid);
-
+ 
         // บันทึกข้อมูลใน Database
         await database.ref('users/' + userCredential.user.uid).set({
           username: username,
@@ -318,26 +346,26 @@
           createdBy: 'admin'
         });
         console.log('✅ Database entry created');
-
+ 
         // แสดงผลสำเร็จ
         showResult('✅ สร้างบัญชีพนักงานเรียบร้อยแล้ว!', 'success');
-
+ 
         // แสดงข้อมูล
         document.getElementById('infoUsername').textContent = username;
         document.getElementById('infoEmail').textContent = email;
         document.getElementById('infoFullname').textContent = fullname;
         document.getElementById('infoPhone').textContent = phone;
         document.getElementById('staffInfo').style.display = 'block';
-
+ 
         // Sign out จาก staff account
         await auth.signOut();
         console.log('✅ Signed out from staff account');
-
+ 
       } catch (error) {
         console.error('❌ Error creating staff:', error);
-
+ 
         let errorMessage = 'เกิดข้อผิดพลาด: ' + error.message;
-
+ 
         if (error.code === 'auth/email-already-in-use') {
           errorMessage = '❌ Username นี้ถูกใช้งานแล้ว';
         } else if (error.code === 'auth/weak-password') {
@@ -345,7 +373,7 @@
         } else if (error.code === 'auth/network-request-failed') {
           errorMessage = '🌐 ไม่สามารถเชื่อมต่ออินเทอร์เน็ตได้';
         }
-
+ 
         showResult(errorMessage, 'error');
       } finally {
         // Enable button
