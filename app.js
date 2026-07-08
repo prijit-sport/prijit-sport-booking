@@ -738,7 +738,6 @@ function showPaymentModal() {
           <p><strong>💰 ยอดชำระ:</strong> ${data.depositAmount.toLocaleString()} บาท</p>
           <p><strong>📱 เลขพร้อมเพย์:</strong> 1103100835163</p>
           <p><strong>🏢 ชื่อบัญชี:</strong> นาย พัสกร ราชชมภู</p>
-          <p><strong>🆔 Ref:</strong> ${data.field.replace('สนาม ','F')}-${data.date.replace(/-/g,'')}</p>
         </div>
         <div class="upload-section">
           <label class="upload-label">📤 อัพโหลดสลิปการโอนเงิน</label>
@@ -1457,7 +1456,21 @@ function initializeFirebase() {
     auth.onAuthStateChanged((user) => {
       if (user) {
         database.ref('users/' + user.uid).once('value').then((snapshot) => {
-          currentUser = { uid: user.uid, ...snapshot.val() };
+          // FIX (undefined phone/values in update): เดิมจุดนี้ spread ข้อมูล
+          // ทั้งหมดจาก Firebase ตรง ๆ (currentUser = { uid, ...snapshot.val() })
+          // ถ้า record ผู้ใช้ขาด field ใด (เช่น 'phone') ค่านั้นจะเป็น undefined
+          // ทันที แล้วพอถูกนำไปใช้เขียนใน uploadSlipAndCreateBooking() ผ่าน
+          // database.ref().update(...) Firebase RTDB จะปฏิเสธการเขียนทั้งก้อน
+          // ทันที (ไม่รับ undefined) ทำให้อัพโหลดสลิปค้างไม่สำเร็จเงียบ ๆ
+          // แก้โดย sanitize/กำหนดค่า default ให้ครบทุก field เหมือนที่ handleLogin() ทำ
+          const userData = snapshot.val() || {};
+          currentUser = {
+            uid: user.uid,
+            username: SecurityUtils.escapeHtml(userData.username || ''),
+            fullname: SecurityUtils.escapeHtml(userData.fullname || ''),
+            phone: SecurityUtils.sanitizePhone(userData.phone || ''),
+            createdAt: userData.createdAt
+          };
           document.getElementById("currentUser").textContent = currentUser.fullname;
           document.getElementById("loginNavBtn").style.display = "none";
           document.getElementById("userInfo").style.display = "flex";
