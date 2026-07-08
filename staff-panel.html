@@ -670,7 +670,7 @@
           const updated = { id: child.key, ...rest, hasDepositSlip: !!depositSlipUrl, hasRemainingSlip: !!remainingSlipUrl };
           if (idx >= 0) allBookings[idx] = updated; else allBookings.unshift(updated);
           allBookings.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-          updateStats(); applyFilters(); renderSchedule();
+          updateStats(); applyFilters(); renderSchedule(); checkAndDeleteExpiredBookings();
         });
         database.ref('bookings').on('child_removed', (child) => {
           allBookings = allBookings.filter(b => b.id !== child.key);
@@ -682,7 +682,7 @@
           const { depositSlipUrl, remainingSlipUrl, ...rest } = val;
           allBookings.unshift({ id: child.key, ...rest, hasDepositSlip: !!depositSlipUrl, hasRemainingSlip: !!remainingSlipUrl });
           allBookings.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
-          updateStats(); applyFilters(); renderSchedule();
+          updateStats(); applyFilters(); renderSchedule(); checkAndDeleteExpiredBookings();
         });
       }).catch(err => { hideLoading(); console.error('loadBookings error:', err); });
     }
@@ -864,12 +864,14 @@
       if (!confirm('ยืนยันการอนุมัติการจองนี้?')) return;
       showLoading();
       const booking = allBookings.find(b => b.id === bookingId);
-      const deleteTime = calculateBookingEndTime(booking.date, booking.time);
       database.ref('bookings/'+bookingId).update({
         bookingStatus:'approved', paymentVerified:true,
-        approvedAt:new Date().toISOString(), approvedBy:auth.currentUser.uid, autoDeleteAt:deleteTime
+        approvedAt:new Date().toISOString(), approvedBy:auth.currentUser.uid
       }).then(() => {
         // โหลด booking เต็ม (รวม depositSlipUrl) เพื่อสร้าง refund record
+        // การตั้งเวลา auto-free เมื่อครบกำหนดสล็อตจะถูกจัดการโดย
+        // checkAndDeleteExpiredBookings() ที่ทำงานทุกครั้งที่ 'bookings' เปลี่ยนแปลง
+        // (ดู child_changed listener ใน loadBookings()) ไม่ต้องตั้งเองซ้ำตรงนี้
         return database.ref('bookings/'+bookingId).once('value');
       }).then((snap) => {
         hideLoading();
@@ -878,7 +880,6 @@
         // สร้าง refund เสมอถ้ามีมัดจำ (ไม่ต้องเช็ค depositSlipUrl)
         if (dep > 0) createRefundRecord(fullBooking, 'อนุมัติการจอง — รอคืนมัดจำหลังลูกค้าเล่นเสร็จ', 'pending');
         showToast('อนุมัติการจองเรียบร้อยแล้ว','success');
-        if (deleteTime) scheduleAutoDelete(bookingId, deleteTime);
       }).catch(err => { hideLoading(); showToast(err.message,'error'); });
     }
  
@@ -929,6 +930,19 @@
         dt.setMinutes(dt.getMinutes()+30);
         return dt.toISOString();
       } catch(e) { return null; }
+    }
+ 
+    // คำนวณเวลาสิ้นสุดสล็อตจริง (ไม่มี buffer 30 นาที) จาก date/time ของ booking
+    // ใช้เป็นตัวตัดสินว่า "ครบกำหนดเวลาแล้วหรือยัง" สำหรับ auto-free สล็อต
+    // ไม่พึ่งพา field 'autoDeleteAt' ที่ตั้งไว้ตอนอนุมัติ เพราะต้องทำงานได้กับ
+    // ทุกสถานะ (approved/playing/remaining_payment_pending) ไม่ใช่แค่ completed
+    function getBookingSlotEndDateTime(b) {
+      if (!b || !b.date || !b.time) return null;
+      const m = String(b.time).match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+      if (!m) return null;
+      const endH = m[3].padStart(2,'0'), endM = m[4];
+      const dt = new Date(b.date + 'T' + endH + ':' + endM + ':00');
+      return isNaN(dt.getTime()) ? null : dt;
     }
  
     // FIX (Medium/QA-review): เดิม auto-delete ลบแค่ bookings/{id} อย่างเดียว
@@ -1027,14 +1041,46 @@
  
         function checkAndDeleteExpiredBookings() {
       const now = new Date();
+      // กลุ่มที่ "ยังใช้สนามอยู่จริง" — เมื่อครบเวลาสิ้นสุดสล็อตจริงแล้ว ให้เปลี่ยน
+      // สถานะเป็น 'completed' อัตโนมัติแทนการลบทิ้ง (ไม่ต้องรอ staff กด "เล่นเสร็จ")
+      // เหตุผลที่ไม่ลบทันที: วันเวลาที่ผ่านไปแล้วจองซ้ำไม่ได้อยู่แล้ว (ระบบฝั่งลูกค้า
+      // บล็อกวันเวลาในอดีตไว้ใน Validator/updateTimeSlotAvailability) จึงไม่จำเป็นต้อง
+      // เร่งลบ ให้เก็บประวัติไว้ก่อนแล้วค่อยลบตามรอบ 24 ชม.ปกติเหมือน completed ทั่วไป
+      const AUTO_COMPLETE_STATUSES = ['approved', 'remaining_payment_pending', 'playing'];
       allBookings.forEach(b => {
-        // ลบเฉพาะ completed เท่านั้น — ไม่ลบ approved/pending/playing
+        if (AUTO_COMPLETE_STATUSES.includes(b.bookingStatus)) {
+          const endDt = getBookingSlotEndDateTime(b);
+          if (!endDt) return;
+          if (endDt <= now) autoCompleteBooking(b.id);
+          else setTimeout(() => autoCompleteBooking(b.id), endDt - now);
+          return;
+        }
+        // completed: คงพฤติกรรมเดิม — เก็บไว้ให้ดูได้อีก 24 ชม.ตาม autoDeleteAt
+        // ที่ตั้งไว้ตอนกลายเป็น completed (ไม่ว่าจะ manual หรือ auto) ก่อนค่อยลบทิ้งจริง
         if (b.autoDeleteAt && b.bookingStatus === 'completed') {
           const dt = new Date(b.autoDeleteAt);
           if (dt <= now) deleteBookingWithMirrors(b.id);
           else scheduleAutoDelete(b.id, b.autoDeleteAt);
         }
       });
+    }
+ 
+    // เปลี่ยนสถานะเป็น completed อัตโนมัติเมื่อครบเวลาสล็อต พร้อมตั้ง autoDeleteAt
+    // แบบเดียวกับ markCompleted() (24 ชม.) เพื่อให้ยังลบตามรอบปกติในภายหลัง
+    // ไม่ update ซ้ำถ้าสถานะถูกเปลี่ยนไปแล้วโดย staff หรือ instance อื่นก่อนหน้า
+    function autoCompleteBooking(bookingId) {
+      database.ref('bookings/' + bookingId).once('value').then(snap => {
+        const b = snap.val();
+        if (!b) return; // ถูกลบไปแล้ว
+        if (!['approved', 'remaining_payment_pending', 'playing'].includes(b.bookingStatus)) return; // สถานะเปลี่ยนไปแล้ว ไม่ต้องทำซ้ำ
+        const autoDeleteAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        return database.ref('bookings/' + bookingId).update({
+          bookingStatus: 'completed',
+          completedAt: new Date().toISOString(),
+          completedBy: 'auto',
+          autoDeleteAt: autoDeleteAt
+        });
+      }).catch(() => {});
     }
  
     // ===== SCHEDULE =====
