@@ -1700,19 +1700,32 @@
       const startStr = start.toISOString().split('T')[0];
       const todayStr = now.toISOString().split('T')[0];
  
-      // กรองจาก bookings ตามวันที่จอง
-      const data = allBookings.filter(b => b.date && b.date >= startStr && b.date <= todayStr);
+      // กรองจาก createdAt (วันที่จองเกิดขึ้นจริง) แทน b.date (วันที่จะไปเล่น)
+      // เดิมใช้ b.date ทำให้บูกกิ้งที่จองไว้ล่วงหน้า (เล่นวันพรุ่งนี้/อนาคต) หลุด
+      // ออกจากรายงานทันที เพราะเงื่อนไข date <= todayStr ตัดวันที่ในอนาคตทิ้งหมด
+      // ทั้งที่ตัวการจองเกิดขึ้นแล้วจริงในช่วงเวลาที่เลือกดูรายงาน
+      const data = allBookings.filter(b => {
+        const createdDateStr = b.createdAt ? b.createdAt.split('T')[0] : (b.date || '');
+        return createdDateStr >= startStr && createdDateStr <= todayStr;
+      });
  
       // ===== 1. รายรับทั้งหมด (ราคาเต็ม) =====
       let fullIncome=0, approvedIncome=0, pendingIncome=0;
       let approvedCount=0, pendingCount=0;
  
+      // จัดกลุ่มสถานะ: ถือว่า approved/remaining_payment_pending/playing/completed
+      // เป็นกลุ่ม "อนุมัติแล้ว" ทั้งหมด (ต่างกันแค่ขั้นตอนหลังอนุมัติ) ส่วน
+      // pending/pending_payment เป็นกลุ่ม "รอตรวจสอบ" เท่านั้น — เดิมเช็คแค่
+      // === 'approved' ตรง ๆ ทำให้ playing/completed/remaining_payment_pending
+      // ตกไปอยู่กลุ่ม "รอตรวจสอบ" อย่างผิด ๆ ทั้งที่ผ่านการอนุมัติไปแล้ว
+      const APPROVED_GROUP = ['approved', 'remaining_payment_pending', 'playing', 'completed'];
       data.forEach(b => {
         const price = b.totalPrice || 0;
-        if (b.bookingStatus === 'approved') {
-          fullIncome += price; approvedIncome += price; approvedCount++;
+        fullIncome += price;
+        if (APPROVED_GROUP.includes(b.bookingStatus)) {
+          approvedIncome += price; approvedCount++;
         } else {
-          fullIncome += price; pendingIncome += price; pendingCount++;
+          pendingIncome += price; pendingCount++;
         }
       });
  
@@ -1826,9 +1839,9 @@
           <tbody>`;
  
       sorted.forEach((b, i) => {
-        const sText  = b.bookingStatus==='approved' ? 'อนุมัติแล้ว'
+        const sText  = APPROVED_GROUP.includes(b.bookingStatus) ? 'อนุมัติแล้ว'
                      : b.bookingStatus==='rejected'  ? 'ยกเลิก' : 'รอตรวจสอบ';
-        const sColor = b.bookingStatus==='approved' ? '#10b981'
+        const sColor = APPROVED_GROUP.includes(b.bookingStatus) ? '#10b981'
                      : b.bookingStatus==='rejected'  ? '#ef4444' : '#f59e0b';
         const name   = escapeHtml(b.fullname || b.name || b.username || '-');
         const field  = escapeHtml(b.field||'-');
