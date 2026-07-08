@@ -1788,15 +1788,30 @@
       }
  
       // ===== 4. ตารางรายการจอง =====
+      // รวมรายการที่ถูกยกเลิก/ปฏิเสธเข้ามาด้วย เพราะ rejectBooking()/cancelApprovedBooking()
+      // จะลบ booking ออกจาก node 'bookings' ถาวรทันที ข้อมูลที่เหลือของรายการเหล่านั้น
+      // จะอยู่ใน 'refunds' (staff ปฏิเสธ/ยกเลิก) และ 'cancellation_log' (ลูกค้ายกเลิกเอง)
+      // เท่านั้น ต้องดึงมาแปลงให้อยู่ในรูปแบบเดียวกับ booking เพื่อแสดงในตารางเดียวกัน
+      const cancelledFromRefunds = cancelledByStaff.map(r => ({
+        fullname: r.fullname, field: r.field, date: r.date, time: r.time,
+        totalPrice: r.deposit ? Math.round(r.deposit / DEPOSIT_PERCENTAGE) : 0,
+        bookingStatus: 'rejected'
+      }));
+      const cancelledFromLog = cancelledByCustomer.map(r => ({
+        fullname: '-', field: r.field, date: r.date, time: r.time,
+        totalPrice: 0, bookingStatus: 'rejected'
+      }));
+      const combinedData = [...data, ...cancelledFromRefunds, ...cancelledFromLog];
+ 
       const tableDiv = document.getElementById('rptTableContainer');
       if (!tableDiv) return;
  
-      if (data.length === 0) {
+      if (combinedData.length === 0) {
         tableDiv.innerHTML = '<p style="text-align:center;color:#999;padding:30px;">ไม่มีข้อมูลในช่วงเวลานี้</p>';
         return;
       }
  
-      const sorted = [...data].sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      const sorted = [...combinedData].sort((a,b) => (b.date||'').localeCompare(a.date||''));
       let tHtml = `
         <table class="bookings-table">
           <thead><tr>
