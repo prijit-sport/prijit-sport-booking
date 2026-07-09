@@ -361,13 +361,19 @@
         <div style="background:white;border-radius:12px;padding:20px 24px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,0.08);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
           <div>
             <h2 style="margin:0;font-size:20px;font-weight:600;color:#111;">รายงานสรุปผล</h2>
-            <p style="margin:4px 0 0;font-size:13px;color:#6b7280;">ข้อมูลการจองและรายรับในช่วงเวลาที่เลือก</p>
+            <p style="margin:4px 0 0;font-size:13px;color:#6b7280;" id="rptRangeSubtitle">ข้อมูลการจองและรายรับในช่วงเวลาที่เลือก</p>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button onclick="setReportRange(1)"  class="rpt-range-btn" id="rBtn1" >วันนี้</button>
-            <button onclick="setReportRange(7)"  class="rpt-range-btn active" id="rBtn7" >7 วัน</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button onclick="setReportRange(1)"  class="rpt-range-btn active" id="rBtn1" >วันนี้</button>
+            <button onclick="setReportRange(7)"  class="rpt-range-btn" id="rBtn7" >7 วัน</button>
             <button onclick="setReportRange(30)" class="rpt-range-btn" id="rBtn30">30 วัน</button>
             <button onclick="setReportRange(90)" class="rpt-range-btn" id="rBtn90">90 วัน</button>
+            <div style="position:relative;display:inline-flex;align-items:center;margin-left:6px;">
+              <input type="text" id="rptDateDisplay" readonly placeholder="📅 เลือกวันที่"
+                     style="padding:7px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;width:120px;text-align:center;background:#fff;cursor:pointer;color:#374151;font-family:'Sarabun',sans-serif;">
+              <input type="date" id="rptDatePicker" onchange="setReportCustomDate(this.value)"
+                     style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;box-sizing:border-box;">
+            </div>
           </div>
         </div>
  
@@ -571,6 +577,28 @@
       return DEPOSIT_AMOUNT;
     }
  
+    // ===== รายรับที่ "ได้รับเงินจริง" ณ ขณะนี้ (เรียลไทม์) =====
+    // แตกต่างจาก totalPrice/getBookingDeposit() ตรงที่ฟังก์ชันนี้ตอบคำถาม
+    // "ตอนนี้ร้านได้รับเงินจากลูกค้าคนนี้ไปแล้วกี่บาท" ไม่ใช่ "ราคาสนามเต็มเท่าไหร่"
+    // กติกา:
+    //  - เงินมัดจำนับว่า "ได้รับแล้ว" ก็ต่อเมื่อ staff กด "อนุมัติ" การจอง (เข้ากลุ่ม
+    //    APPROVED_GROUP: approved/remaining_payment_pending/playing/completed) — ถ้ายัง
+    //    pending/pending_payment แปลว่าลูกค้าโอนมาแล้วแต่ staff ยังไม่ตรวจสลิป ยังไม่นับ
+    //  - เงินค่าคงเหลือนับว่า "ได้รับแล้ว" ก็ต่อเมื่อ remainingStatus === 'paid'
+    //    (staff กดยืนยันรับเงินผ่าน doConfirmRemaining() แล้วเท่านั้น — ตอนที่ยังเป็น
+    //    remaining_payment_pending คือลูกค้าส่งสลิปมาแล้วแต่ staff ยังไม่กดยืนยัน ยังไม่นับ)
+    function getActualReceivedAmount(b, approvedGroup) {
+      if (!b) return 0;
+      let received = 0;
+      if (approvedGroup.includes(b.bookingStatus)) received += getBookingDeposit(b);
+      if (b.remainingStatus === 'paid') {
+        const dep = getBookingDeposit(b);
+        const remaining = (b.remainingAmount != null) ? b.remainingAmount : Math.max((b.totalPrice||0) - dep, 0);
+        received += remaining;
+      }
+      return received;
+    }
+ 
     // FIX (XSS): ก่อนหน้านี้ข้อมูลจาก Firebase (ชื่อ, สนาม, เวลา, กิจกรรม ฯลฯ)
     // ถูกแทรกเข้า innerHTML ตรง ๆ โดยไม่ escape เลยทั้งไฟล์ ทำให้ถ้ามีอักขระ
     // HTML/script ปนมาในข้อมูล (ไม่ว่าจะจากช่องโหว่อื่นหรือข้อมูลเก่าก่อนมี sanitize)
@@ -634,7 +662,10 @@
       if (map[tabName]) document.getElementById(map[tabName]).classList.add('active');
       if (tabName === 'schedule') renderSchedule();
       if (tabName === 'refunds') renderRefunds();
-      if (tabName === 'report') { REPORT_RANGE_DAYS = 7; renderReport(); }
+      // FIX: ดีฟอลต์เปิดแท็บรายงานให้เป็น "วันนี้" (1 วัน) แทน 7 วัน ตามที่ต้องการ
+      // ให้เห็นรายรับของ "วันนี้" ทันทีที่เข้าแท็บ ไม่ต้องกดเลือกเอง — ถ้าต้องการ
+      // ดูวันอื่น ใช้ปุ่มช่วง (7/30/90 วัน) หรือปฏิทิน (rptDatePicker) แทน
+      if (tabName === 'report') { setReportRange(1); }
       if (tabName === 'images') loadImages();
       if (tabName === 'activities') loadActivities();
     }
@@ -1727,24 +1758,53 @@
     // =========================
     // REPORT TAB
     // =========================
-    let REPORT_RANGE_DAYS = 7;
+    let REPORT_RANGE_DAYS = 1;
+    // เมื่อไม่ null แปลว่าผู้ใช้เลือกวันที่เฉพาะเจาะจงผ่านปฏิทิน (rptDatePicker)
+    // แทนการใช้ปุ่มช่วงเวลา (วันนี้/7/30/90 วัน) — เก็บเป็นสตริง 'YYYY-MM-DD'
+    let REPORT_CUSTOM_DATE = null;
  
     function setReportRange(days) {
-      REPORT_RANGE_DAYS = Number(days) || 7;
+      REPORT_RANGE_DAYS = Number(days) || 1;
+      REPORT_CUSTOM_DATE = null; // สลับมาใช้ปุ่มช่วง ต้องเคลียร์การเลือกปฏิทินทิ้ง
+      const dp = document.getElementById('rptDatePicker');
+      const dd = document.getElementById('rptDateDisplay');
+      if (dp) dp.value = '';
+      if (dd) dd.value = '';
       document.querySelectorAll('.rpt-range-btn').forEach(b => b.classList.remove('active'));
       const btnMap = {1:'rBtn1',7:'rBtn7',30:'rBtn30',90:'rBtn90'};
       const btn = document.getElementById(btnMap[days]);
       if (btn) btn.classList.add('active');
+      const subtitle = document.getElementById('rptRangeSubtitle');
+      if (subtitle) subtitle.textContent = days === 1 ? 'ข้อมูลการจองและรายรับของวันนี้' : `ข้อมูลการจองและรายรับ ${days} วันล่าสุด`;
+      renderReport();
+    }
+ 
+    // เลือกวันที่เฉพาะเจาะจงผ่านปฏิทิน — ดูรายรับของวันอื่นที่ไม่ใช่วันนี้/ช่วง preset
+    function setReportCustomDate(dateStr) {
+      if (!dateStr) return;
+      REPORT_CUSTOM_DATE = dateStr;
+      document.querySelectorAll('.rpt-range-btn').forEach(b => b.classList.remove('active'));
+      const dd = document.getElementById('rptDateDisplay');
+      if (dd) dd.value = formatDate(dateStr);
+      const subtitle = document.getElementById('rptRangeSubtitle');
+      if (subtitle) subtitle.textContent = `ข้อมูลการจองและรายรับวันที่ ${formatDate(dateStr)}`;
       renderReport();
     }
  
     function renderReport() {
-      const now = new Date();
-      const start = new Date(now);
-      start.setDate(start.getDate() - REPORT_RANGE_DAYS);
-      start.setHours(0,0,0,0);
-      const startStr = start.toISOString().split('T')[0];
-      const todayStr = now.toISOString().split('T')[0];
+      let startStr, todayStr;
+      if (REPORT_CUSTOM_DATE) {
+        // เลือกวันที่เฉพาะเจาะจงจากปฏิทิน — กรองเฉพาะวันนั้นวันเดียว
+        startStr = REPORT_CUSTOM_DATE;
+        todayStr = REPORT_CUSTOM_DATE;
+      } else {
+        const now = new Date();
+        const start = new Date(now);
+        start.setDate(start.getDate() - REPORT_RANGE_DAYS);
+        start.setHours(0,0,0,0);
+        startStr = start.toISOString().split('T')[0];
+        todayStr = now.toISOString().split('T')[0];
+      }
  
       // กรองจาก createdAt (วันที่จองเกิดขึ้นจริง) แทน b.date (วันที่จะไปเล่น)
       // เดิมใช้ b.date ทำให้บูกกิ้งที่จองไว้ล่วงหน้า (เล่นวันพรุ่งนี้/อนาคต) หลุด
@@ -1755,19 +1815,27 @@
         return createdDateStr >= startStr && createdDateStr <= todayStr;
       });
  
-      // ===== 1. รายรับทั้งหมด (ราคาเต็ม) =====
-      let fullIncome=0, approvedIncome=0, pendingIncome=0;
-      let approvedCount=0, pendingCount=0;
- 
       // จัดกลุ่มสถานะ: ถือว่า approved/remaining_payment_pending/playing/completed
       // เป็นกลุ่ม "อนุมัติแล้ว" ทั้งหมด (ต่างกันแค่ขั้นตอนหลังอนุมัติ) ส่วน
       // pending/pending_payment เป็นกลุ่ม "รอตรวจสอบ" เท่านั้น — เดิมเช็คแค่
       // === 'approved' ตรง ๆ ทำให้ playing/completed/remaining_payment_pending
       // ตกไปอยู่กลุ่ม "รอตรวจสอบ" อย่างผิด ๆ ทั้งที่ผ่านการอนุมัติไปแล้ว
       const APPROVED_GROUP = ['approved', 'remaining_payment_pending', 'playing', 'completed'];
+ 
+      // ===== 1. รายรับทั้งหมด =====
+      // FIX: เดิมการ์ด "รายรับทั้งหมด" นับจาก totalPrice (ราคาเต็มของสนาม) ของ
+      // ทุก booking ในช่วงเวลา ไม่ว่าจะจ่ายจริงไปเท่าไหร่แล้วก็ตาม ทำให้ตัวเลขไม่ตรง
+      // กับเงินที่ร้านได้รับจริง ณ ขณะนั้น (เช่น ลูกค้าโอนมัดจำมา 300 แต่ระบบนับเป็น 1,000
+      // ทันที) เปลี่ยนมาใช้ getActualReceivedAmount() ซึ่งนับตามสถานะการจ่ายจริง:
+      // มัดจำนับเมื่อ staff อนุมัติ booking แล้วเท่านั้น ส่วนค่าคงเหลือนับเมื่อ
+      // staff กดยืนยันรับเงินแล้วเท่านั้น (remainingStatus === 'paid') — เป็นค่าที่
+      // อัปเดตตามเวลาจริงเสมอ เพราะ allBookings ถูก sync แบบ real-time อยู่แล้ว
+      let fullIncome=0, approvedIncome=0, pendingIncome=0;
+      let approvedCount=0, pendingCount=0;
+ 
       data.forEach(b => {
+        fullIncome += getActualReceivedAmount(b, APPROVED_GROUP);
         const price = b.totalPrice || 0;
-        fullIncome += price;
         if (APPROVED_GROUP.includes(b.bookingStatus)) {
           approvedIncome += price; approvedCount++;
         } else {
