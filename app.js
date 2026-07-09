@@ -703,19 +703,19 @@ function showPaymentModal() {
         </div>
         <div class="payment-summary">
           <div class="summary-row">
-            <span class="summary-label">💵 ค่าบริการทั้งหมด:</span>
+            <span class="summary-label">💵 ค่าบริการทั้งหมด</span>
             <span class="summary-value">${data.totalPrice.toLocaleString()} บาท</span>
           </div>
           <div class="summary-row">
-            <span class="summary-label">📍 ค่ามัดจำ 30%:</span>
+            <span class="summary-label">📍 ค่ามัดจำ 30%</span>
             <span class="summary-value">${data.depositAmount.toLocaleString()} บาท</span>
           </div>
           <div class="summary-row">
-            <span class="summary-label">💸 ค่าบริการคงเหลือจ่ายที่สนาม:</span>
+            <span class="summary-label">💸 ค่าบริการคงเหลือจ่ายที่สนาม</span>
             <span class="summary-value" style="color:#ef4444;font-weight:400;">${data.remainingAmount.toLocaleString()} บาท</span>
           </div>
           <div class="summary-row">
-            <span class="summary-label">💰 ต้องชำระตอนนี้:</span>
+            <span class="summary-label">💰 ต้องชำระตอนนี้</span>
             <span class="summary-value" style="color:#22c55e;font-weight:400;">${data.depositAmount.toLocaleString()} บาท</span>
           </div>
         </div>
