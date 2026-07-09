@@ -798,22 +798,36 @@
         const field  = escapeHtml(booking.field || '-');
         const time   = escapeHtml(booking.time || '-');
         const dep    = getBookingDeposit(booking);
-        const remaining = Math.max((booking.totalPrice||0) - dep, 0);
+        const remaining = (booking.remainingAmount != null) ? booking.remainingAmount : Math.max((booking.totalPrice||0) - dep, 0);
         const no     = String(runNo++).padStart(2,'0');
         const actionBtns = getActionButtons(booking);
+ 
+        // FIX: คอลัมน์ "ค่าคงค้าง" เดิมโชว์สีแดงตายตัวเสมอไม่ว่าจะจ่ายแล้วหรือยัง
+        // ตอนนี้เช็ค remainingStatus จริง ถ้า 'paid' แล้ว ให้ขึ้นสีเขียว + จ่ายแล้ว
+        // แทนสีแดง เพื่อให้ staff รู้ทันทีว่ารายการไหนจ่ายครบแล้วบ้างโดยไม่ต้องกดเข้าไปดู
+        const isFullyPaid = remaining <= 0 || booking.remainingStatus === 'paid';
+        const remainingCellHtml = isFullyPaid
+          ? `฿${remaining.toLocaleString()} <span style="color:#10b981;">✅ จ่ายแล้ว</span>`
+          : `฿${remaining.toLocaleString()}`;
+        const remainingCellColor = isFullyPaid ? '#10b981' : '#ef4444';
+ 
+        const paidInFullBadge = isFullyPaid
+          ? `<div style="margin-top:4px;"><span style="background:#d1fae5;color:#059669;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;">💰 จ่ายครบแล้ว</span></div>`
+          : '';
  
         tableHtml += `<tr${booking.bookingStatus==='playing'?' style="background:#faf5ff;"':booking.bookingStatus==='completed'?' style="background:#f9fafb;opacity:0.75;"':''}>
           <td>${no}</td><td>${name}</td><td>${phone}</td>
           <td>${field}</td><td>${formatDate(booking.date)}</td><td>${time}</td>
           <td>฿${(booking.totalPrice||0).toLocaleString()}</td>
           <td style="color:#10b981;font-weight:600;">฿${dep.toLocaleString()}</td>
-          <td style="color:#ef4444;font-weight:600;">฿${remaining.toLocaleString()}</td>
-          <td><span ${badgeStyle}>${si.text}</span></td>
+          <td style="color:${remainingCellColor};font-weight:600;">${remainingCellHtml}</td>
+          <td><span ${badgeStyle}>${si.text}</span>${paidInFullBadge}</td>
           <td><div class="action-buttons">${actionBtns}</div></td>
         </tr>`;
  
         mobileHtml += `<div class="booking-card" style="${booking.bookingStatus==='playing'?'border-left:4px solid #7c3aed;':booking.bookingStatus==='completed'?'opacity:0.75;':booking.bookingStatus==='remaining_payment_pending'?'border-left:4px solid #f97316;':''}">
           <div class="booking-card-header"><span class="booking-card-id">${no}</span><span ${badgeStyle}>${si.text}</span></div>
+          ${paidInFullBadge}
           <div class="booking-card-body">
             <div class="booking-card-row"><span class="booking-card-label">ชื่อ-นามสกุล:</span><span>${name}</span></div>
             <div class="booking-card-row"><span class="booking-card-label">สนาม:</span><span>${field}</span></div>
@@ -821,7 +835,7 @@
             <div class="booking-card-row"><span class="booking-card-label">เวลา:</span><span>${time}</span></div>
             <div class="booking-card-row"><span class="booking-card-label">ราคาเต็ม:</span><span>฿${(booking.totalPrice||0).toLocaleString()}</span></div>
             <div class="booking-card-row"><span class="booking-card-label">มัดจำ:</span><span style="color:#10b981;font-weight:600;">฿${dep.toLocaleString()}</span></div>
-            <div class="booking-card-row"><span class="booking-card-label">ค่าคงค้าง:</span><span style="color:#ef4444;font-weight:600;">฿${remaining.toLocaleString()}</span></div>
+            <div class="booking-card-row"><span class="booking-card-label">ค่าคงค้าง:</span><span style="color:${remainingCellColor};font-weight:600;">${remainingCellHtml}</span></div>
           </div>
           <div class="booking-card-actions">${actionBtns}</div>
         </div>`;
