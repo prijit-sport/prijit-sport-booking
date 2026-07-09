@@ -1859,11 +1859,15 @@
         }
       });
  
-      // มัดจำที่ถูกหักเก็บ (forfeit) ในหน้าคืนมัดจำ — ใช้ processedAt เป็นตัวกรองช่วงเวลา
-      // เพราะเป็นเวลาที่ staff กดหักเก็บจริง (ไม่ใช่ createdAt ตอนสร้างรายการรอดำเนินการ)
+      // FIX (รอบนี้): มัดจำที่ถูกหักเก็บ (forfeit) เดิมกรองด้วย processedAt (เวลาที่ staff
+      // กดหักเก็บจริง) ทำให้ไม่ตรงกับ "วันที่เล่น" ของ booking ที่แสดงในตารางด้านล่าง
+      // (ซึ่งใช้ b.date/r.date ทั้งหมด) เช่น จองไว้เล่นวันที่ 10 แต่ staff เพิ่งมากดหักเก็บ
+      // มัดจำวันที่ 9 ยอดจะไปโผล่อยู่ในรายงานวันที่ 9 แทนที่จะเป็นวันที่ 10 ที่จอง
+      // เปลี่ยนมาใช้ r.date (วันที่เล่นจริงของ booking นั้น) เป็นตัวกรองแทน ให้สัมพันธ์กับ
+      // หน้า "คืนมัดจำ" และตาราง "รายการจองในช่วงเวลา" ที่ใช้วันที่เล่นเป็นมาตรฐานเดียวกันหมด
       const forfeitedDeposits = allRefunds.filter(r => {
         if (r.status !== 'forfeit') return false;
-        const d = r.processedAt ? r.processedAt.split('T')[0] : (r.createdAt ? r.createdAt.split('T')[0] : '');
+        const d = r.date || (r.createdAt ? r.createdAt.split('T')[0] : '');
         return d && d >= startStr && d <= todayStr;
       });
       forfeitedDeposits.forEach(r => { fullIncome += (r.deposit || 0); });
