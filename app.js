@@ -1039,28 +1039,25 @@ function generateBookingCard(booking) {
     } catch(e) {}
   }
  
-  // ปุ่มจ่ายค่าคงเหลือ — แสดงเมื่อถึงเวลาจองและยังไม่ได้จ่าย
+  // ปุ่มจ่ายค่าคงเหลือ — แสดงตราบใดที่ยังไม่จ่าย ไม่ว่าจะ approved, playing, หรือ completed แล้ว
+  // FIX: เดิมล็อกไว้เฉพาะ bookingStatus === 'approved' + ต้องเป็นวันนี้ + เหลือ ≤30 นาที
+  // ก่อนเริ่มเล่น พอสถานะเปลี่ยนเป็น 'completed' (พนักงานกดว่าเล่นเสร็จแล้ว) เงื่อนไข
+  // ไม่จริงอีกต่อไป ปุ่มหายไปทันที ทำให้ลูกค้าที่ยังไม่จ่ายค่าคงเหลือไม่มีทางจ่ายได้อีกเลย
+  // ตอนนี้ขยายให้ครอบคลุมทั้ง approved / playing / completed และตัดเงื่อนไขเรื่องเวลาออก
+  // เพราะแค่ remainingStatus ยังเป็น 'unpaid' ก็ควรจ่ายได้เสมอ ไม่ว่าจะอยู่สถานะไหน
   let payRemainingButton = '';
-  if (safeBooking.bookingStatus === 'approved' && safeBooking.remainingStatus !== 'paid' && safeBooking.remainingAmount > 0) {
-    try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      if (safeBooking.date === todayStr) {
-        const [startHour] = safeBooking.time.split(':').map(Number);
-        const now = new Date();
-        const minutesUntilStart = (startHour * 60) - (now.getHours() * 60 + now.getMinutes());
-        if (minutesUntilStart <= 30) {
-          payRemainingButton = `
-            <div style="background:#fff7ed;border:2px solid #f97316;border-radius:10px;padding:14px;margin-top:10px;">
-              <p style="margin:0 0 8px;color:#c2410c;font-weight:700;font-size:14px;">💸 ถึงเวลาจ่ายค่าสนามคงเหลือ!</p>
-              <p style="margin:0 0 10px;color:#374151;font-size:13px;">จ่ายเพิ่ม <strong style="color:#dc2626;">${safeBooking.remainingAmount.toLocaleString()} บาท</strong> ก่อนเข้าใช้สนาม</p>
-              <button onclick="openPayRemainingModal('${safeBooking.id}')"
-                style="width:100%;padding:10px;background:#f97316;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;">
-                💳 ชำระค่าสนามคงเหลือ ${safeBooking.remainingAmount.toLocaleString()} บาท
-              </button>
-            </div>`;
-        }
-      }
-    } catch(e) {}
+  if (['approved','playing','completed'].includes(safeBooking.bookingStatus)
+      && safeBooking.remainingStatus !== 'paid'
+      && safeBooking.remainingAmount > 0) {
+    payRemainingButton = `
+      <div style="background:#fff7ed;border:2px solid #f97316;border-radius:10px;padding:14px;margin-top:10px;">
+        <p style="margin:0 0 8px;color:#c2410c;font-weight:700;font-size:14px;">💸 ยังไม่ได้ชำระค่าสนามคงเหลือ!</p>
+        <p style="margin:0 0 10px;color:#374151;font-size:13px;">จ่ายเพิ่ม <strong style="color:#dc2626;">${safeBooking.remainingAmount.toLocaleString()} บาท</strong></p>
+        <button onclick="openPayRemainingModal('${safeBooking.id}')"
+          style="width:100%;padding:10px;background:#f97316;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;">
+          💳 ชำระค่าสนามคงเหลือ ${safeBooking.remainingAmount.toLocaleString()} บาท
+        </button>
+      </div>`;
   }
  
   // แบนเนอร์กำลังใช้สนาม
