@@ -670,9 +670,9 @@ function confirmBooking() {
  
         <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:14px;margin-bottom:20px;font-size:0.95em;font-weight:400;line-height:1.8;">
           <div style="color:#1d4ed8;margin-bottom:8px;">💡 สรุปการชำระเงิน</div>
-          <div>• ชำระค่ามัดจำ ${depositAmount.toLocaleString()} บาท ผ่าน QR Code ตอนนี้</div>
-          <div style="color:#059669;margin-top:6px;">• มาตามนัด: จ่ายเพิ่มเพียง ${remainingAmount.toLocaleString()} บาท ที่สนาม เพราะมัดจำ ${depositAmount.toLocaleString()} บาท หักจ่ายไปแล้ว</div>
-          <div style="color:#dc2626;margin-top:6px;">• ไม่มาตามที่จอง: โดนหักเก็บค่ามัดจำ ${depositAmount.toLocaleString()} บาท ทันที</div>
+          <div style="color:#000;">1. ชำระค่ามัดจำ ${depositAmount.toLocaleString()} บาท ผ่าน QR Code ตอนนี้</div>
+          <div style="color:#000;margin-top:6px;">2. มาตามนัด: จ่ายเพิ่มเพียง ${remainingAmount.toLocaleString()} บาท ที่สนาม เพราะมัดจำ ${depositAmount.toLocaleString()} บาท หักจ่ายไปแล้ว</div>
+          <div style="color:#000;margin-top:6px;">3. ไม่มาตามที่จอง: โดนหักเก็บค่ามัดจำ ${depositAmount.toLocaleString()} บาท ทันที</div>
         </div>
  
         <div style="display:flex;gap:12px;">
