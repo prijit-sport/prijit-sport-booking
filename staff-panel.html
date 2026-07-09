@@ -364,16 +364,12 @@
             <p style="margin:4px 0 0;font-size:13px;color:#6b7280;" id="rptRangeSubtitle">ข้อมูลการจองและรายรับในช่วงเวลาที่เลือก</p>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <button onclick="setReportRange(1)"  class="rpt-range-btn active" id="rBtn1" >วันนี้</button>
-            <button onclick="setReportRange(7)"  class="rpt-range-btn" id="rBtn7" >7 วัน</button>
-            <button onclick="setReportRange(30)" class="rpt-range-btn" id="rBtn30">30 วัน</button>
-            <button onclick="setReportRange(90)" class="rpt-range-btn" id="rBtn90">90 วัน</button>
-            <div style="position:relative;display:inline-flex;align-items:center;margin-left:6px;"
-                 onclick="var el=document.getElementById('rptDatePicker'); if (el.showPicker) { try { el.showPicker(); } catch(e) { el.focus(); el.click(); } } else { el.focus(); el.click(); }">
-              <input type="text" id="rptDateDisplay" readonly placeholder="📅 เลือกวันที่"
-                     style="padding:7px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;width:120px;text-align:center;background:#fff;cursor:pointer;color:#374151;font-family:'Sarabun',sans-serif;pointer-events:none;">
-              <input type="date" id="rptDatePicker" onchange="setReportCustomDate(this.value)"
-                     style="position:absolute;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;">
+            <div style="position:relative;display:inline-flex;align-items:center;" id="rptDatePickerWrap">
+              <input type="text" id="rptDateDisplay" readonly
+                     style="padding:8px 35px 8px 15px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;width:130px;text-align:center;background:#fff;cursor:pointer;color:#374151;font-family:'Sarabun',sans-serif;">
+              <span style="position:absolute;right:10px;pointer-events:none;">📅</span>
+              <input type="date" id="rptDatePicker"
+                     style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;pointer-events:none;">
             </div>
           </div>
         </div>
@@ -663,10 +659,10 @@
       if (map[tabName]) document.getElementById(map[tabName]).classList.add('active');
       if (tabName === 'schedule') renderSchedule();
       if (tabName === 'refunds') renderRefunds();
-      // FIX: ดีฟอลต์เปิดแท็บรายงานให้เป็น "วันนี้" (1 วัน) แทน 7 วัน ตามที่ต้องการ
-      // ให้เห็นรายรับของ "วันนี้" ทันทีที่เข้าแท็บ ไม่ต้องกดเลือกเอง — ถ้าต้องการ
-      // ดูวันอื่น ใช้ปุ่มช่วง (7/30/90 วัน) หรือปฏิทิน (rptDatePicker) แทน
-      if (tabName === 'report') { setReportRange(1); }
+      // FIX: ตัดปุ่มช่วงเวลา (วันนี้/7/30/90 วัน) ออก เหลือแค่ปฏิทินอย่างเดียว
+      // ดีฟอลต์เป็นวันที่ปัจจุบันเสมอเมื่อเข้าแท็บ แล้วใช้ลูกศร ‹ › หรือกดปฏิทิน
+      // เพื่อเลื่อนดูรายงานของวันอื่นได้
+      if (tabName === 'report') { goToReportDate(new Date().toISOString().split('T')[0]); }
       if (tabName === 'images') loadImages();
       if (tabName === 'activities') loadActivities();
     }
@@ -1773,62 +1769,59 @@
     // =========================
     // REPORT TAB
     // =========================
-    let REPORT_RANGE_DAYS = 1;
-    // เมื่อไม่ null แปลว่าผู้ใช้เลือกวันที่เฉพาะเจาะจงผ่านปฏิทิน (rptDatePicker)
-    // แทนการใช้ปุ่มช่วงเวลา (วันนี้/7/30/90 วัน) — เก็บเป็นสตริง 'YYYY-MM-DD'
-    let REPORT_CUSTOM_DATE = null;
+    // FIX (รอบนี้): ตัดปุ่มช่วงเวลา (วันนี้/7/30/90 วัน) ออกทั้งหมดตามที่ต้องการ
+    // เหลือแค่ปฏิทินอย่างเดียว ดีฟอลต์เป็นวันที่ปัจจุบันเสมอ ใช้ลูกศร ‹ › หรือกด
+    // ปฏิทินเพื่อเลื่อนดูรายงานของวันอื่น — เก็บวันที่ที่กำลังดูอยู่เป็นสตริง 'YYYY-MM-DD'
+    let REPORT_CURRENT_DATE = new Date().toISOString().split('T')[0];
  
-    function setReportRange(days) {
-      REPORT_RANGE_DAYS = Number(days) || 1;
-      REPORT_CUSTOM_DATE = null; // สลับมาใช้ปุ่มช่วง ต้องเคลียร์การเลือกปฏิทินทิ้ง
+    // ไปยังวันที่ที่ระบุ (เรียกจากปฏิทิน หรือตอนเปิดแท็บครั้งแรก)
+    function goToReportDate(dateStr) {
+      if (!dateStr) return;
+      REPORT_CURRENT_DATE = dateStr;
       const dp = document.getElementById('rptDatePicker');
       const dd = document.getElementById('rptDateDisplay');
-      if (dp) dp.value = '';
-      if (dd) dd.value = '';
-      document.querySelectorAll('.rpt-range-btn').forEach(b => b.classList.remove('active'));
-      const btnMap = {1:'rBtn1',7:'rBtn7',30:'rBtn30',90:'rBtn90'};
-      const btn = document.getElementById(btnMap[days]);
-      if (btn) btn.classList.add('active');
-      const subtitle = document.getElementById('rptRangeSubtitle');
-      if (subtitle) subtitle.textContent = days === 1 ? 'ข้อมูลการจองและรายรับของวันนี้' : `ข้อมูลการจองและรายรับ ${days} วันล่าสุด`;
-      renderReport();
-    }
- 
-    // เลือกวันที่เฉพาะเจาะจงผ่านปฏิทิน — ดูรายรับของวันอื่นที่ไม่ใช่วันนี้/ช่วง preset
-    function setReportCustomDate(dateStr) {
-      if (!dateStr) return;
-      REPORT_CUSTOM_DATE = dateStr;
-      document.querySelectorAll('.rpt-range-btn').forEach(b => b.classList.remove('active'));
-      const dd = document.getElementById('rptDateDisplay');
+      if (dp) dp.value = dateStr;
       if (dd) dd.value = formatDate(dateStr);
       const subtitle = document.getElementById('rptRangeSubtitle');
-      if (subtitle) subtitle.textContent = `ข้อมูลการจองและรายรับวันที่ ${formatDate(dateStr)}`;
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (subtitle) subtitle.textContent = dateStr === todayStr
+        ? 'ข้อมูลการจองและรายรับของวันนี้'
+        : `ข้อมูลการจองและรายรับวันที่ ${formatDate(dateStr)}`;
       renderReport();
     }
  
-    function renderReport() {
-      let startStr, todayStr;
-      if (REPORT_CUSTOM_DATE) {
-        // เลือกวันที่เฉพาะเจาะจงจากปฏิทิน — กรองเฉพาะวันนั้นวันเดียว
-        startStr = REPORT_CUSTOM_DATE;
-        todayStr = REPORT_CUSTOM_DATE;
-      } else {
-        const now = new Date();
-        const start = new Date(now);
-        start.setDate(start.getDate() - REPORT_RANGE_DAYS);
-        start.setHours(0,0,0,0);
-        startStr = start.toISOString().split('T')[0];
-        todayStr = now.toISOString().split('T')[0];
-      }
+    // รับค่าจากตัวเลือกปฏิทินโดยตรง (onchange ของ input[type=date])
+    function setReportCustomDate(dateStr) { goToReportDate(dateStr); }
  
-      // กรองจาก createdAt (วันที่จองเกิดขึ้นจริง) แทน b.date (วันที่จะไปเล่น)
-      // เดิมใช้ b.date ทำให้บูกกิ้งที่จองไว้ล่วงหน้า (เล่นวันพรุ่งนี้/อนาคต) หลุด
-      // ออกจากรายงานทันที เพราะเงื่อนไข date <= todayStr ตัดวันที่ในอนาคตทิ้งหมด
-      // ทั้งที่ตัวการจองเกิดขึ้นแล้วจริงในช่วงเวลาที่เลือกดูรายงาน
-      const data = allBookings.filter(b => {
-        const createdDateStr = b.createdAt ? b.createdAt.split('T')[0] : (b.date || '');
-        return createdDateStr >= startStr && createdDateStr <= todayStr;
+    // FIX: ผูก event ของปฏิทินด้วย addEventListener() ผ่าน id ตรง ๆ (เชื่อถือได้กว่า
+    // inline onclick attribute) — ตัดปุ่มลูกศร ‹ › ออกตามที่ต้องการ เหลือแค่คลิก
+    // ที่ตัวปฏิทินเพื่อเลือกวันที่ดูรายงานเท่านั้น
+    document.addEventListener('DOMContentLoaded', () => {
+      const datePicker = document.getElementById('rptDatePicker');
+      const datePickerWrap = document.getElementById('rptDatePickerWrap');
+      if (datePicker) datePicker.addEventListener('change', (e) => setReportCustomDate(e.target.value));
+      if (datePickerWrap) datePickerWrap.addEventListener('click', () => {
+        const el = document.getElementById('rptDatePicker');
+        if (!el) return;
+        if (el.showPicker) { try { el.showPicker(); } catch(e) { el.focus(); el.click(); } }
+        else { el.focus(); el.click(); }
       });
+ 
+    });
+ 
+    function renderReport() {
+      // แสดงรายงานเฉพาะ "วันเดียว" ตามวันที่เลือกในปฏิทินเสมอ (ไม่มีช่วงเวลาแบบเดิมแล้ว)
+      const startStr = REPORT_CURRENT_DATE;
+      const todayStr = REPORT_CURRENT_DATE;
+ 
+      // FIX (รอบนี้): เปลี่ยนมากรองจาก b.date (วันที่จะไปเล่นจริง) แทน createdAt
+      // เพราะตอนนี้รายงานดูทีละวันผ่านปฏิทิน ความหมายที่ผู้ใช้ต้องการคือ
+      // "วันนั้นมีการจอง/รายรับอะไรบ้าง" ไม่ใช่ "วันนั้นมีการสร้างรายการจองกี่ราย"
+      // การกรองด้วย b.date ยังทำให้สอดคล้องกับฝั่ง cancelledByStaff/cancelledByCustomer
+      // ด้านล่างที่กรองด้วย r.date (วันที่เล่น) อยู่แล้ว ป้องกันปัญหาที่ก่อนหน้านี้
+      // รายการเดียวกันแสดงสถานะไม่ตรงกันระหว่างมุมมองต่างช่วงเวลา (เช่น อนุมัติแล้ว
+      // ในมุมมองนึง แต่ยกเลิกในอีกมุมมอง เพราะกรองคนละ field กัน)
+      const data = allBookings.filter(b => (b.date || '') === startStr);
  
       // จัดกลุ่มสถานะ: ถือว่า approved/remaining_payment_pending/playing/completed
       // เป็นกลุ่ม "อนุมัติแล้ว" ทั้งหมด (ต่างกันแค่ขั้นตอนหลังอนุมัติ) ส่วน
