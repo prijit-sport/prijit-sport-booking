@@ -1831,11 +1831,19 @@
       // มัดจำนับเมื่อ staff อนุมัติ booking แล้วเท่านั้น ส่วนค่าคงเหลือนับเมื่อ
       // staff กดยืนยันรับเงินแล้วเท่านั้น (remainingStatus === 'paid') — เป็นค่าที่
       // อัปเดตตามเวลาจริงเสมอ เพราะ allBookings ถูก sync แบบ real-time อยู่แล้ว
+      // FIX (รอบนี้): ยอดค่ามัดจำในรายรับทั้งหมด เปลี่ยนมานับจากหน้า "คืนมัดจำ" แทน
+      // นับก็ต่อเมื่อ staff กด "หักเก็บมัดจำ" (สถานะ 'forfeit' ใน node 'refunds') เท่านั้น
+      // ไม่นับจากการอนุมัติการจองในหน้า "จัดการการจอง" อีกต่อไป — ค่าคงเหลือยังนับเหมือนเดิม
+      // เมื่อ remainingStatus === 'paid' เพราะเป็นเงินที่ staff ยืนยันรับจริงหน้าสนามแล้ว
       let fullIncome=0, approvedIncome=0, pendingIncome=0;
       let approvedCount=0, pendingCount=0;
  
       data.forEach(b => {
-        fullIncome += getActualReceivedAmount(b, APPROVED_GROUP);
+        if (b.remainingStatus === 'paid') {
+          const dep = getBookingDeposit(b);
+          const remaining = (b.remainingAmount != null) ? b.remainingAmount : Math.max((b.totalPrice||0) - dep, 0);
+          fullIncome += remaining;
+        }
         const price = b.totalPrice || 0;
         if (APPROVED_GROUP.includes(b.bookingStatus)) {
           approvedIncome += price; approvedCount++;
@@ -1843,6 +1851,16 @@
           pendingIncome += price; pendingCount++;
         }
       });
+ 
+      // มัดจำที่ถูกหักเก็บ (forfeit) ในหน้าคืนมัดจำ — ใช้ processedAt เป็นตัวกรองช่วงเวลา
+      // เพราะเป็นเวลาที่ staff กดหักเก็บจริง (ไม่ใช่ createdAt ตอนสร้างรายการรอดำเนินการ)
+      const forfeitedDeposits = allRefunds.filter(r => {
+        if (r.status !== 'forfeit') return false;
+        const d = r.processedAt ? r.processedAt.split('T')[0] : (r.createdAt ? r.createdAt.split('T')[0] : '');
+        return d && d >= startStr && d <= todayStr;
+      });
+      forfeitedDeposits.forEach(r => { fullIncome += (r.deposit || 0); });
+ 
  
       // FIX: นับ "ยกเลิก" จาก node 'refunds' แทนการเช็ค bookingStatus==='rejected'
       // ใน bookings — เพราะ rejectBooking()/cancelApprovedBooking() จะ .remove()
