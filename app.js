@@ -651,37 +651,37 @@ function confirmBooking() {
           📋 ตรวจสอบข้อมูลการจอง
         </h3>
  
-        <div style="background:#f0fdf4;border-radius:10px;padding:14px;margin-bottom:14px;font-size:0.95em;line-height:1.8;">
-          <div>📍 <strong>สนาม:</strong> ${field}</div>
-          <div>📅 <strong>วันที่:</strong> ${displayDate}</div>
-          <div>⏰ <strong>เวลา:</strong> ${selectedTimeSlot}</div>
+        <div style="background:#f0fdf4;border-radius:10px;padding:14px;margin-bottom:14px;font-size:0.95em;font-weight:400;line-height:1.8;">
+          <div>📍 สนาม: ${field}</div>
+          <div>📅 วันที่: ${displayDate}</div>
+          <div>⏰ เวลา: ${selectedTimeSlot}</div>
         </div>
  
-        <div style="background:#f9fafb;border-radius:10px;padding:14px;margin-bottom:14px;font-size:0.95em;line-height:1.8;">
-          <div>💰 <strong>ราคาเต็ม:</strong> ${totalPrice.toLocaleString()} บาท</div>
-          <div>💵 <strong>มัดจำ 30%:</strong> <span style="color:#10b981;font-weight:700;">${depositAmount.toLocaleString()} บาท</span></div>
-          <div>💸 <strong>คงเหลือจ่ายที่สนาม:</strong> <span style="color:#ef4444;font-weight:700;">${remainingAmount.toLocaleString()} บาท</span></div>
+        <div style="background:#f9fafb;border-radius:10px;padding:14px;margin-bottom:14px;font-size:0.95em;font-weight:400;line-height:1.8;">
+          <div>💰 ราคาเต็ม: ${totalPrice.toLocaleString()} บาท</div>
+          <div>💵 มัดจำ 30%: <span style="color:#10b981;">${depositAmount.toLocaleString()} บาท</span></div>
+          <div>💸 คงเหลือจ่ายที่สนาม: <span style="color:#ef4444;">${remainingAmount.toLocaleString()} บาท</span></div>
         </div>
  
-        <div style="background:#f9fafb;border-radius:10px;padding:14px;margin-bottom:14px;font-size:0.95em;line-height:1.8;">
-          <div>👤 <strong>ผู้จอง:</strong> ${currentUser.fullname}</div>
-          <div>📞 <strong>เบอร์:</strong> ${currentUser.phone}</div>
+        <div style="background:#f9fafb;border-radius:10px;padding:14px;margin-bottom:14px;font-size:0.95em;font-weight:400;line-height:1.8;">
+          <div>👤 ผู้จอง: ${currentUser.fullname}</div>
+          <div>📞 เบอร์: ${currentUser.phone}</div>
         </div>
  
-        <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:14px;margin-bottom:20px;font-size:0.9em;line-height:1.8;">
-          <div style="font-weight:700;color:#1d4ed8;margin-bottom:8px;">💡 สรุปการชำระเงิน</div>
-          <div>• ชำระค่ามัดจำ <strong>${depositAmount.toLocaleString()} บาท</strong> ผ่าน QR Code ตอนนี้</div>
-          <div style="color:#059669;font-weight:700;margin-top:6px;">• มาตามนัด: จ่ายเพิ่มเพียง <strong>${remainingAmount.toLocaleString()} บาท</strong> ที่สนาม เพราะมัดจำ ${depositAmount.toLocaleString()} บาท หักจ่ายไปแล้ว</div>
-          <div style="color:#dc2626;font-weight:700;margin-top:6px;">• ไม่มาตามที่จอง: โดนหักเก็บค่ามัดจำ ${depositAmount.toLocaleString()} บาท ทันที</div>
+        <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:14px;margin-bottom:20px;font-size:0.95em;font-weight:400;line-height:1.8;">
+          <div style="color:#1d4ed8;margin-bottom:8px;">💡 สรุปการชำระเงิน</div>
+          <div>• ชำระค่ามัดจำ ${depositAmount.toLocaleString()} บาท ผ่าน QR Code ตอนนี้</div>
+          <div style="color:#059669;margin-top:6px;">• มาตามนัด: จ่ายเพิ่มเพียง ${remainingAmount.toLocaleString()} บาท ที่สนาม เพราะมัดจำ ${depositAmount.toLocaleString()} บาท หักจ่ายไปแล้ว</div>
+          <div style="color:#dc2626;margin-top:6px;">• ไม่มาตามที่จอง: โดนหักเก็บค่ามัดจำ ${depositAmount.toLocaleString()} บาท ทันที</div>
         </div>
  
         <div style="display:flex;gap:12px;">
           <button onclick="document.getElementById('confirmBookingModal').remove()"
-            style="flex:1;padding:12px;border:2px solid #e5e7eb;background:white;border-radius:10px;font-size:1em;cursor:pointer;font-family:inherit;color:#666;">
+            style="flex:1;padding:12px;border:2px solid #e5e7eb;background:white;border-radius:10px;font-size:0.95em;font-weight:400;cursor:pointer;font-family:inherit;color:#666;">
             ยกเลิก
           </button>
           <button onclick="document.getElementById('confirmBookingModal').remove(); showPaymentModal();"
-            style="flex:2;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;border-radius:10px;font-size:1em;font-weight:700;cursor:pointer;font-family:inherit;">
+            style="flex:2;padding:12px;background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;border-radius:10px;font-size:0.95em;font-weight:400;cursor:pointer;font-family:inherit;">
             ✅ ยืนยันการจอง
           </button>
         </div>
@@ -712,15 +712,15 @@ function showPaymentModal() {
           </div>
           <div class="summary-row">
             <span class="summary-label">💸 ค่าบริการคงเหลือจ่ายที่สนาม:</span>
-            <span class="summary-value" style="color:#ef4444;font-weight:700;">${data.remainingAmount.toLocaleString()} บาท</span>
+            <span class="summary-value" style="color:#ef4444;font-weight:400;">${data.remainingAmount.toLocaleString()} บาท</span>
           </div>
           <div class="summary-row">
             <span class="summary-label">💰 ต้องชำระตอนนี้:</span>
-            <span class="summary-value" style="color:#22c55e;font-size:1.3em;">${data.depositAmount.toLocaleString()} บาท</span>
+            <span class="summary-value" style="color:#22c55e;font-weight:400;">${data.depositAmount.toLocaleString()} บาท</span>
           </div>
         </div>
         <div class="deposit-highlight">
-          <p><strong>📱 สแกน QR Code เพื่อชำระค่ามัดจำ</strong></p>
+          <p style="font-weight:400;">📱 สแกน QR Code เพื่อชำระค่ามัดจำ</p>
         </div>
         <div class="qr-code-container">
           <div class="qr-code-image" style="position:relative;min-height:300px;">
@@ -734,10 +734,10 @@ function showPaymentModal() {
               onerror="handleQRError(this)">
           </div>
         </div>
-        <div class="payment-info">
-          <p><strong>💰 ยอดชำระ:</strong> ${data.depositAmount.toLocaleString()} บาท</p>
-          <p><strong>📱 เลขพร้อมเพย์:</strong> 1103100835163</p>
-          <p><strong>🏢 ชื่อบัญชี:</strong> นาย พัสกร ราชชมภู</p>
+        <div class="payment-info" style="font-weight:400;">
+          <p style="font-weight:400;">💰 ยอดชำระ: ${data.depositAmount.toLocaleString()} บาท</p>
+          <p style="font-weight:400;">📱 เลขพร้อมเพย์: 1103100835163</p>
+          <p style="font-weight:400;">🏢 ชื่อบัญชี: นาย พัสกร ราชชมภู</p>
         </div>
         <div class="upload-section">
           <label class="upload-label">📤 อัพโหลดสลิปการโอนเงิน</label>
@@ -749,12 +749,12 @@ function showPaymentModal() {
           <img id="slipPreview" style="display:none;">
         </div>
         <div class="payment-terms">
-          <h4>💡 สรุปการชำระเงิน</h4>
-          <ol style="list-style:none;padding-left:0;color:#000;">
-            <li style="color:#000;font-weight:bold;">1. ✅ มาตามนัด: จ่ายเพิ่มเพียง <strong>${data.remainingAmount.toLocaleString()} บาท</strong> ที่สนาม</li>
-            <li style="color:#000;font-weight:bold;">2. ❌ ไม่มาตามที่จอง: โดนหักเก็บค่ามัดจำ ${data.depositAmount.toLocaleString()} บาท ทันที ไม่มีการคืนเงิน</li>
-            <li style="color:#000;font-weight:bold;">3. ⚠️ ค่ามัดจำจะคืนเฉพาะกรณียกเลิกการจองหรือถูกปฏิเสธเท่านั้น</li>
-            <li style="color:#000;">4. 📌 กรุณามาถึงก่อนเวลา 15 นาที</li>
+          <h4 style="font-weight:400;">💡 สรุปการชำระเงิน</h4>
+          <ol style="list-style:none;padding-left:0;color:#000;font-size:1em;">
+            <li style="color:#000;font-weight:400;">1. ✅ มาตามนัด: จ่ายเพิ่มเพียง ${data.remainingAmount.toLocaleString()} บาท ที่สนาม</li>
+            <li style="color:#000;font-weight:400;">2. ❌ ไม่มาตามที่จอง: โดนหักเก็บค่ามัดจำ ${data.depositAmount.toLocaleString()} บาท ทันที ไม่มีการคืนเงิน</li>
+            <li style="color:#000;font-weight:400;">3. ⚠️ ค่ามัดจำจะคืนเฉพาะกรณียกเลิกการจองหรือถูกปฏิเสธเท่านั้น</li>
+            <li style="color:#000;font-weight:400;">4. 📌 กรุณามาถึงก่อนเวลา 15 นาที</li>
           </ol>
         </div>                   
         <div class="payment-buttons">
@@ -961,14 +961,28 @@ function updateBookingList() {
       return;
     }
     const ids = Object.keys(idsSnapshot.val());
-    return Promise.all(ids.map(id => database.ref('bookings/' + id).once('value'))).then((snapshots) => {
+    // FIX (permission_denied ทำทั้งหน้าพัง): เดิมใช้ Promise.all() อ่านทุก booking ตาม index
+    // พร้อมกัน — ถ้ามี booking ใดถูกลบไปแล้วแต่ index ที่ user_bookings/{uid} ยังไม่ถูกลบตาม
+    // (orphan reference จากฝั่ง staff-panel ที่ลบ/reject booking โดยไม่เคลียร์ index คู่กัน)
+    // การอ่าน path ที่ไม่มีข้อมูลจะทำให้กฎ data.child('userId').val() === auth.uid กลายเป็น
+    // null === uid (false) แล้ว Firebase คืน permission_denied แทนค่าว่าง ทำให้ Promise.all()
+    // reject ทั้งก้อนและทั้งหน้าพัง เปลี่ยนมาให้แต่ละรายการจับ error ของตัวเอง ถ้าอ่านไม่ได้
+    // ให้ถือว่าเป็น orphan แล้วลบ index ทิ้งเงียบ ๆ (ผู้ใช้มีสิทธิ์เขียน user_bookings/{ตัวเอง} อยู่แล้ว)
+    return Promise.all(ids.map(id =>
+      database.ref('bookings/' + id).once('value')
+        .then(snap => ({ id, snap }))
+        .catch(() => {
+          database.ref('user_bookings/' + user.uid + '/' + id).remove().catch(() => {});
+          return { id, snap: null };
+        })
+    )).then((results) => {
       const bookings = [];
-      snapshots.forEach((snap, i) => {
-        const booking = snap.val();
-        // booking อาจเป็น null ได้ถ้าถูกลบไปแล้ว (เช่น auto-delete หลัง completed 24 ชม.)
-        // แต่ index ยังไม่ถูกเก็บกวาดตาม — ข้ามรายการที่หายไปแบบเงียบ ๆ
+      results.forEach(({ id, snap }) => {
+        const booking = snap ? snap.val() : null;
+        // booking อาจเป็น null ได้ถ้าถูกลบไปแล้ว (เช่น auto-delete หลัง completed 24 ชม.
+        // หรือ orphan index ที่เพิ่งเคลียร์ไปด้านบน) — ข้ามรายการที่หายไปแบบเงียบ ๆ
         if (!booking) return;
-        booking.id = ids[i];
+        booking.id = id;
         if (booking.bookingStatus !== 'rejected') bookings.push(booking);
       });
       if (bookings.length === 0) { bookingListDiv.innerHTML = '<p style="text-align:center;color:#666;">ยังไม่มีรายการจอง</p>'; return; }
