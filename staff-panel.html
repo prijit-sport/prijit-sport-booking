@@ -368,11 +368,12 @@
             <button onclick="setReportRange(7)"  class="rpt-range-btn" id="rBtn7" >7 วัน</button>
             <button onclick="setReportRange(30)" class="rpt-range-btn" id="rBtn30">30 วัน</button>
             <button onclick="setReportRange(90)" class="rpt-range-btn" id="rBtn90">90 วัน</button>
-            <div style="position:relative;display:inline-flex;align-items:center;margin-left:6px;">
+            <div style="position:relative;display:inline-flex;align-items:center;margin-left:6px;"
+                 onclick="var el=document.getElementById('rptDatePicker'); if (el.showPicker) { try { el.showPicker(); } catch(e) { el.focus(); el.click(); } } else { el.focus(); el.click(); }">
               <input type="text" id="rptDateDisplay" readonly placeholder="📅 เลือกวันที่"
-                     style="padding:7px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;width:120px;text-align:center;background:#fff;cursor:pointer;color:#374151;font-family:'Sarabun',sans-serif;">
+                     style="padding:7px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;width:120px;text-align:center;background:#fff;cursor:pointer;color:#374151;font-family:'Sarabun',sans-serif;pointer-events:none;">
               <input type="date" id="rptDatePicker" onchange="setReportCustomDate(this.value)"
-                     style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer;box-sizing:border-box;">
+                     style="position:absolute;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;">
             </div>
           </div>
         </div>

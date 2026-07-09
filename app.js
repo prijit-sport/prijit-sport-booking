@@ -1053,14 +1053,22 @@ function generateBookingCard(booking) {
     } catch(e) {}
   }
  
-  // ปุ่มจ่ายค่าคงเหลือ — แสดงตราบใดที่ยังไม่จ่าย ไม่ว่าจะ approved, playing, หรือ completed แล้ว
-  // FIX: เดิมล็อกไว้เฉพาะ bookingStatus === 'approved' + ต้องเป็นวันนี้ + เหลือ ≤30 นาที
-  // ก่อนเริ่มเล่น พอสถานะเปลี่ยนเป็น 'completed' (พนักงานกดว่าเล่นเสร็จแล้ว) เงื่อนไข
-  // ไม่จริงอีกต่อไป ปุ่มหายไปทันที ทำให้ลูกค้าที่ยังไม่จ่ายค่าคงเหลือไม่มีทางจ่ายได้อีกเลย
-  // ตอนนี้ขยายให้ครอบคลุมทั้ง approved / playing / completed และตัดเงื่อนไขเรื่องเวลาออก
-  // เพราะแค่ remainingStatus ยังเป็น 'unpaid' ก็ควรจ่ายได้เสมอ ไม่ว่าจะอยู่สถานะไหน
+  // ปุ่มจ่ายค่าคงเหลือ — แสดงเมื่อ "ถึงวันที่จองแล้ว" (วันนี้หรือผ่านมาแล้ว) และยังไม่จ่าย
+  // ไม่ว่าจะอยู่สถานะ approved, playing, หรือ completed ก็ตาม
+  // FIX รอบก่อน: เดิมล็อกไว้เฉพาะ bookingStatus === 'approved' + ต้องเป็นวันนี้ + เหลือ ≤30 นาที
+  // ก่อนเริ่มเล่น พอสถานะเปลี่ยนเป็น 'completed' เงื่อนไขไม่จริงอีกต่อไป ปุ่มหายไปทันที
+  // ทำให้ลูกค้าที่ยังไม่จ่ายค่าคงเหลือไม่มีทางจ่ายได้อีกเลย ตอนนั้นเลยตัดเงื่อนไขเรื่อง
+  // วันที่ออกไปทั้งหมดด้วยความผิดพลาด ทำให้ปุ่มขึ้นแม้กับการจองที่ "ยังไม่ถึงวันเล่น"
+  // (เช่น จองไว้ล่วงหน้าวันพรุ่งนี้) ซึ่งไม่ถูกต้อง — ตอนนี้เพิ่มเงื่อนไขวันที่กลับมา:
+  // ต้องถึงวันที่จองแล้วเท่านั้น (isDateArrived) แต่ไม่จำกัดสถานะ/เวลาแบบเดิมอีก
   let payRemainingButton = '';
-  if (['approved','playing','completed'].includes(safeBooking.bookingStatus)
+  let isDateArrived = false;
+  try {
+    const todayStr = new Date().toISOString().split('T')[0];
+    isDateArrived = !!safeBooking.date && safeBooking.date <= todayStr;
+  } catch(e) {}
+  if (isDateArrived
+      && ['approved','playing','completed'].includes(safeBooking.bookingStatus)
       && safeBooking.remainingStatus !== 'paid'
       && safeBooking.remainingAmount > 0) {
     payRemainingButton = `
