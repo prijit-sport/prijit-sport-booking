@@ -71,6 +71,56 @@
       .mobile-bookings { display:block; }
       .staff-header { text-align:center; }
       .staff-header h1 { font-size:22px; }
+ 
+      /* FIX: รองรับมือถือ — ปรับ layout ทั่วไปให้ใช้งานง่ายขึ้นบนจอแคบ */
+      .container { padding:10px; }
+ 
+      /* Header: ให้ชื่อร้าน + ปุ่มออกจากระบบ อยู่กึ่งกลาง ไม่แน่นเกินไป */
+      .staff-header { padding:15px; flex-direction:column; gap:12px; }
+      .staff-info { width:100%; justify-content:center; flex-wrap:wrap; }
+      .logout-btn { padding:8px 16px; font-size:14px; }
+ 
+      /* แถบแท็บเมนู: เลื่อนแนวนอนได้แทนที่จะ wrap จนล้น/บีบตัวอ่านไม่ออก */
+      .tab-navigation {
+        padding:10px 12px;
+        overflow-x:auto;
+        flex-wrap:nowrap;
+        -webkit-overflow-scrolling:touch;
+        scrollbar-width:thin;
+        gap:8px;
+      }
+      .tab-btn {
+        padding:10px 16px;
+        font-size:14px;
+        white-space:nowrap;
+        flex-shrink:0;
+      }
+ 
+      /* การ์ดสถิติ: ลดขนาดตัวเลขให้พอดีจอ */
+      .stat-value { font-size:28px; }
+      .stat-card { padding:18px; }
+ 
+      /* กล่องกรองข้อมูล/ตารางสนาม/รายงาน: ลด padding ให้ใช้พื้นที่คุ้มขึ้น */
+      .filter-section, .bookings-section { padding:15px; }
+ 
+      /* หน้ารายงาน: แถวที่ 2 (สนามยอดนิยม + ลูกค้า/รายการ) เดิมล็อกสัดส่วน 2fr 1fr
+         แน่นเกินไปบนจอมือถือ ให้ตกลงมาเป็นคอลัมน์เดียวแทน */
+      #reportTab div[style*="grid-template-columns:2fr 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+ 
+      /* Modal: ลด padding บนจอแคบให้เนื้อหาไม่ล้นขอบ */
+      .modal-content { padding:20px; width:95%; }
+      .booking-detail { grid-template-columns:110px 1fr; gap:8px; padding:10px; font-size:14px; }
+ 
+      /* ปุ่มดำเนินการต่าง ๆ ให้ full width บนมือถือ กดง่ายขึ้น */
+      .btn-add { width:100%; }
+    }
+ 
+    @media(max-width:480px) {
+      .stat-value { font-size:24px; }
+      .tab-btn { padding:9px 12px; font-size:13px; }
+      .staff-header h1 { font-size:18px; }
     }
  
     /* Status Badge */
@@ -201,6 +251,18 @@
     .status-remaining { background:#fff7ed; color:#c2410c; }
     @media(max-width:768px) {
       .schedule-date-label { font-size:15px; width:100%; }
+ 
+      /* กล่องหัวข้อ "รายงานสรุปผล" + ปฏิทิน: ให้ปฏิทินเต็มความกว้างแทนที่จะบีบชิดขวา */
+      #reportTab > div > div[style*="justify-content:space-between"]:first-of-type {
+        flex-direction: column;
+        align-items: stretch !important;
+      }
+      #rptDateDisplay { width:100% !important; }
+      #rptDatePickerWrap { width:100%; }
+ 
+      /* KPI cards แถวบน: ลดขนาดตัวเลขให้ไม่ล้นการ์ดเมื่อจอแคบ */
+      #reportTab p[style*="font-size:28px"] { font-size:22px !important; }
+      #reportTab p[style*="font-size:32px"] { font-size:24px !important; }
     }
  
     .rpt-range-btn {
