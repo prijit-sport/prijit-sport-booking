@@ -1122,7 +1122,7 @@ function generateBookingCard(booking) {
       <div style="background:#f9fafb;padding:12px;border-radius:8px;margin-bottom:15px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
           <span style="color:#6b7280;font-size:13px;">💵 ค่ามัดจำ 30%</span>
-          <span style="font-weight:600;color:${safeBooking.depositStatus==='approved'?'#10b981':'#f59e0b'}">${safeBooking.depositAmount.toLocaleString()} บาท ${safeBooking.depositStatus==='approved'?'✅':'⏳'}</span>
+          <span style="font-weight:600;color:${['approved','remaining_payment_pending','playing','completed'].includes(safeBooking.bookingStatus)?'#10b981':'#f59e0b'}">${safeBooking.depositAmount.toLocaleString()} บาท ${['approved','remaining_payment_pending','playing','completed'].includes(safeBooking.bookingStatus)?'✅':'⏳'}</span>
         </div>
         <div style="display:flex;justify-content:space-between;">
           <span style="color:#6b7280;font-size:13px;">💸 ค่าบริการคงเหลือจ่ายที่สนาม</span>
