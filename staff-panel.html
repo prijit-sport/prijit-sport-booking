@@ -1273,8 +1273,16 @@
       const filterVal = filterEl ? filterEl.value : 'upcoming';
       const todayStr = new Date().toISOString().split('T')[0];
  
-      let list = allBookings.filter(b => b.bookingStatus !== 'rejected' && b.bookingStatus !== 'completed');
-      if (filterVal === 'upcoming') list = list.filter(b => (b.date || '') >= todayStr);
+      // FIX: เดิมตัด bookingStatus 'completed' ออกเสมอไม่ว่าจะเลือกดรอปดาวน์ตัวไหน
+      // ทำให้การจองวันที่ผ่านมาแล้ว (ซึ่งมักถูกเปลี่ยนเป็น 'completed' อัตโนมัติเมื่อ
+      // ครบเวลาสล็อต) ไม่มีทางโผล่ขึ้นมาได้เลย แม้จะเลือก "ทั้งหมด (รวมวันที่ผ่านมาแล้ว)"
+      // ก็ตาม เปลี่ยนมาซ่อน completed เฉพาะตอนเลือก "เฉพาะวันนี้เป็นต้นไป" เท่านั้น
+      // ส่วน "ทั้งหมด" ให้แสดง completed ด้วย (ตัดแค่ rejected ออกเสมอ เพราะถูกลบออกจาก
+      // ระบบไปแล้วจริง ๆ ไม่มีประโยชน์จะแสดง)
+      let list = allBookings.filter(b => b.bookingStatus !== 'rejected');
+      if (filterVal === 'upcoming') {
+        list = list.filter(b => (b.date || '') >= todayStr && b.bookingStatus !== 'completed');
+      }
  
       if (list.length === 0) {
         container.innerHTML = '<p style="text-align:center;color:#999;padding:30px;">ไม่มีรายการจอง</p>';
