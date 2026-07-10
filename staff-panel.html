@@ -359,7 +359,7 @@
       <div class="bookings-section" style="margin-bottom:20px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
           <h2 style="margin:0;">📋 ภาพรวมการจองทั้งหมด (ทุกสนาม ทุกวัน)</h2>
-          <select id="allBookingsFilter" onchange="renderAllBookingsSummary()"
+          <select id="allBookingsFilter"
                   style="padding:8px 12px;border:2px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:'Sarabun',sans-serif;">
             <option value="upcoming">เฉพาะวันนี้เป็นต้นไป</option>
             <option value="all">ทั้งหมด (รวมวันที่ผ่านมาแล้ว)</option>
@@ -1869,6 +1869,11 @@
         else { el.focus(); el.click(); }
       });
  
+      // FIX: ดรอปดาวน์ "ทั้งหมด/เฉพาะวันนี้เป็นต้นไป" ในแท็บตารางสนาม เดิมใช้
+      // onchange="..." แบบ inline attribute ซึ่งบางครั้งเบราว์เซอร์ไม่ผูก event ให้
+      // (ปัญหาเดียวกับปุ่ม ‹ › ก่อนหน้านี้) เปลี่ยนมาผูกด้วย addEventListener() แทน
+      const allBookingsFilterEl = document.getElementById('allBookingsFilter');
+      if (allBookingsFilterEl) allBookingsFilterEl.addEventListener('change', () => renderAllBookingsSummary());
     });
  
     function renderReport() {
