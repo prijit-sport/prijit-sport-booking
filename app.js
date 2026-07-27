@@ -218,7 +218,8 @@ const Validator = {
   field(value) { return value ? null : 'กรุณาเลือกสนาม'; },
   date(value) {
     if (!value) return 'กรุณาเลือกวันที่';
-    const selectedDate = new Date(value);
+    // FIX (timezone bug): parse แบบ local time เหมือนจุดอื่น ๆ (ดูรายละเอียดใน confirmBooking())
+    const selectedDate = new Date(value + 'T00:00:00');
     const today = new Date(); today.setHours(0,0,0,0);
     if (selectedDate < today) return 'ไม่สามารถเลือกวันที่ในอดีตได้';
     const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + 30);
@@ -609,7 +610,15 @@ function confirmBooking() {
     showToast("❌ กรุณากรอกข้อมูลให้ครบถ้วน", 'error');
     return;
   }
-  const selectedDate = new Date(date);
+  // FIX (timezone bug): เดิมใช้ `new Date(date)` ตรง ๆ กับ string วันที่ล้วน ๆ
+  // (เช่น "2026-07-27") ซึ่ง JavaScript จะตีความเป็นเวลา UTC เที่ยงคืนเสมอ ไม่ใช่
+  // เวลาท้องถิ่น ขณะที่ `today` คำนวณจากเวลาท้องถิ่น ในโซนเวลาไทย (UTC+7) ทำให้
+  // selectedDate (UTC เที่ยงคืน) มีค่ามากกว่า today (เวลาไทยเที่ยงคืน) อยู่ 7 ชม.
+  // เสมอ ผลคือแม้เลือก "วันนี้" พอดี โค้ดก็เข้าใจผิดว่าเป็นวันในอนาคต ทำให้ข้าม
+  // การเช็ค "เวลาที่เลือกผ่านไปแล้วหรือยัง" ไปเลย จองเวลาที่เลยมาแล้วของวันนี้ได้
+  // แก้โดย parse แบบเดียวกับจุดอื่น ๆ ในไฟล์ (เช่น updateTimeSlotAvailability())
+  // คือต่อ 'T00:00:00' ต่อท้าย ซึ่งบังคับให้ JavaScript ตีความเป็นเวลาท้องถิ่น
+  const selectedDate = new Date(date + 'T00:00:00');
   const today = new Date(); today.setHours(0,0,0,0);
   if (selectedDate.getTime() === today.getTime()) {
     const now = new Date();
@@ -1107,6 +1116,25 @@ function generateBookingCard(booking) {
     cancelButton = `<button class="cancel-btn" id="cancel-btn-${safeBooking.id}" data-booking-id="${safeBooking.id}" style="background:#ef4444;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;margin-top:10px;">❌ ยกเลิกการจอง</button>`;
   }
  
+  // ========== ปุ่มแก้ไขการจอง (เปลี่ยนเวลา/เปลี่ยนสนาม) ==========
+  // เงื่อนไข: ต้องเป็นสถานะที่ "ยังไม่เริ่มเล่น" (pending_payment / pending / approved)
+  // และเวลาที่จองไว้ต้อง "ยังไม่ถึง" เท่านั้น (ป้องกันแก้ไขย้อนหลัง/หลังเริ่มเล่นไปแล้ว)
+  // และต้องไม่มีการต่อเวลา (extendedTo) ผูกอยู่กับ booking นี้ เพราะช่วงต่อเวลาอ้างอิง
+  // เวลาสิ้นสุดของ booking เดิมอยู่ ถ้าให้แก้ไขต่อจะทำให้ช่วงเวลาไม่ต่อเนื่องกัน
+  let editButton = '';
+  let bookingHasNotStarted = false;
+  try {
+    const startTimeStr = (safeBooking.time || '').split(' - ')[0];
+    if (safeBooking.date && startTimeStr && /^\d{2}:\d{2}$/.test(startTimeStr)) {
+      const startDateTime = new Date(`${safeBooking.date}T${startTimeStr}:00`);
+      bookingHasNotStarted = !isNaN(startDateTime.getTime()) && new Date() < startDateTime;
+    }
+  } catch(e) {}
+  const editableStatuses = ['pending_payment', 'pending', 'approved'];
+  if (bookingHasNotStarted && editableStatuses.includes(safeBooking.bookingStatus) && !booking.extendedTo) {
+    editButton = `<button class="edit-booking-btn" id="edit-btn-${safeBooking.id}" data-booking-id="${safeBooking.id}" style="background:#3b82f6;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;margin-top:10px;margin-right:8px;">✏️ แก้ไขการจอง (เปลี่ยนเวลา/สนาม)</button>`;
+  }
+ 
   return `
     <div class="booking-card" style="background:white;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);border-left:4px solid ${statusColor};">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
@@ -1133,6 +1161,7 @@ function generateBookingCard(booking) {
       ${payRemainingButton}
       ${waitingBanner}
       ${playingBanner}
+      ${editButton}
       ${cancelButton}
       <div style="margin-top:15px;padding-top:15px;border-top:1px solid #e5e7eb;">
         <p style="margin:0;color:#9ca3af;font-size:12px;">📋 จองเมื่อ: ${fmtDateTime(safeBooking.createdAt)}</p>
@@ -1158,6 +1187,12 @@ function initializeBookingCardEvents() {
     btn.addEventListener('click', function() {
       const bookingId = this.getAttribute('data-booking-id');
       if (bookingId) cancelBooking(bookingId);
+    });
+  });
+  document.querySelectorAll('.edit-booking-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const bookingId = this.getAttribute('data-booking-id');
+      if (bookingId) openEditBookingModal(bookingId);
     });
   });
 }
@@ -1322,6 +1357,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (overlay && overlay.classList.contains('active')) closeMobileMenu();
       const extModal = document.getElementById('extensionModal');
       if (extModal && extModal.classList.contains('show')) closeExtensionModal();
+      const editModal = document.getElementById('editBookingModal');
+      if (editModal && editModal.classList.contains('show')) closeEditBookingModal();
     }
   });
   window.addEventListener("resize", debounce(() => {
@@ -1794,4 +1831,332 @@ window.addEventListener('beforeunload', () => {
     database.ref('booking_locks/' + uniqueKey).remove().catch(() => {});
   }
 });
+ 
+// ========================================================================
+// ========== EDIT BOOKING SYSTEM - ระบบแก้ไขการจอง (เปลี่ยนเวลา/เปลี่ยนสนาม) ==========
+// ========================================================================
+// แนวคิด: ลูกค้าที่จ่ายมัดจำไปแล้วแต่ยังไม่ถึงเวลาเล่นตามที่จอง สามารถแก้ไขการจอง
+// เพื่อเปลี่ยนสนามและ/หรือเวลาไปเป็นช่วงอื่นที่ว่างได้ โดยไม่ต้องจ่ายมัดจำซ้ำ
+// (มัดจำเดิมที่จ่ายไปแล้วยังใช้ยืนยันการจองใหม่ได้เลย) เงื่อนไขการแก้ไข:
+//   1) booking ต้องยังไม่เริ่มเล่น (เวลาที่จองไว้ต้องยังไม่ถึง)
+//   2) bookingStatus ต้องเป็น pending_payment / pending / approved เท่านั้น
+//   3) booking ต้องไม่มีการต่อเวลา (extendedTo) ผูกอยู่ (ดูเหตุผลใน generateBookingCard)
+// เมื่อยืนยันแก้ไข ระบบจะย้าย availability ของช่วงเวลาเดิมออก มาจองช่วงเวลาใหม่แทน
+// พร้อมคำนวณราคา/ยอดคงเหลือใหม่ตามสนาม/เวลาที่เลือก (ค่ามัดจำที่จ่ายไปแล้วคงเดิม
+// เพราะไม่มีการคืน/เก็บเพิ่มออนไลน์ ส่วนต่างราคาถ้ามีจะไปรวมอยู่ในยอดคงเหลือที่จ่ายหน้าสนาม)
+ 
+let currentEditBooking = null; // { id, field, date, time, totalPrice, depositAmount, remainingAmount, ... }
+let editSelectedField = null;
+let editSelectedDate = null;
+let editSelectedTimeSlot = null;
+let currentEditAvailabilityCheck = null;
+ 
+async function openEditBookingModal(bookingId) {
+  try {
+    const snapshot = await database.ref('bookings/' + bookingId).once('value');
+    const booking = snapshot.val();
+    if (!booking) { showToast('❌ ไม่พบข้อมูลการจอง', 'error'); return; }
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser || booking.userId !== firebaseUser.uid) { showToast('❌ คุณไม่มีสิทธิ์แก้ไขการจองนี้', 'error'); return; }
+ 
+    // ตรวจซ้ำฝั่ง client ว่ายังแก้ไขได้จริง (กันกรณีเปิดค้างไว้นาน/สถานะเปลี่ยนไปแล้ว)
+    const editableStatuses = ['pending_payment', 'pending', 'approved'];
+    if (!editableStatuses.includes(booking.bookingStatus)) {
+      showToast('❌ ไม่สามารถแก้ไขการจองในสถานะปัจจุบันได้', 'error');
+      return;
+    }
+    if (booking.extendedTo) {
+      showToast('❌ การจองนี้มีการต่อเวลาแล้ว ไม่สามารถแก้ไขได้ กรุณาติดต่อเจ้าหน้าที่', 'error');
+      return;
+    }
+    const startTimeStr = (booking.time || '').split(' - ')[0];
+    const startDateTime = new Date(`${booking.date}T${startTimeStr}:00`);
+    if (isNaN(startDateTime.getTime()) || new Date() >= startDateTime) {
+      showToast('❌ ถึงเวลาเล่นแล้ว ไม่สามารถแก้ไขการจองนี้ได้', 'error');
+      return;
+    }
+ 
+    currentEditBooking = { ...booking, id: bookingId };
+    editSelectedField = null;
+    editSelectedDate = null;
+    editSelectedTimeSlot = null;
+ 
+    const infoDiv = document.getElementById('editBookingCurrentInfo');
+    infoDiv.innerHTML = `
+      <div style="font-weight:700;color:#111827;margin-bottom:6px;">📋 การจองปัจจุบัน</div>
+      <div>📍 สนาม: ${SecurityUtils.escapeHtml(booking.field)}</div>
+      <div>📅 วันที่: ${formatDateThai(booking.date)}</div>
+      <div>⏰ เวลา: ${SecurityUtils.escapeHtml(booking.time)}</div>
+      <div>💵 มัดจำที่จ่ายแล้ว: <strong style="color:#10b981;">${(booking.depositAmount||0).toLocaleString()} บาท</strong> (ใช้ต่อได้เลย ไม่ต้องจ่ายซ้ำ)</div>`;
+ 
+    const fieldSelect = document.getElementById('editFieldSelect');
+    const dateSelect = document.getElementById('editDateSelect');
+    fieldSelect.value = booking.field || '';
+    dateSelect.value = booking.date || '';
+    dateSelect.setAttribute('min', new Date().toISOString().split('T')[0]);
+    const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + MAX_BOOKING_DAYS);
+    dateSelect.setAttribute('max', maxDate.toISOString().split('T')[0]);
+ 
+    document.getElementById('editBookingPreview').style.display = 'none';
+    const confirmBtn = document.getElementById('confirmEditBookingBtn');
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = '✅ ยืนยันการแก้ไข';
+ 
+    resetEditTimeSlots();
+    initializeEditTimeSlots();
+ 
+    document.getElementById('editBookingModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+ 
+    // โหลดสถานะความว่างของ สนาม+วันที่เดิมทันที เพื่อให้เห็นตัวเลือกอื่นในวันเดียวกัน
+    checkEditAvailability();
+  } catch (error) {
+    showToast('❌ ' + error.message, 'error');
+  }
+}
+ 
+function closeEditBookingModal() {
+  const modal = document.getElementById('editBookingModal');
+  if (modal) modal.classList.remove('show');
+  document.body.style.overflow = '';
+  if (currentEditAvailabilityCheck) currentEditAvailabilityCheck = null;
+  currentEditBooking = null;
+  editSelectedField = null;
+  editSelectedDate = null;
+  editSelectedTimeSlot = null;
+}
+ 
+function initializeEditTimeSlots() {
+  const timeSlots = document.querySelectorAll('#editTimeSlotsContainer .time-slot-btn');
+  timeSlots.forEach(btn => {
+    // เอา listener เก่าออกก่อน (เผื่อเปิด modal ซ้ำหลายรอบ) ด้วยการ clone node
+    const clone = btn.cloneNode(true);
+    btn.parentNode.replaceChild(clone, btn);
+  });
+  document.querySelectorAll('#editTimeSlotsContainer .time-slot-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      if (this.classList.contains('booked') || this.disabled) return;
+      document.querySelectorAll('#editTimeSlotsContainer .time-slot-btn').forEach(s => s.classList.remove('selected'));
+      this.classList.add('selected');
+      editSelectedTimeSlot = this.getAttribute('data-time');
+      updateEditBookingPreview();
+    });
+  });
+}
+ 
+function resetEditTimeSlots() {
+  document.querySelectorAll('#editTimeSlotsContainer .time-slot-btn').forEach(btn => {
+    btn.classList.remove('available', 'booked', 'selected', 'past-time');
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    const badge = btn.querySelector('.status-badge');
+    if (badge) badge.remove();
+  });
+}
+ 
+function checkEditAvailability() {
+  if (!currentEditBooking) return;
+  const field = document.getElementById('editFieldSelect').value;
+  const date = document.getElementById('editDateSelect').value;
+  editSelectedField = field || null;
+  editSelectedDate = date || null;
+  editSelectedTimeSlot = null;
+  document.getElementById('editBookingPreview').style.display = 'none';
+  document.getElementById('confirmEditBookingBtn').disabled = true;
+ 
+  if (!field || !date) { resetEditTimeSlots(); return; }
+ 
+  const statusDiv = document.getElementById('editAvailabilityStatus');
+  statusDiv.style.display = 'block';
+  statusDiv.className = 'availability-notice checking';
+  statusDiv.innerHTML = '<strong>⏳ กำลังตรวจสอบสถานะสนาม...</strong>';
+ 
+  const requestToken = Symbol('editAvailability');
+  currentEditAvailabilityCheck = requestToken;
+ 
+  database.ref('availability/' + field + '/' + date).once('value')
+    .then((snapshot) => {
+      if (currentEditAvailabilityCheck !== requestToken) return; // มีการเปลี่ยนสนาม/วันที่ระหว่างรอ ยกเลิกผลเก่า
+      const bookedTimes = snapshot.exists() ? Object.keys(snapshot.val()) : [];
+      // ถ้าสนาม+วันที่ที่เลือกตรงกับของเดิม ให้ตัดเวลาเดิมออกจากลิสต์ "ไม่ว่าง"
+      // เพราะช่วงเวลานั้นคือของ booking นี้เอง เลือกซ้ำได้ (เท่ากับไม่ได้เปลี่ยนอะไร)
+      let effectiveBooked = bookedTimes;
+      if (currentEditBooking && field === currentEditBooking.field && date === currentEditBooking.date) {
+        effectiveBooked = bookedTimes.filter(t => t !== currentEditBooking.time);
+      }
+      updateEditTimeSlotAvailability(effectiveBooked, date);
+      statusDiv.style.display = 'none';
+    })
+    .catch((error) => {
+      if (currentEditAvailabilityCheck !== requestToken) return;
+      statusDiv.className = 'availability-notice';
+      statusDiv.innerHTML = '<strong style="color:#ef4444;">⚠️ ตรวจสอบสถานะสนามไม่สำเร็จ กรุณาลองใหม่</strong>';
+    });
+}
+ 
+function updateEditTimeSlotAvailability(bookedTimes, dateStr) {
+  const timeSlots = document.querySelectorAll('#editTimeSlotsContainer .time-slot-btn');
+  const bookedTimesSet = new Set(bookedTimes);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const selectedDateObj = new Date(dateStr + 'T00:00:00');
+  const isPastDate = selectedDateObj < today;
+  const isToday = selectedDateObj.getTime() === today.getTime();
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+ 
+  timeSlots.forEach(btn => {
+    const time = btn.getAttribute('data-time');
+    btn.classList.remove('available', 'booked', 'selected', 'past-time');
+    const existingBadge = btn.querySelector('.status-badge');
+    if (existingBadge) existingBadge.remove();
+    btn.style.opacity = '1';
+    let shouldDisable = false, badgeText = 'ว่าง', statusClass = 'available';
+ 
+    if (isPastDate) {
+      shouldDisable = true; badgeText = 'ผ่านแล้ว'; statusClass = 'booked past-time'; btn.style.opacity = '0.5';
+    } else if (isToday) {
+      const [startHour, startMinute] = time.split(' - ')[0].split(':').map(Number);
+      const isPastTime = startHour < currentHour || (startHour === currentHour && startMinute <= currentMinute);
+      if (isPastTime) { shouldDisable = true; badgeText = 'ผ่านแล้ว'; statusClass = 'booked past-time'; btn.style.opacity = '0.5'; }
+      else if (bookedTimesSet.has(time)) { shouldDisable = true; badgeText = 'ไม่ว่าง'; statusClass = 'booked'; }
+    } else {
+      if (bookedTimesSet.has(time)) { shouldDisable = true; badgeText = 'ไม่ว่าง'; statusClass = 'booked'; }
+    }
+    btn.classList.add(...statusClass.split(' '));
+    btn.disabled = shouldDisable;
+    const badge = document.createElement('span');
+    badge.className = 'status-badge';
+    badge.textContent = badgeText;
+    btn.appendChild(badge);
+  });
+}
+ 
+function updateEditBookingPreview() {
+  if (!currentEditBooking || !editSelectedField || !editSelectedDate || !editSelectedTimeSlot) return;
+  const newTotalPrice = calculateFieldPrice(editSelectedField, parseInt(editSelectedTimeSlot.split(':')[0]));
+  const depositAmount = currentEditBooking.depositAmount || 0; // มัดจำเดิมคงเดิมเสมอ ไม่จ่ายซ้ำ/ไม่คืนอัตโนมัติ
+  const newRemainingAmount = Math.max(newTotalPrice - depositAmount, 0);
+  const isSameSlot = editSelectedField === currentEditBooking.field
+    && editSelectedDate === currentEditBooking.date
+    && editSelectedTimeSlot === currentEditBooking.time;
+ 
+  const preview = document.getElementById('editBookingPreview');
+  preview.style.display = 'block';
+  let priceDiffNote = '';
+  if (newTotalPrice > (currentEditBooking.totalPrice || 0)) {
+    priceDiffNote = `<div style="color:#dc2626;margin-top:6px;">⚠️ สนาม/เวลาใหม่ราคาสูงกว่าเดิม ยอดคงเหลือที่ต้องจ่ายที่สนามจะเพิ่มขึ้นเป็น ${newRemainingAmount.toLocaleString()} บาท</div>`;
+  } else if (newTotalPrice < (currentEditBooking.totalPrice || 0)) {
+    priceDiffNote = `<div style="color:#16a34a;margin-top:6px;">✅ สนาม/เวลาใหม่ราคาถูกกว่าเดิม ยอดคงเหลือที่ต้องจ่ายที่สนามจะลดลงเหลือ ${newRemainingAmount.toLocaleString()} บาท</div>`;
+  }
+  preview.innerHTML = `
+    <div style="font-weight:700;color:#065f46;margin-bottom:6px;">✅ สรุปการจองใหม่</div>
+    <div>📍 สนาม: ${SecurityUtils.escapeHtml(editSelectedField)}</div>
+    <div>📅 วันที่: ${formatDateThai(editSelectedDate)}</div>
+    <div>⏰ เวลา: ${SecurityUtils.escapeHtml(editSelectedTimeSlot)}</div>
+    <div>💰 ราคาเต็ม: ${newTotalPrice.toLocaleString()} บาท</div>
+    <div>💵 มัดจำ (ใช้ของเดิม): ${depositAmount.toLocaleString()} บาท</div>
+    <div>💸 คงเหลือจ่ายที่สนาม: ${newRemainingAmount.toLocaleString()} บาท</div>
+    ${priceDiffNote}
+    ${isSameSlot ? '<div style="color:#6b7280;margin-top:6px;">ℹ️ เป็นสนาม/วัน/เวลาเดิม ไม่มีการเปลี่ยนแปลง</div>' : ''}`;
+ 
+  const confirmBtn = document.getElementById('confirmEditBookingBtn');
+  confirmBtn.disabled = isSameSlot; // ป้องกันกดยืนยันทั้งที่ไม่ได้เปลี่ยนอะไร
+}
+ 
+async function confirmEditBooking() {
+  if (!currentEditBooking || !editSelectedField || !editSelectedDate || !editSelectedTimeSlot) {
+    showToast('❌ กรุณาเลือกสนาม วันที่ และเวลาที่ต้องการเปลี่ยนให้ครบ', 'error');
+    return;
+  }
+  const firebaseUser = auth.currentUser;
+  if (!firebaseUser) { showToast('❌ กรุณา Login ใหม่อีกครั้ง', 'error'); return; }
+ 
+  const oldBooking = currentEditBooking;
+  const newField = editSelectedField, newDate = editSelectedDate, newTime = editSelectedTimeSlot;
+  const isSameSlot = newField === oldBooking.field && newDate === oldBooking.date && newTime === oldBooking.time;
+  if (isSameSlot) { showToast('ℹ️ ยังไม่ได้เปลี่ยนสนาม/วัน/เวลา', 'warning'); return; }
+ 
+  // กันแก้ไขไปเป็นวัน/เวลาที่ผ่านไปแล้ว
+  const newStartDateTime = new Date(`${newDate}T${newTime.split(' - ')[0]}:00`);
+  if (isNaN(newStartDateTime.getTime()) || newStartDateTime <= new Date()) {
+    showToast('❌ ไม่สามารถเลือกวัน/เวลาที่ผ่านมาแล้วได้', 'error');
+    return;
+  }
+ 
+  const confirmBtn = document.getElementById('confirmEditBookingBtn');
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = '⏳ กำลังบันทึกการแก้ไข...';
+ 
+  const oldKey = `${oldBooking.field}_${oldBooking.date}_${oldBooking.time}`;
+  const newKey = `${newField}_${newDate}_${newTime}`;
+ 
+  try {
+    // 1) ล็อกช่วงเวลาใหม่แบบ atomic ก่อน กันชนกับคนอื่นที่กดจอง/แก้ไขพร้อมกัน
+    const newLockResult = await database.ref('booking_locks/' + newKey).transaction((currentData) => {
+      if (currentData === null) return { locked: true, timestamp: Date.now(), userId: firebaseUser.uid };
+      else return undefined;
+    });
+    if (!newLockResult.committed) {
+      showToast('❌ ช่วงเวลาที่เลือกถูกจองไปแล้ว กรุณาเลือกช่วงเวลาอื่น', 'error');
+      confirmBtn.disabled = false; confirmBtn.textContent = '✅ ยืนยันการแก้ไข';
+      checkEditAvailability();
+      return;
+    }
+ 
+    try {
+      // 2) ตรวจซ้ำสถานะ booking เดิมล่าสุดก่อนเขียนจริง (กันเปิดโมดัลค้างไว้นานแล้วสถานะเปลี่ยนไปแล้ว)
+      const freshSnap = await database.ref('bookings/' + oldBooking.id).once('value');
+      const freshBooking = freshSnap.val();
+      if (!freshBooking) throw new Error('ไม่พบข้อมูลการจองเดิม (อาจถูกยกเลิกไปแล้ว)');
+      if (freshBooking.userId !== firebaseUser.uid) throw new Error('คุณไม่มีสิทธิ์แก้ไขการจองนี้');
+      if (!['pending_payment', 'pending', 'approved'].includes(freshBooking.bookingStatus)) {
+        throw new Error('ไม่สามารถแก้ไขการจองในสถานะปัจจุบันได้');
+      }
+      if (freshBooking.extendedTo) throw new Error('การจองนี้มีการต่อเวลาแล้ว ไม่สามารถแก้ไขได้');
+ 
+      const newTotalPrice = calculateFieldPrice(newField, parseInt(newTime.split(':')[0]));
+      const depositAmount = freshBooking.depositAmount || 0;
+      const newRemainingAmount = Math.max(newTotalPrice - depositAmount, 0);
+ 
+      const updates = {};
+      // ย้าย availability: ลบช่วงเวลาเดิม เพิ่มช่วงเวลาใหม่ (atomic ไปพร้อมกันทั้งหมดผ่าน update() เดียว)
+      updates['availability/' + oldBooking.field + '/' + oldBooking.date + '/' + oldBooking.time] = null;
+      updates['availability/' + newField + '/' + newDate + '/' + newTime] = true;
+      // อัปเดตข้อมูล booking หลัก
+      updates['bookings/' + oldBooking.id + '/field'] = newField;
+      updates['bookings/' + oldBooking.id + '/date'] = newDate;
+      updates['bookings/' + oldBooking.id + '/time'] = newTime;
+      updates['bookings/' + oldBooking.id + '/totalPrice'] = newTotalPrice;
+      updates['bookings/' + oldBooking.id + '/remainingAmount'] = newRemainingAmount;
+      updates['bookings/' + oldBooking.id + '/field_date_time'] = newKey;
+      updates['bookings/' + oldBooking.id + '/lastEditedAt'] = new Date().toISOString();
+      // ปลด lock ของช่วงเวลาเดิม (ไม่ต้องครองไว้อีกต่อไปเพราะย้ายไปช่วงใหม่แล้ว)
+      updates['booking_locks/' + oldKey] = null;
+ 
+      await database.ref().update(updates);
+ 
+      // บันทึก log การแก้ไข ไว้ให้ staff ตรวจสอบย้อนหลังได้ (ไม่มีผลต่อการทำงานถ้าล้มเหลว)
+      database.ref('booking_edit_log').push({
+        bookingId: oldBooking.id,
+        userId: firebaseUser.uid,
+        from: { field: oldBooking.field, date: oldBooking.date, time: oldBooking.time },
+        to: { field: newField, date: newDate, time: newTime },
+        editedAt: new Date().toISOString()
+      }).catch(() => {});
+ 
+      showToast('✅ แก้ไขการจองสำเร็จ! เปลี่ยนเป็น ' + newField + ' วันที่ ' + formatDateThai(newDate) + ' เวลา ' + newTime, 'success', 5000);
+      closeEditBookingModal();
+      updateBookingList();
+    } catch (innerError) {
+      // เขียนจริงไม่สำเร็จ ต้องปลด lock ใหม่ที่เพิ่งได้มาคืน ไม่งั้นช่วงเวลานั้นจะค้างเป็น "ไม่ว่าง" ตลอดไป
+      await database.ref('booking_locks/' + newKey).remove().catch(() => {});
+      throw innerError;
+    }
+  } catch (error) {
+    showToast('❌ ' + error.message, 'error');
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = '✅ ยืนยันการแก้ไข';
+  }
+}
  

@@ -514,6 +514,63 @@
       </div>
     </div>
  
+    <!-- Edit Booking Modal -->
+    <div class="extension-modal" id="editBookingModal">
+      <div class="extension-modal-content">
+        <button class="extension-modal-close" onclick="closeEditBookingModal()">✕</button>
+        <h2 class="extension-modal-title">✏️ แก้ไขการจอง</h2>
+        <p class="extension-modal-subtitle">เปลี่ยนสนามหรือเวลาได้ ถ้ายังไม่ถึงเวลาเล่น (ค่ามัดจำที่จ่ายแล้วใช้ต่อได้เลย ไม่ต้องจ่ายซ้ำ)</p>
+ 
+        <div id="editBookingCurrentInfo" style="background:#f9fafb;border-radius:10px;padding:14px;margin-bottom:16px;font-size:0.95em;line-height:1.8;"></div>
+ 
+        <div class="form-group">
+          <label class="form-label" for="editFieldSelect" style="color:#111827;">เลือกสนามใหม่</label>
+          <select id="editFieldSelect" class="form-input" onchange="checkEditAvailability()">
+            <option value="">เลือกสนามที่ต้องการ</option>
+            <option value="สนาม 1">สนาม 1 (35×54m) - 1,000/1,200 บาท</option>
+            <option value="สนาม 2">สนาม 2 (35×54m) - 1,000/1,200 บาท</option>
+            <option value="สนาม 3">สนาม 3 (35×52m) - 1,000/1,200 บาท</option>
+            <option value="สนาม 4">สนาม 4 (37×55m) - 1,100/1,300 บาท</option>
+            <option value="สนาม 5">สนาม 5 (34×50m) - 900/1,100 บาท</option>
+            <option value="สนาม 6">สนาม 6 (27×45m) - 700/900 บาท</option>
+          </select>
+        </div>
+ 
+        <div class="form-group">
+          <label class="form-label" for="editDateSelect" style="color:#111827;">เลือกวันที่ใหม่</label>
+          <input type="date" id="editDateSelect" class="form-input" onchange="checkEditAvailability()" />
+        </div>
+ 
+        <div id="editAvailabilityStatus" class="availability-notice" style="display:none;"></div>
+ 
+        <div class="form-group">
+          <label class="form-label" style="color:#111827;">เลือกช่วงเวลาใหม่</label>
+          <div class="time-slots-grid" id="editTimeSlotsContainer" style="margin-top:10px;">
+            <button class="time-slot-btn" type="button" data-time="07:00 - 08:00">07:00 - 08:00</button>
+            <button class="time-slot-btn" type="button" data-time="08:00 - 09:00">08:00 - 09:00</button>
+            <button class="time-slot-btn" type="button" data-time="09:00 - 10:00">09:00 - 10:00</button>
+            <button class="time-slot-btn" type="button" data-time="10:00 - 11:00">10:00 - 11:00</button>
+            <button class="time-slot-btn" type="button" data-time="11:00 - 12:00">11:00 - 12:00</button>
+            <button class="time-slot-btn" type="button" data-time="12:00 - 13:00">12:00 - 13:00</button>
+            <button class="time-slot-btn" type="button" data-time="13:00 - 14:00">13:00 - 14:00</button>
+            <button class="time-slot-btn" type="button" data-time="14:00 - 15:00">14:00 - 15:00</button>
+            <button class="time-slot-btn" type="button" data-time="15:00 - 16:00">15:00 - 16:00</button>
+            <button class="time-slot-btn" type="button" data-time="16:00 - 17:00">16:00 - 17:00</button>
+            <button class="time-slot-btn" type="button" data-time="17:00 - 18:00">17:00 - 18:00</button>
+            <button class="time-slot-btn" type="button" data-time="18:00 - 19:00">18:00 - 19:00</button>
+            <button class="time-slot-btn" type="button" data-time="19:00 - 20:00">19:00 - 20:00</button>
+          </div>
+        </div>
+ 
+        <div id="editBookingPreview" style="display:none;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:14px;margin:16px 0;font-size:0.95em;line-height:1.8;"></div>
+ 
+        <div class="extension-modal-actions">
+          <button class="extension-btn extension-btn-cancel" onclick="closeEditBookingModal()">ยกเลิก</button>
+          <button class="extension-btn extension-btn-confirm" id="confirmEditBookingBtn" onclick="confirmEditBooking()" disabled>✅ ยืนยันการแก้ไข</button>
+        </div>
+      </div>
+    </div>
+ 
   </body>
 </html>
  
