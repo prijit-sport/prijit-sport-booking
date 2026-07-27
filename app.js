@@ -1050,14 +1050,32 @@ function generateBookingCard(booking) {
     } catch(e) { return '-'; }
   };
  
+  // ปุ่มต่อเวลา — เดิมแสดงทันทีเมื่อ bookingStatus เป็น 'approved' และเป็นวันนี้
+  // โดยไม่สนเวลาเริ่มเล่นหรือสถานะจ่ายค่าคงเหลือเลย ทำให้กดต่อเวลาได้ตั้งแต่ยัง
+  // ไม่ถึงเวลาเล่นและยังไม่จ่ายค่าคงเหลือ (ไม่สมเหตุสมผล เพราะยังไม่ได้ใช้สนามจริง)
+  // ตอนนี้ต้องเข้าเงื่อนไขใดเงื่อนไขหนึ่งต่อไปนี้ก่อนถึงจะแสดงปุ่ม:
+  //  1) จ่ายค่าสนามคงเหลือครบแล้ว (remainingStatus === 'paid', ปกติคู่กับ bookingStatus
+  //     ที่เปลี่ยนเป็น 'playing' ผ่าน doConfirmRemaining() ในหน้า staff-panel) หรือ
+  //  2) ถึงเวลาเริ่มเล่นตามที่จองไว้แล้วจริง ๆ (เทียบเวลาปัจจุบันกับเวลาเริ่มของ booking)
+  // ยังคงจำกัดสถานะที่เกี่ยวข้องกับการเล่นอยู่จริงเท่านั้น (ตัด pending/completed/
+  // cancelled/rejected ออกเหมือนเดิม) และยังคงเงื่อนไข "ต้องเป็นวันนี้เท่านั้น" ไว้
   let extensionButton = '';
-  if (safeBooking.bookingStatus === 'approved') {
+  if (['approved', 'remaining_payment_pending', 'playing'].includes(safeBooking.bookingStatus)) {
     try {
       const bookingDateStr = safeBooking.date;
       const todayStr = new Date().toISOString().split('T')[0];
       if (bookingDateStr === todayStr) {
-        const bookingDataStr = JSON.stringify(booking).replace(/"/g, '&quot;');
-        extensionButton = `<button class="extend-booking-btn" data-booking-id="${safeBooking.id}" data-booking-data="${bookingDataStr}" id="extend-btn-${safeBooking.id}"><span>🔄</span><span>ต่อเวลา 1 ชั่วโมง</span></button><div class="next-slot-info" id="next-slot-${safeBooking.id}">กำลังตรวจสอบช่วงถัดไป...</div>`;
+        const startTimeStr = (safeBooking.time || '').split(' - ')[0];
+        let hasPlayStarted = false;
+        if (startTimeStr && /^\d{2}:\d{2}$/.test(startTimeStr)) {
+          const startDateTime = new Date(`${bookingDateStr}T${startTimeStr}:00`);
+          hasPlayStarted = !isNaN(startDateTime.getTime()) && new Date() >= startDateTime;
+        }
+        const isRemainingPaid = booking.remainingStatus === 'paid';
+        if (isRemainingPaid || hasPlayStarted) {
+          const bookingDataStr = JSON.stringify(booking).replace(/"/g, '&quot;');
+          extensionButton = `<button class="extend-booking-btn" data-booking-id="${safeBooking.id}" data-booking-data="${bookingDataStr}" id="extend-btn-${safeBooking.id}"><span>🔄</span><span>ต่อเวลา 1 ชั่วโมง</span></button><div class="next-slot-info" id="next-slot-${safeBooking.id}">กำลังตรวจสอบช่วงถัดไป...</div>`;
+        }
       }
     } catch(e) {}
   }

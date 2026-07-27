@@ -1,4 +1,3 @@
-Staff panel · HTML
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -1454,7 +1453,10 @@ Staff panel · HTML
     function refundStatusInfo(s) {
       if (s==='refunded') return { cls:'status-refunded', text:'✅ คืนแล้ว' };
       if (s==='forfeit')  return { cls:'status-forfeit',  text:'⛔ หักเก็บมัดจำ' };
-      return { cls:'status-pending', text:'⏳ รอคืนเงิน' };
+      // FIX (รอบนี้): เดิมข้อความนี้คือ "⏳ รอคืนเงิน" ซึ่งสื่อว่าจะมีการคืนเงินให้ลูกค้า
+      // แต่ตามนโยบายร้านปัจจุบันไม่มีการคืนเงินมัดจำแล้ว เปลี่ยนเป็นข้อความที่เป็นกลาง
+      // แทน ไม่ตัดสินล่วงหน้าว่าจะเกิดอะไรกับรายการนี้ (staff จะกด "หักเก็บมัดจำ" เมื่อถึงเวลา)
+      return { cls:'status-pending', text:'⏳ รอดำเนินการ' };
     }
  
     function renderRefunds() {
@@ -1484,8 +1486,12 @@ Staff panel · HTML
  
       allRefunds.forEach(r => {
         const st = refundStatusInfo(r.status);
+        // FIX (รอบนี้): ตัดปุ่ม "คืนเงิน" ออก เหลือแค่ "หักเก็บมัดจำ" อย่างเดียว
+        // เพราะนโยบายร้านไม่มีการคืนเงินค่ามัดจำสนามอีกต่อไป (ดู refundStatusInfo()
+        // ที่เปลี่ยนข้อความสถานะคู่กันด้วย) รายการที่เคยถูกทำเครื่องหมาย 'refunded'
+        // ไว้ก่อนหน้านี้ (ถ้ามี) ยังแสดงสถานะ "คืนแล้ว" ตามประวัติเดิมได้ปกติ
         const actions = r.status==='pending'
-          ? `<button class="btn-approve" onclick="processRefund('${r.id}','refunded')">คืนเงิน</button><button class="btn-reject" onclick="processRefund('${r.id}','forfeit')">หักเก็บมัดจำ</button>`
+          ? `<button class="btn-reject" onclick="processRefund('${r.id}','forfeit')">หักเก็บมัดจำ</button>`
           : `<button class="btn-reject" onclick="deleteRefund('${r.id}')">ลบ</button>`;
         const rName  = escapeHtml(r.fullname||'-');
         const rPhone = escapeHtml(r.phone||'-');
