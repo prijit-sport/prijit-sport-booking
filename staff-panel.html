@@ -1,3 +1,4 @@
+Staff panel · HTML
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -257,8 +258,8 @@
         flex-direction: column;
         align-items: stretch !important;
       }
-      #rptDateDisplay { width:100% !important; }
-      #rptDatePickerWrap { width:100%; }
+      #rptDateDisplay, #rptStartDateDisplay { width:100% !important; }
+      #rptDatePickerWrap, #rptStartDatePickerWrap { width:100%; }
  
       /* KPI cards แถวบน: ลดขนาดตัวเลขให้ไม่ล้นการ์ดเมื่อจอแคบ */
       #reportTab p[style*="font-size:28px"] { font-size:22px !important; }
@@ -426,6 +427,14 @@
             <p style="margin:4px 0 0;font-size:13px;color:#6b7280;" id="rptRangeSubtitle">ข้อมูลการจองและรายรับในช่วงเวลาที่เลือก</p>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <div style="position:relative;display:inline-flex;align-items:center;" id="rptStartDatePickerWrap">
+              <input type="text" id="rptStartDateDisplay" readonly
+                     style="padding:8px 35px 8px 15px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;width:130px;text-align:center;background:#fff;cursor:pointer;color:#374151;font-family:'Sarabun',sans-serif;">
+              <span style="position:absolute;right:10px;pointer-events:none;">📅</span>
+              <input type="date" id="rptStartDatePicker"
+                     style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;pointer-events:none;">
+            </div>
+            <span style="color:#9ca3af;font-size:14px;">ถึง</span>
             <div style="position:relative;display:inline-flex;align-items:center;" id="rptDatePickerWrap">
               <input type="text" id="rptDateDisplay" readonly
                      style="padding:8px 35px 8px 15px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;width:130px;text-align:center;background:#fff;cursor:pointer;color:#374151;font-family:'Sarabun',sans-serif;">
@@ -721,10 +730,13 @@
       if (map[tabName]) document.getElementById(map[tabName]).classList.add('active');
       if (tabName === 'schedule') renderSchedule();
       if (tabName === 'refunds') renderRefunds();
-      // FIX: ตัดปุ่มช่วงเวลา (วันนี้/7/30/90 วัน) ออก เหลือแค่ปฏิทินอย่างเดียว
-      // ดีฟอลต์เป็นวันที่ปัจจุบันเสมอเมื่อเข้าแท็บ แล้วใช้ลูกศร ‹ › หรือกดปฏิทิน
-      // เพื่อเลื่อนดูรายงานของวันอื่นได้
-      if (tabName === 'report') { goToReportDate(new Date().toISOString().split('T')[0]); }
+      // FIX (รอบนี้): ดีฟอลต์เป็น "วันนี้ถึงวันนี้" เสมอทุกครั้งที่เข้าแท็บ (ตามที่ต้องการ)
+      // ผู้ใช้ค่อยเลือกช่วงวันที่เองทีหลังผ่านปฏิทิน 2 ตัว ไม่ persist ข้ามการเข้า-ออกแท็บ
+      if (tabName === 'report') {
+        const todayStr = new Date().toISOString().split('T')[0];
+        goToReportStartDate(todayStr);
+        goToReportDate(todayStr);
+      }
       if (tabName === 'images') loadImages();
       if (tabName === 'activities') loadActivities();
     }
@@ -1839,29 +1851,62 @@
     // =========================
     // REPORT TAB
     // =========================
-    // FIX (รอบนี้): ตัดปุ่มช่วงเวลา (วันนี้/7/30/90 วัน) ออกทั้งหมดตามที่ต้องการ
-    // เหลือแค่ปฏิทินอย่างเดียว ดีฟอลต์เป็นวันที่ปัจจุบันเสมอ ใช้ลูกศร ‹ › หรือกด
-    // ปฏิทินเพื่อเลื่อนดูรายงานของวันอื่น — เก็บวันที่ที่กำลังดูอยู่เป็นสตริง 'YYYY-MM-DD'
-    let REPORT_CURRENT_DATE = new Date().toISOString().split('T')[0];
+    // FIX (รอบนี้): เพิ่มตัวเลือกช่วงวันกลับมา (1/2/3/7 วัน) ควบคู่กับปฏิทิน
+    // REPORT_CURRENT_DATE = "วันสุดท้าย" ของช่วงที่ดู (ค่าที่เลือกจากปฏิทิน)
+    // FIX (รอบนี้): เปลี่ยนจากปุ่มช่วงวันสำเร็จรูป (1/2/3/7 วัน) มาเป็นเลือกวันที่
+    // "จากวันที่" และ "ถึงวันที่" ได้อิสระผ่านปฏิทิน 2 ตัวแทน ตามที่ต้องการ
+    // ค่าเริ่มต้นเสมอเมื่อเข้าแท็บคือ วันนี้ถึงวันนี้ (ดู switchTab())
+    let REPORT_START_DATE = new Date().toISOString().split('T')[0];
+    let REPORT_END_DATE   = new Date().toISOString().split('T')[0];
  
-    // ไปยังวันที่ที่ระบุ (เรียกจากปฏิทิน หรือตอนเปิดแท็บครั้งแรก)
+    // คืนค่าขอบเขตวันที่ปัจจุบันเป็นรูปแบบ 'YYYY-MM-DD' ทั้งคู่ — ถ้า "จากวันที่"
+    // มากกว่า "ถึงวันที่" ให้สลับกันเองอัตโนมัติ กันกรณีผู้ใช้เลือกสวนทางกัน
+    function getReportDateRange() {
+      let startStr = REPORT_START_DATE, endStr = REPORT_END_DATE;
+      if (startStr > endStr) { const t = startStr; startStr = endStr; endStr = t; }
+      return { startStr, endStr };
+    }
+ 
+    // อัปเดตข้อความคำอธิบายใต้หัวข้อ "รายงานสรุปผล" ให้ตรงกับช่วงวันที่กำลังดูอยู่
+    function updateReportSubtitle() {
+      const subtitle = document.getElementById('rptRangeSubtitle');
+      if (!subtitle) return;
+      const { startStr, endStr } = getReportDateRange();
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (startStr === endStr) {
+        subtitle.textContent = startStr === todayStr
+          ? 'ข้อมูลการจองและรายรับของวันนี้'
+          : `ข้อมูลการจองและรายรับวันที่ ${formatDate(startStr)}`;
+      } else {
+        subtitle.textContent = `ข้อมูลการจองและรายรับวันที่ ${formatDate(startStr)} - ${formatDate(endStr)}`;
+      }
+    }
+ 
+    // เลือก "จากวันที่" ใหม่ (เรียกจากปฏิทินตัวซ้าย)
+    function goToReportStartDate(dateStr) {
+      if (!dateStr) return;
+      REPORT_START_DATE = dateStr;
+      const dp = document.getElementById('rptStartDatePicker');
+      const dd = document.getElementById('rptStartDateDisplay');
+      if (dp) dp.value = dateStr;
+      if (dd) dd.value = formatDate(dateStr);
+      updateReportSubtitle();
+      renderReport();
+    }
+ 
+    // ไปยัง "ถึงวันที่" ที่ระบุ (เรียกจากปฏิทินตัวขวา หรือตอนเปิดแท็บครั้งแรก)
     function goToReportDate(dateStr) {
       if (!dateStr) return;
-      REPORT_CURRENT_DATE = dateStr;
+      REPORT_END_DATE = dateStr;
       const dp = document.getElementById('rptDatePicker');
       const dd = document.getElementById('rptDateDisplay');
       if (dp) dp.value = dateStr;
       if (dd) dd.value = formatDate(dateStr);
-      const subtitle = document.getElementById('rptRangeSubtitle');
-      const todayStr = new Date().toISOString().split('T')[0];
-      if (subtitle) subtitle.textContent = dateStr === todayStr
-        ? 'ข้อมูลการจองและรายรับของวันนี้'
-        : `ข้อมูลการจองและรายรับวันที่ ${formatDate(dateStr)}`;
+      updateReportSubtitle();
       renderReport();
     }
  
     // รับค่าจากตัวเลือกปฏิทินโดยตรง (onchange ของ input[type=date])
-    function setReportCustomDate(dateStr) { goToReportDate(dateStr); }
  
     // FIX: ผูก event ของปฏิทินด้วย addEventListener() ผ่าน id ตรง ๆ (เชื่อถือได้กว่า
     // inline onclick attribute) — ตัดปุ่มลูกศร ‹ › ออกตามที่ต้องการ เหลือแค่คลิก
@@ -1869,9 +1914,20 @@
     document.addEventListener('DOMContentLoaded', () => {
       const datePicker = document.getElementById('rptDatePicker');
       const datePickerWrap = document.getElementById('rptDatePickerWrap');
-      if (datePicker) datePicker.addEventListener('change', (e) => setReportCustomDate(e.target.value));
+      if (datePicker) datePicker.addEventListener('change', (e) => goToReportDate(e.target.value));
       if (datePickerWrap) datePickerWrap.addEventListener('click', () => {
         const el = document.getElementById('rptDatePicker');
+        if (!el) return;
+        if (el.showPicker) { try { el.showPicker(); } catch(e) { el.focus(); el.click(); } }
+        else { el.focus(); el.click(); }
+      });
+ 
+      // ปฏิทิน "จากวันที่" — ทำงานแบบเดียวกับ "ถึงวันที่" ด้านบนทุกประการ
+      const startDatePicker = document.getElementById('rptStartDatePicker');
+      const startDatePickerWrap = document.getElementById('rptStartDatePickerWrap');
+      if (startDatePicker) startDatePicker.addEventListener('change', (e) => goToReportStartDate(e.target.value));
+      if (startDatePickerWrap) startDatePickerWrap.addEventListener('click', () => {
+        const el = document.getElementById('rptStartDatePicker');
         if (!el) return;
         if (el.showPicker) { try { el.showPicker(); } catch(e) { el.focus(); el.click(); } }
         else { el.focus(); el.click(); }
@@ -1885,9 +1941,11 @@
     });
  
     function renderReport() {
-      // แสดงรายงานเฉพาะ "วันเดียว" ตามวันที่เลือกในปฏิทินเสมอ (ไม่มีช่วงเวลาแบบเดิมแล้ว)
-      const startStr = REPORT_CURRENT_DATE;
-      const todayStr = REPORT_CURRENT_DATE;
+      // FIX (รอบนี้): เปลี่ยนจากปุ่มช่วงวันสำเร็จรูปมาเป็นเลือก "จากวันที่" / "ถึงวันที่"
+      // อิสระผ่านปฏิทิน 2 ตัว — คำนวณขอบเขต startStr..todayStr จาก REPORT_START_DATE /
+      // REPORT_END_DATE ผ่าน getReportDateRange() เมื่อทั้งสองค่าเท่ากัน (ค่าเริ่มต้น)
+      // พฤติกรรมจะเหมือนดูวันเดียวตามปกติ
+      const { startStr, endStr: todayStr } = getReportDateRange();
  
       // FIX (รอบนี้): เปลี่ยนมากรองจาก b.date (วันที่จะไปเล่นจริง) แทน createdAt
       // เพราะตอนนี้รายงานดูทีละวันผ่านปฏิทิน ความหมายที่ผู้ใช้ต้องการคือ
@@ -1896,7 +1954,9 @@
       // ด้านล่างที่กรองด้วย r.date (วันที่เล่น) อยู่แล้ว ป้องกันปัญหาที่ก่อนหน้านี้
       // รายการเดียวกันแสดงสถานะไม่ตรงกันระหว่างมุมมองต่างช่วงเวลา (เช่น อนุมัติแล้ว
       // ในมุมมองนึง แต่ยกเลิกในอีกมุมมอง เพราะกรองคนละ field กัน)
-      const data = allBookings.filter(b => (b.date || '') === startStr);
+      // ใช้ >= / <= เทียบแบบสตริง 'YYYY-MM-DD' ซึ่งเรียงลำดับได้ตรงกับวันที่จริง
+      // ครอบคลุมทั้งกรณี "วันเดียว" (startStr === todayStr) และ "หลายวัน"
+      const data = allBookings.filter(b => { const d = b.date || ''; return d >= startStr && d <= todayStr; });
  
       // จัดกลุ่มสถานะ: ถือว่า approved/remaining_payment_pending/playing/completed
       // เป็นกลุ่ม "อนุมัติแล้ว" ทั้งหมด (ต่างกันแค่ขั้นตอนหลังอนุมัติ) ส่วน
