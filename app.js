@@ -1501,6 +1501,11 @@ function formatDate(iso) {
 }
  
 // ========== FIREBASE INIT ==========
+// หมายเหตุ: firebaseConfig และ firebase.initializeApp() ถูกย้ายไปอยู่ใน
+// firebase-init.js แล้ว (โหลดก่อน app.js เสมอ) เพื่อให้ทุกหน้าใช้ config
+// ชุดเดียวกันจากแหล่งเดียว ไม่ต้องก็อปวางซ้ำกันอีก
+// ตรงนี้รอให้ firebase-init.js ทำงานเสร็จ แล้วค่อยกำหนด auth/database
+// ผ่าน window.auth / window.database ที่ firebase-init.js ประกาศไว้
 let firebaseInitRetryCount = 0;
 const MAX_FIREBASE_RETRIES = 50;
  
@@ -1513,18 +1518,13 @@ function initializeFirebase() {
     return;
   }
   try {
-    const firebaseConfig = {
-      apiKey: "AIzaSyB6jVc8qcyS9zIJvfi-E1BL7BaxrUorO7w",
-      authDomain: "prijit-sport.firebaseapp.com",
-      databaseURL: "https://prijit-sport-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "prijit-sport",
-      storageBucket: "prijit-sport.firebasestorage.app",
-      messagingSenderId: "19782245186",
-      appId: "1:19782245186:web:8ff3e2e17a214edc3546db"
-    };
-    firebase.initializeApp(firebaseConfig);
-    auth = firebase.auth();
-    database = firebase.database();
+    // รอให้ firebase-init.js ตั้งค่า auth/database ให้เสร็จก่อน
+    if (!window.auth || !window.database) {
+      setTimeout(initializeFirebase, 100);
+      return;
+    }
+    auth = window.auth;
+    database = window.database;
     console.log("✅ Firebase ready!");
     initializeTimeSlots();
     auth.onAuthStateChanged((user) => {

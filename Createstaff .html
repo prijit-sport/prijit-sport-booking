@@ -234,24 +234,15 @@
     </div>
   </div>
  
-  <!-- Firebase -->
+<!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="firebase-init.js"></script>
  
   <script>
-    // Firebase Configuration
-    const firebaseConfig = {
-      apiKey: "AIzaSyB6jVc8qcyS9zIJvfi-E1BL7BaxrUorO7w",
-      authDomain: "prijit-sport.firebaseapp.com",
-      databaseURL: "https://prijit-sport-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "prijit-sport",
-      storageBucket: "prijit-sport.firebasestorage.app",
-      messagingSenderId: "19782245186",
-      appId: "1:19782245186:web:8ff3e2e17a214edc3546db"
-    };
- 
-    firebase.initializeApp(firebaseConfig);
+    // Firebase Config ถูกย้ายไปไว้ใน firebase-init.js แล้ว
+    // ใช้ auth/database จาก window ที่ firebase-init.js ประกาศไว้
     const auth = firebase.auth();
     const database = firebase.database();
  
