@@ -1,0 +1,19 @@
+# ===== การตั้งค่าส่วนตัว (ไม่ควร commit ขึ้น Git) =====
+
+# ไฟล์ config.js ที่เก็บ API Key / Secrets
+# ให้คัดลอก config.example.js ไปเป็น config.js แล้วใส่ค่าจริง
+config.js
+
+# ===== OS Generated Files =====
+.DS_Store
+Thumbs.db
+
+# ===== IDE / Editor =====
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ===== Logs =====
+*.log
+

@@ -104,6 +104,20 @@ staff-panel.html : Staff Panel / Admin
 styles.css : สไตล์
 qr-promptpay.png : QR สำหรับชำระมัดจำ
 
+วิธีตั้งค่า API Key (config.js) ก่อนรันโปรเจค
+
+1. คัดลอกไฟล์ config.example.js ไปเป็น config.js (หรือใช้ไฟล์ config.js ที่มีอยู่แล้ว)
+2. เปิดไฟล์ config.js และใส่ค่า IMGBB_API_KEY ของคุณ (ถ้ายังไม่มี):
+   - ไปที่ https://imgbb.com/
+   - สมัครสมาชิก / เข้าสู่ระบบ
+   - ไปที่หน้า API (https://api.imgbb.com/)
+   - กด "Get API key" เพื่อสร้าง key ของคุณ
+   - นำ key ที่ได้มาใส่ในไฟล์ config.js
+3. **สำคัญ:** ไฟล์ config.js ถูกเพิ่มใน .gitignore แล้ว จะไม่ถูก commit ขึ้น Git
+   (ดังนั้น API key ของคุณจะไม่รั่วไหลไปยัง public repository)
+
 หมายเหตุ
-หากต้องการปรับ % มัดจำ ต้องแก้ให้ตรงกันทั้งฝั่งลูกค้าและฝั่งพนักงาน
-(ใน app.js และ staff-panel.html)
+- หากต้องการปรับ % มัดจำ ต้องแก้ให้ตรงกันทั้งฝั่งลูกค้าและฝั่งพนักงาน
+  (ใน app.js และ staff-panel.html)
+- หาก API key เดิมที่ใช้อยู่เคยรั่วไหลไปยัง public repository ควรไป Revoke ที่ imgbb.com
+  และสร้าง key ใหม่ทันที

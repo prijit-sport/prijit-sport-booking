@@ -608,6 +608,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script src="config.js"></script>
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyB6jVc8qcyS9zIJvfi-E1BL7BaxrUorO7w",
@@ -621,7 +622,7 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const database = firebase.database();
-    const IMGBB_API_KEY = '945c86ce6da8961a5b136c8472251f41';
+    const IMGBB_API_KEY = CONFIG.IMGBB_API_KEY;
     // DEPOSIT_AMOUNT: ใช้เป็นค่าเริ่มต้นในฟอร์ม "เพิ่มรายการคืนมัดจำแบบ manual" เท่านั้น
     // (กรณีลูกค้าเดินมายกเลิกโดยไม่มี booking ในระบบ) ไม่ได้เป็นค่า fallback ที่กระทบ
     // การคำนวณมัดจำของ booking จริงในระบบ — booking ทุกตัวมี totalPrice เสมอ จึงคำนวณ
