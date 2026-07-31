@@ -17,3 +17,15 @@ Thumbs.db
 # ===== Logs =====
 *.log
 
+# ===== Temp / Backup Files =====
+*.bak
+*.old
+*.tmp
+
+# ===== Diff / Review / Orphaned Files =====
+diff_*.txt
+
+# ===== Environment =====
+.env
+node_modules/
+
