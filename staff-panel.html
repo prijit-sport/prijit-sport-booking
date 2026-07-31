@@ -1577,7 +1577,6 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
             const ob = (b.order != null) ? Number(b.order) : 9999;
             return oa - ob;
           });
-          console.log('✅ gallery loaded:', images.length, 'items');
           renderImageGrid(images);
         })
         .catch(err => {
@@ -1735,8 +1734,6 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
             const val = child.val();
             if (val) activities.push({ id: child.key, ...val });
           });
-          console.log('✅ activities raw count:', activities.length);
- 
           // เรียงจากใหม่ไปเก่าด้วย createdAt
           activities.sort((a, b) => {
             const da = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -1770,7 +1767,6 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
               <div class="activity-content">${safeContent}</div>`;
             activityList.appendChild(div);
           });
-          console.log('✅ activities rendered:', activities.length);
         })
         .catch(err => {
           console.error('❌ activities error:', err);

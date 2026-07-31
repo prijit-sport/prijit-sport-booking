@@ -1,10 +1,4 @@
-console.log('🚀 [PRIJIT SPORT] Script starting...', new Date().toISOString());
- 
-const DEBUG_MODE = false;
-function debugLog(...args) {
-  if (DEBUG_MODE) console.log(...args);
-}
-console.log("🐛 Debug mode:", DEBUG_MODE ? "ON" : "OFF");
+
  
 const CONFIG = {
   DEBUG_MODE: false,
@@ -771,7 +765,7 @@ function showPaymentModal() {
   setupDragDrop();
 }
  
-function generateQRCode(data) { console.log('✅ QR Code loaded for deposit:', data.depositAmount, 'บาท'); }
+function generateQRCode(data) { /* QR loaded silently */ }
 function handleQRError(img) {
   img.style.display = 'none';
   img.parentElement.innerHTML = `<div style="padding:20px;text-align:center;color:#ef4444;"><p style="font-size:1.2em;margin-bottom:10px;">⚠️ ไม่พบ QR Code</p><p style="font-size:0.9em;color:#6b7280;">กรุณาโอนเงินไปที่:<br><strong style="color:#1f2937;">เลขพร้อมเพย์: 1103100835163</strong><br><strong style="color:#1f2937;">ชื่อบัญชี: นาย พัสกร ราชชมภู</strong></p></div>`;
@@ -1442,7 +1436,7 @@ function loadStaffGallery() {
       card.innerHTML = `<img src="${safeUrl}" alt="${safeTitle}" loading="lazy" onerror="this.src='placeholder.jpg'"><div class="staff-gallery-card-title">${safeTitle}</div>`;
       container.appendChild(card);
     });
-    console.log('✅ gallery loaded:', items.length, 'items');
+// gallery loaded silently
   }).catch(err => {
     console.error('❌ gallery error:', err);
     container.innerHTML = '<div class="content-loading-state">⚠️ โหลดรูปภาพไม่สำเร็จ</div>';
@@ -1471,7 +1465,7 @@ function loadActivities() {
       card.innerHTML = `<div class="activity-header"><div class="activity-title">${safeTitle}</div><div class="activity-date">${formatDate(item.createdAt)}</div></div><div class="activity-content">${safeContent}</div>`;
       container.appendChild(card);
     });
-    console.log('✅ activities loaded:', items.length, 'items');
+// activities loaded silently
   }).catch(err => {
     console.error('❌ activities error:', err);
     container.innerHTML = '<div class="content-loading-state">⚠️ โหลดข่าวสารไม่สำเร็จ</div>';
@@ -1517,7 +1511,7 @@ function initializeFirebase() {
     }
     auth = window.auth;
     database = window.database;
-    console.log("✅ Firebase ready!");
+// Firebase ready
     initializeTimeSlots();
     auth.onAuthStateChanged((user) => {
       if (user) {
