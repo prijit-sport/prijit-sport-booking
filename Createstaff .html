@@ -259,11 +259,11 @@
       }
       database.ref('users/' + user.uid).once('value').then((snapshot) => {
         const userData = snapshot.val();
-        if (userData && userData.role === 'staff') {
+if (userData && userData.role === 'admin') {
           if (notice) notice.style.display = 'none';
           if (container) container.style.display = 'block';
         } else {
-          alert('⚠️ คุณไม่มีสิทธิ์เข้าถึงหน้านี้');
+          alert('⚠️ คุณต้องเป็น Admin เท่านั้นจึงจะเข้าถึงหน้านี้ได้');
           auth.signOut().finally(() => window.location.href = 'staff-login.html');
         }
       }).catch(() => {
@@ -284,6 +284,26 @@
       }
     }
  
+/**
+     * หมายเหตุ — Firebase Security Rules (ต้องตั้งค่าเพิ่ม):
+     * =============================================================
+     * การเช็ค role === 'admin' ใน client อย่างเดียวไม่พอ!
+     * คุณต้องไปตั้งค่า Firebase Security Rules ที่ node users/{uid}
+     * ให้บังคับว่าเฉพาะ user ที่มี role === 'admin' เท่านั้นถึงจะเขียน
+     * ข้อมูลที่มี role: 'staff' หรือ role: 'admin' ใหม่ได้
+     * (เพื่อป้องกันการ bypass ผ่าน Firebase SDK โดยตรง)
+     *
+     * ตัวอย่าง Rules:
+     *   "users": {
+     *     "$uid": {
+     *       ".write": "auth.uid === $uid && (
+     *         root.child('users/'+auth.uid+'/role').val() === 'admin'
+     *         || !newData.hasChildren(['role'])
+     *       )"
+     *     }
+     *   }
+     * =============================================================
+     */
     // Handle Create Staff Account
     async function handleCreateStaff(event) {
       event.preventDefault();

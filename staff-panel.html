@@ -700,7 +700,7 @@
       if (user) {
         database.ref('users/'+user.uid).once('value').then((snapshot) => {
           const userData = snapshot.val();
-          if (userData && userData.role === 'staff') {
+if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
             document.getElementById('staffName').textContent = userData.fullname || userData.username || user.email;
             loadBookings(); loadImages(); loadActivities(); loadRefunds(); loadCancellationLog();
           } else {

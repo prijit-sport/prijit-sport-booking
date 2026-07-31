@@ -268,11 +268,11 @@
         database.ref('users/' + user.uid).once('value').then(snapshot => {
           const userData = snapshot.val();
           console.log('📊 User data from database:', userData);
-          if (userData && userData.role === 'staff') {
-            console.log('✅ User is staff, redirecting...');
+if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
+            console.log('✅ User is staff or admin, redirecting...');
             window.location.href = 'staff-panel.html';
           } else {
-            console.log('❌ User is not staff');
+            console.log('❌ User is not staff or admin');
           }
         }).catch(error => {
           console.error('❌ Error checking user data:', error);
@@ -336,14 +336,14 @@
 
         console.log('📊 User data from database:', userData);
 
-        if (userData && userData.role === 'staff') {
-          console.log('✅ Staff role confirmed');
+if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
+          console.log('✅ Staff/Admin role confirmed');
           console.log('🚀 Redirecting to staff panel...');
           // Redirect to staff panel
           window.location.href = 'staff-panel.html';
         } else {
-          // ไม่ใช่ staff
-          console.error('❌ User does not have staff role');
+          // ไม่ใช่ staff/admin
+          console.error('❌ User does not have staff or admin role');
           console.error('❌ User data:', userData);
           await auth.signOut();
           showError('⛔ คุณไม่มีสิทธิ์เข้าถึงระบบพนักงาน');
