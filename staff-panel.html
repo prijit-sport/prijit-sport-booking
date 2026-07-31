@@ -1133,14 +1133,14 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
     function markCompleted(bookingId) {
       if (!confirm('ยืนยันว่าลูกค้าเล่นเสร็จแล้ว?')) return;
       showLoading();
-      const autoDeleteAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const autoDeleteAt = new Date(Date.now() + APP_CONFIG.BOOKING_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
       database.ref('bookings/' + bookingId).update({
         bookingStatus: 'completed',
         completedAt: new Date().toISOString(),
         autoDeleteAt: autoDeleteAt
       }).then(() => {
         hideLoading();
-        showToast('✅ บันทึกเสร็จแล้ว จะลบอัตโนมัติใน 24 ชม.', 'success');
+        showToast('✅ บันทึกเสร็จแล้ว จะลบอัตโนมัติใน ' + APP_CONFIG.BOOKING_RETENTION_DAYS + ' วัน', 'success');
         scheduleAutoDelete(bookingId, autoDeleteAt);
       }).catch(err => { hideLoading(); showToast('❌ ' + err.message, 'error'); });
     }
@@ -1179,7 +1179,7 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
         const b = snap.val();
         if (!b) return; // ถูกลบไปแล้ว
         if (!['approved', 'remaining_payment_pending', 'playing'].includes(b.bookingStatus)) return; // สถานะเปลี่ยนไปแล้ว ไม่ต้องทำซ้ำ
-        const autoDeleteAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        const autoDeleteAt = new Date(Date.now() + APP_CONFIG.BOOKING_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
         return database.ref('bookings/' + bookingId).update({
           bookingStatus: 'completed',
           completedAt: new Date().toISOString(),
