@@ -262,17 +262,17 @@ body.modal-open {
     .nav-container {
       max-width: 1300px;
       margin: 0 auto;
-      display: flex;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
       align-items: center;
       padding: 20px;
       pointer-events: auto;
       gap: 10px;
-      flex-wrap: nowrap;
     }
     .nav-links {
       display: flex;
       gap: 10px;
+      justify-content: center;
     }
     .nav-item {
       color:  #fffefe;
