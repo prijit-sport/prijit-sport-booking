@@ -267,15 +267,14 @@ body.modal-open {
       align-items: center;
       padding: 20px;
       pointer-events: auto;
+      gap: 10px;
+      flex-wrap: nowrap;
     }
     .nav-links {
       display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
+      gap: 10px;
     }
     .nav-item {
-      position: relative;
-      left: 10%;
       color:  #fffefe;
       font-weight: bold;
       font-size: 1em;
@@ -303,21 +302,19 @@ body.modal-open {
         }
       }
  
-      .user-section {
-        position: fixed;
-        left: 15%;
+.user-section {
+        margin-left: auto;
         color: rgb(10, 238, 29);
         font-size:  20px;
         display: flex;
         align-items: center;
-        gap: 5px;
+        gap: 10px;
+        flex-shrink: 0;
       }
  
       .logout-btn {
         background: #4b4b4b !important;
         border: 2px solid rgb(252, 255, 54) !important;
-        position:fixed;
-        left: 75%;
         padding: 5px 10px;
         border-radius: 5px;
         cursor: pointer;
@@ -326,8 +323,6 @@ body.modal-open {
       .login-btn {
       background: #4b4b4b !important;
       color: #ffffff !important;
-      position: fixed;
-      left: 75%;
       font-weight: bold;
       border: 2px solid  rgb(252, 255, 54) !important;
       padding: 5px 10px;
