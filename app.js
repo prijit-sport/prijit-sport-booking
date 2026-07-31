@@ -141,14 +141,6 @@ let slideInterval = null;
 const galleryImages = ['f11.jpg', 'f8.jpg', 'f9.jpg', 'f1.jpg', 'f10.jpg', '2.jpg', 'f3.jpg'];
 let currentGalleryIndex = 0;
 let paymentTimer = null;
-// หมายเหตุ: ค่านี้ต้องตรงกับ DEPOSIT_PERCENTAGE ใน staff-panel.html เสมอ (ปัจจุบัน = 0.30
-// เท่ากัน) เพราะแยกไฟล์กันคนละที่ ไม่ได้ใช้ config กลางร่วมกัน — ถ้าจะปรับ % มัดจำ
-// ต้องแก้ทั้ง 2 ไฟล์พร้อมกันเสมอ ไม่งั้นยอดมัดจำฝั่งลูกค้ากับฝั่งพนักงานจะไม่ตรงกัน
-const DEPOSIT_PERCENTAGE = 0.3;
-const MAX_BOOKING_DAYS = 30;
-const MAX_FILE_SIZE_MB = 5;
-const PAYMENT_TIMEOUT_MINUTES = 15;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
  
 const SecurityUtils = {
   escapeHtml(text) {
@@ -222,8 +214,8 @@ const Validator = {
     const selectedDate = new Date(value + 'T00:00:00');
     const today = new Date(); today.setHours(0,0,0,0);
     if (selectedDate < today) return 'ไม่สามารถเลือกวันที่ในอดีตได้';
-    const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + 30);
-    if (selectedDate > maxDate) return 'สามารถจองล่วงหน้าได้ไม่เกิน 30 วัน';
+    const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + APP_CONFIG.MAX_BOOKING_DAYS);
+    if (selectedDate > maxDate) return 'สามารถจองล่วงหน้าได้ไม่เกิน ' + APP_CONFIG.MAX_BOOKING_DAYS + ' วัน';
     return null;
   },
   time(value) { return value ? null : 'กรุณาเลือกเวลา'; },
@@ -629,8 +621,8 @@ function confirmBooking() {
     }
   }
   if (selectedDate < today) { alert("❌ ไม่สามารถจองย้อนหลังได้"); return; }
-  const maxDate = new Date(today); maxDate.setDate(maxDate.getDate() + 30);
-  if (selectedDate > maxDate) { alert("❌ สามารถจองได้สูงสุด 30 วันล่วงหน้าเท่านั้น"); return; }
+  const maxDate = new Date(today); maxDate.setDate(maxDate.getDate() + APP_CONFIG.MAX_BOOKING_DAYS);
+  if (selectedDate > maxDate) { alert("❌ สามารถจองได้สูงสุด " + APP_CONFIG.MAX_BOOKING_DAYS + " วันล่วงหน้าเท่านั้น"); return; }
  
   let totalPrice = 0;
   const hour = parseInt(selectedTimeSlot.split(":")[0]);
@@ -639,7 +631,7 @@ function confirmBooking() {
   else if (field.includes("สนาม 5")) totalPrice = hour >= 18 ? 1100 : 900;
   else if (field.includes("สนาม 6")) totalPrice = hour >= 18 ? 900 : 700;
  
-  const depositAmount = Math.round(totalPrice * DEPOSIT_PERCENTAGE);
+const depositAmount = Math.round(totalPrice * APP_CONFIG.DEPOSIT_PERCENTAGE);
   const remainingAmount = totalPrice - depositAmount;
   currentBookingData = { field, date, time: selectedTimeSlot, totalPrice, depositAmount, remainingAmount };
  
@@ -789,7 +781,7 @@ function handleSlipUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
   if (!['image/jpeg','image/jpg','image/png'].includes(file.type)) { alert('❌ กรุณาอัพโหลดไฟล์ภาพเท่านั้น (JPG, PNG)'); event.target.value = ''; return; }
-  if (file.size > MAX_FILE_SIZE_BYTES) { alert('❌ ไฟล์ใหญ่เกินไป! กรุณาเลือกไฟล์ขนาดไม่เกิน ' + MAX_FILE_SIZE_MB + ' MB'); event.target.value = ''; return; }
+  if (file.size > APP_CONFIG.MAX_FILE_SIZE_MB * 1024 * 1024) { alert('❌ ไฟล์ใหญ่เกินไป! กรุณาเลือกไฟล์ขนาดไม่เกิน ' + APP_CONFIG.MAX_FILE_SIZE_MB + ' MB'); event.target.value = ''; return; }
   uploadedSlipFile = file;
   const reader = new FileReader();
   reader.onload = function(e) {
@@ -821,7 +813,7 @@ function setupDragDrop() {
 }
  
 function startPaymentTimer() {
-  let timeLeft = PAYMENT_TIMEOUT_MINUTES * 60;
+let timeLeft = APP_CONFIG.PAYMENT_TIMEOUT_MINUTES * 60;
   const timerDiv = document.getElementById('paymentTimer');
   paymentTimer = setInterval(() => {
     timeLeft--;
@@ -1266,7 +1258,7 @@ function previewRemainingSlip(event) {
   const file = event.target.files[0];
   if (!file) return;
   if (!['image/jpeg','image/jpg','image/png'].includes(file.type)) { alert('❌ กรุณาอัพโหลดไฟล์ภาพ JPG หรือ PNG'); return; }
-  if (file.size > 5 * 1024 * 1024) { alert('❌ ไฟล์ใหญ่เกินไป (ไม่เกิน 5MB)'); return; }
+  if (file.size > APP_CONFIG.MAX_FILE_SIZE_MB * 1024 * 1024) { alert('❌ ไฟล์ใหญ่เกินไป (ไม่เกิน ' + APP_CONFIG.MAX_FILE_SIZE_MB + ' MB)'); return; }
   const reader = new FileReader();
   reader.onload = e => {
     const preview = document.getElementById('remainingSlipPreview');
@@ -1912,7 +1904,7 @@ async function openEditBookingModal(bookingId) {
     fieldSelect.value = booking.field || '';
     dateSelect.value = booking.date || '';
     dateSelect.setAttribute('min', new Date().toISOString().split('T')[0]);
-    const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + MAX_BOOKING_DAYS);
+const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + APP_CONFIG.MAX_BOOKING_DAYS);
     dateSelect.setAttribute('max', maxDate.toISOString().split('T')[0]);
  
     document.getElementById('editBookingPreview').style.display = 'none';

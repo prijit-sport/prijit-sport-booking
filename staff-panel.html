@@ -608,7 +608,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <script src="firebase-init.js"></script>
+<script src="firebase-init.js"></script>
+  <script src="app-config.js"></script>
   <script src="config.js"></script>
   <script>
     // Firebase Config ถูกย้ายไปไว้ใน firebase-init.js แล้ว
@@ -623,10 +624,6 @@
     // (เคสต่อเวลา/alternative booking ที่ depositAmount = 0 ก็คืนค่า 0 ถูกต้อง เพราะ
     // `0 != null` เป็น true ใน JavaScript ไม่ตกไปใช้ค่านี้)
     const DEPOSIT_AMOUNT = 300;
-    // หมายเหตุ: ค่านี้ต้องตรงกับ DEPOSIT_PERCENTAGE ใน app.js เสมอ (ปัจจุบัน = 0.3
-    // เท่ากัน) เพราะแยกไฟล์กันคนละที่ ไม่ได้ใช้ config กลางร่วมกัน — ถ้าจะปรับ % มัดจำ
-    // ต้องแก้ทั้ง 2 ไฟล์พร้อมกันเสมอ ไม่งั้นยอดมัดจำฝั่งลูกค้ากับฝั่งพนักงานจะไม่ตรงกัน
-    const DEPOSIT_PERCENTAGE = 0.30;
     const SCHEDULE_FIELDS = [1,2,3,4,5,6];
     const SCHEDULE_START_HOUR = 7;   // เปิด 07:00
     const SCHEDULE_END_HOUR   = 19;  // ปิด 20:00 (slot สุดท้าย 19:00-20:00)
@@ -634,7 +631,7 @@
     function getBookingDeposit(b) {
       if (!b) return DEPOSIT_AMOUNT;
       if (b.depositAmount != null) return b.depositAmount;
-      if (b.totalPrice != null) return Math.round(b.totalPrice * DEPOSIT_PERCENTAGE);
+      if (b.totalPrice != null) return Math.round(b.totalPrice * APP_CONFIG.DEPOSIT_PERCENTAGE);
       return DEPOSIT_AMOUNT;
     }
  
@@ -2086,7 +2083,7 @@
       // เท่านั้น ต้องดึงมาแปลงให้อยู่ในรูปแบบเดียวกับ booking เพื่อแสดงในตารางเดียวกัน
       const cancelledFromRefunds = cancelledByStaff.map(r => ({
         fullname: r.fullname, field: r.field, date: r.date, time: r.time,
-        totalPrice: r.deposit ? Math.round(r.deposit / DEPOSIT_PERCENTAGE) : 0,
+        totalPrice: r.deposit ? Math.round(r.deposit / APP_CONFIG.DEPOSIT_PERCENTAGE) : 0,
         bookingStatus: 'rejected'
       }));
       const cancelledFromLog = cancelledByCustomer.map(r => ({
