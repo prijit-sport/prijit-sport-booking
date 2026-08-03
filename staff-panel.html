@@ -995,37 +995,47 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
       const booking = allBookings.find(b => b.id === bookingId);
       const reason = prompt('กรุณาระบุเหตุผลในการปฏิเสธ:');
       if (!reason || !reason.trim()) { showToast('กรุณาระบุเหตุผล','warning'); return; }
-      if (!confirm('⚠️ การปฏิเสธจะลบรายการจองนี้ออกจากระบบทันที\nยืนยันการปฏิเสธ?')) return;
+      if (!confirm('ยืนยันการปฏิเสธการจองนี้?')) return;
       if (booking && booking.depositSlipUrl) {
         const doRefund = confirm('ลูกค้าได้แนบสลิปมัดจำไว้\nตกลง = บันทึกเป็นรายการรอคืนมัดจำ\nยกเลิก = หักเก็บมัดจำ');
         createRefundRecord(booking, reason, doRefund ? 'pending' : 'forfeit');
       }
       showLoading();
-      // FIX (privacy/High): ลบ availability + user_bookings index คู่กับ booking
-      // ไม่งั้นช่วงเวลานี้จะค้างเป็น "ไม่ว่าง" และลูกค้าจะยังเห็น booking นี้ค้างอยู่ในรายการของตัวเอง
+      // FIX (รอบนี้): เดิมฟังก์ชันนี้ .remove() booking ออกจาก node 'bookings' ถาวรทันที
+      // ทำให้ข้อมูลหายจากรายงาน/ประวัติทั้งหมด — เปลี่ยนมาเป็นการ "เปลี่ยนสถานะ"
+      // เป็น 'rejected' แทนการลบ เพื่อให้ยังดูสรุปผลย้อนหลังได้ครบในหน้ารายงาน
+      // ส่วน availability ยังต้องปลดล็อกเหมือนเดิมเพื่อให้จองช่วงเวลานั้นใหม่ได้
+      // (user_bookings index ไม่ต้องลบอีกต่อไป เพราะ booking ยังอยู่ในระบบจริง
+      // ลูกค้าจะเห็นเป็นสถานะ "ปฏิเสธ" แทนที่จะหายไปเฉย ๆ)
       const updates = {};
-      updates['bookings/' + bookingId] = null;
+      updates['bookings/' + bookingId + '/bookingStatus'] = 'rejected';
+      updates['bookings/' + bookingId + '/rejectedAt'] = new Date().toISOString();
+      updates['bookings/' + bookingId + '/rejectedBy'] = auth.currentUser ? auth.currentUser.uid : 'system';
+      updates['bookings/' + bookingId + '/rejectReason'] = reason;
       if (booking) {
         updates['availability/' + booking.field + '/' + booking.date + '/' + booking.time] = null;
-        if (booking.userId) updates['user_bookings/' + booking.userId + '/' + bookingId] = null;
       }
-      database.ref().update(updates).then(() => { hideLoading(); showToast('ปฏิเสธและลบการจองเรียบร้อยแล้ว','success'); }).catch(err => { hideLoading(); showToast(err.message,'error'); });
+      database.ref().update(updates).then(() => { hideLoading(); showToast('ปฏิเสธการจองเรียบร้อยแล้ว (เก็บประวัติไว้ในรายงาน)','success'); }).catch(err => { hideLoading(); showToast(err.message,'error'); });
     }
  
     function rejectBookingFromModal() { if (currentBooking) { rejectBooking(currentBooking.id); closeBookingModal(); } }
  
     function cancelApprovedBooking() {
       if (!currentBooking) return;
-      if (!confirm('⚠️ ยืนยันการยกเลิกการจองที่อนุมัติแล้ว?')) return;
+      if (!confirm('ยืนยันการยกเลิกการจองที่อนุมัติแล้ว?')) return;
       const reason = prompt('เหตุผลในการยกเลิก:', 'ยกเลิกการจอง') || 'ยกเลิกการจอง';
       createRefundRecord(currentBooking, reason, 'pending');
       showLoading();
-      // FIX (privacy/High): ลบ availability + user_bookings index คู่กับ booking
+      // FIX (รอบนี้): เดิม .remove() booking ทิ้งถาวร เปลี่ยนมาเป็นเปลี่ยนสถานะเป็น
+      // 'rejected' แทน เพื่อเก็บประวัติไว้ดูย้อนหลังในหน้ารายงานได้ครบ — availability
+      // ยังปลดล็อกตามปกติเพื่อให้จองช่วงเวลานั้นใหม่ได้ (ดู rejectBooking() ด้านบน)
       const updates = {};
-      updates['bookings/' + currentBooking.id] = null;
+      updates['bookings/' + currentBooking.id + '/bookingStatus'] = 'rejected';
+      updates['bookings/' + currentBooking.id + '/rejectedAt'] = new Date().toISOString();
+      updates['bookings/' + currentBooking.id + '/rejectedBy'] = auth.currentUser ? auth.currentUser.uid : 'system';
+      updates['bookings/' + currentBooking.id + '/rejectReason'] = reason;
       updates['availability/' + currentBooking.field + '/' + currentBooking.date + '/' + currentBooking.time] = null;
-      if (currentBooking.userId) updates['user_bookings/' + currentBooking.userId + '/' + currentBooking.id] = null;
-      database.ref().update(updates).then(() => { hideLoading(); closeBookingModal(); showToast('ยกเลิกการจองและบันทึกการคืนมัดจำแล้ว','success'); }).catch(err => { hideLoading(); showToast(err.message,'error'); });
+      database.ref().update(updates).then(() => { hideLoading(); closeBookingModal(); showToast('ยกเลิกการจองและบันทึกการคืนมัดจำแล้ว (เก็บประวัติไว้ในรายงาน)','success'); }).catch(err => { hideLoading(); showToast(err.message,'error'); });
     }
  
     function calculateBookingEndTime(dateString, timeString) {
@@ -1051,32 +1061,11 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
       return isNaN(dt.getTime()) ? null : dt;
     }
  
-    // FIX (Medium/QA-review): เดิม auto-delete ลบแค่ bookings/{id} อย่างเดียว
-    // ไม่ได้ลบ availability/{field}/{date}/{time} และ user_bookings/{uid}/{id} คู่กัน
-    // ทำให้ user_bookings ค้างเป็น key ตายไปเรื่อย ๆ ทุกครั้งที่ completed booking
-    // ถูกลบอัตโนมัติหลัง 24 ชม. (ไม่ error เพราะ updateBookingList() มี null-check
-    // ดักไว้แล้ว แต่ node จะโตขึ้นไม่มีที่สิ้นสุด) ต้องดึง booking มาก่อนลบเพื่อรู้
-    // field/date/time/userId แล้วลบทั้ง 3 node พร้อมกันแบบ atomic เหมือนจุดอื่น ๆ
-    function deleteBookingWithMirrors(bookingId) {
-      return database.ref('bookings/' + bookingId).once('value').then(snap => {
-        const b = snap.val();
-        if (!b) return; // ถูกลบไปแล้ว (เช่นถูกลบซ้ำจากอีก path) ไม่ต้องทำอะไรต่อ
-        const updates = {};
-        updates['bookings/' + bookingId] = null;
-        if (b.field && b.date && b.time) {
-          updates['availability/' + b.field + '/' + b.date + '/' + b.time] = null;
-        }
-        if (b.userId) updates['user_bookings/' + b.userId + '/' + bookingId] = null;
-        return database.ref().update(updates);
-      }).catch(() => {});
-    }
- 
-    function scheduleAutoDelete(bookingId, deleteTime) {
-      if (!deleteTime) return;
-      const now = new Date(), dt = new Date(deleteTime), delay = dt - now;
-      if (delay > 0) setTimeout(() => deleteBookingWithMirrors(bookingId), delay);
-      else deleteBookingWithMirrors(bookingId);
-    }
+    // FIX (รอบนี้): ฟังก์ชัน deleteBookingWithMirrors() และ scheduleAutoDelete() ที่เคย
+    // อยู่ตรงนี้ถูกลบออก เพราะระบบไม่มีการลบข้อมูล booking ออกจาก Firebase โดยอัตโนมัติ
+    // อีกต่อไป (ทุกสถานะ — completed, rejected — ถูกเก็บไว้ถาวรเพื่อให้ดูรายงาน
+    // ย้อนหลังได้ครบ) หากต้องการลบข้อมูลจริง ๆ ในอนาคต ให้ทำผ่านหน้า Firebase Console
+    // โดยตรงแทน
  
     // ===== ยืนยันรับเงินค่าสนามคงเหลือ → playing =====
     function confirmRemainingPayment(bookingId) {
@@ -1129,29 +1118,30 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
       }).catch(err => { hideLoading(); showToast('❌ ' + err.message, 'error'); });
     }
  
-    // ===== เล่นเสร็จ → completed → ลบหลัง 24 ชม. =====
+    // ===== เล่นเสร็จ → completed (เก็บไว้ถาวร ไม่ลบอัตโนมัติ) =====
+    // FIX (รอบนี้): เดิมตั้ง autoDeleteAt แล้วเรียก scheduleAutoDelete() เพื่อลบทิ้งจริง
+    // หลังผ่านไปตาม BOOKING_RETENTION_DAYS ทำให้ข้อมูลหายจากหน้ารายงานย้อนหลัง
+    // ตอนนี้ไม่ตั้ง autoDeleteAt และไม่ลบอีกต่อไป — booking ที่เล่นเสร็จแล้วจะถูกเก็บ
+    // ไว้ในระบบตลอดไปเพื่อให้ดูสรุปผลย้อนหลังได้ครบ
     function markCompleted(bookingId) {
       if (!confirm('ยืนยันว่าลูกค้าเล่นเสร็จแล้ว?')) return;
       showLoading();
-      const autoDeleteAt = new Date(Date.now() + APP_CONFIG.BOOKING_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
       database.ref('bookings/' + bookingId).update({
         bookingStatus: 'completed',
-        completedAt: new Date().toISOString(),
-        autoDeleteAt: autoDeleteAt
+        completedAt: new Date().toISOString()
       }).then(() => {
         hideLoading();
-        showToast('✅ บันทึกเสร็จแล้ว จะลบอัตโนมัติใน ' + APP_CONFIG.BOOKING_RETENTION_DAYS + ' วัน', 'success');
-        scheduleAutoDelete(bookingId, autoDeleteAt);
+        showToast('✅ บันทึกเสร็จแล้ว', 'success');
       }).catch(err => { hideLoading(); showToast('❌ ' + err.message, 'error'); });
     }
  
-        function checkAndDeleteExpiredBookings() {
+    // FIX (รอบนี้): ฟังก์ชันนี้เดิมชื่อสื่อว่า "ลบ" (checkAndDeleteExpiredBookings)
+    // แต่ตอนนี้ไม่มีการลบข้อมูลใด ๆ ในระบบอีกต่อไป (ทั้ง completed และ rejected ถูกเก็บ
+    // ไว้ถาวรเพื่อให้ดูรายงานย้อนหลังได้ครบ) คงไว้แค่ส่วนเปลี่ยนสถานะเป็น 'completed'
+    // อัตโนมัติเมื่อครบเวลาสิ้นสุดสล็อตจริง (ไม่ต้องรอ staff กด "เล่นเสร็จ") ชื่อฟังก์ชัน
+    // คงเดิมไว้เพื่อไม่ต้องแก้จุดที่เรียกใช้งานอื่น ๆ ทั่วไฟล์
+    function checkAndDeleteExpiredBookings() {
       const now = new Date();
-      // กลุ่มที่ "ยังใช้สนามอยู่จริง" — เมื่อครบเวลาสิ้นสุดสล็อตจริงแล้ว ให้เปลี่ยน
-      // สถานะเป็น 'completed' อัตโนมัติแทนการลบทิ้ง (ไม่ต้องรอ staff กด "เล่นเสร็จ")
-      // เหตุผลที่ไม่ลบทันที: วันเวลาที่ผ่านไปแล้วจองซ้ำไม่ได้อยู่แล้ว (ระบบฝั่งลูกค้า
-      // บล็อกวันเวลาในอดีตไว้ใน Validator/updateTimeSlotAvailability) จึงไม่จำเป็นต้อง
-      // เร่งลบ ให้เก็บประวัติไว้ก่อนแล้วค่อยลบตามรอบ 24 ชม.ปกติเหมือน completed ทั่วไป
       const AUTO_COMPLETE_STATUSES = ['approved', 'remaining_payment_pending', 'playing'];
       allBookings.forEach(b => {
         if (AUTO_COMPLETE_STATUSES.includes(b.bookingStatus)) {
@@ -1159,32 +1149,22 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
           if (!endDt) return;
           if (endDt <= now) autoCompleteBooking(b.id);
           else setTimeout(() => autoCompleteBooking(b.id), endDt - now);
-          return;
-        }
-        // completed: คงพฤติกรรมเดิม — เก็บไว้ให้ดูได้อีก 24 ชม.ตาม autoDeleteAt
-        // ที่ตั้งไว้ตอนกลายเป็น completed (ไม่ว่าจะ manual หรือ auto) ก่อนค่อยลบทิ้งจริง
-        if (b.autoDeleteAt && b.bookingStatus === 'completed') {
-          const dt = new Date(b.autoDeleteAt);
-          if (dt <= now) deleteBookingWithMirrors(b.id);
-          else scheduleAutoDelete(b.id, b.autoDeleteAt);
         }
       });
     }
  
-    // เปลี่ยนสถานะเป็น completed อัตโนมัติเมื่อครบเวลาสล็อต พร้อมตั้ง autoDeleteAt
-    // แบบเดียวกับ markCompleted() (24 ชม.) เพื่อให้ยังลบตามรอบปกติในภายหลัง
+    // เปลี่ยนสถานะเป็น completed อัตโนมัติเมื่อครบเวลาสล็อต — เก็บไว้ถาวร ไม่ลบอีกต่อไป
+    // (ดูหมายเหตุ FIX ด้านบนที่ checkAndDeleteExpiredBookings)
     // ไม่ update ซ้ำถ้าสถานะถูกเปลี่ยนไปแล้วโดย staff หรือ instance อื่นก่อนหน้า
     function autoCompleteBooking(bookingId) {
       database.ref('bookings/' + bookingId).once('value').then(snap => {
         const b = snap.val();
-        if (!b) return; // ถูกลบไปแล้ว
+        if (!b) return;
         if (!['approved', 'remaining_payment_pending', 'playing'].includes(b.bookingStatus)) return; // สถานะเปลี่ยนไปแล้ว ไม่ต้องทำซ้ำ
-        const autoDeleteAt = new Date(Date.now() + APP_CONFIG.BOOKING_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
         return database.ref('bookings/' + bookingId).update({
           bookingStatus: 'completed',
           completedAt: new Date().toISOString(),
-          completedBy: 'auto',
-          autoDeleteAt: autoDeleteAt
+          completedBy: 'auto'
         });
       }).catch(() => {});
     }
@@ -1477,13 +1457,14 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
  
       allRefunds.forEach(r => {
         const st = refundStatusInfo(r.status);
-        // FIX (รอบนี้): ตัดปุ่ม "คืนเงิน" ออก เหลือแค่ "หักเก็บมัดจำ" อย่างเดียว
-        // เพราะนโยบายร้านไม่มีการคืนเงินค่ามัดจำสนามอีกต่อไป (ดู refundStatusInfo()
-        // ที่เปลี่ยนข้อความสถานะคู่กันด้วย) รายการที่เคยถูกทำเครื่องหมาย 'refunded'
-        // ไว้ก่อนหน้านี้ (ถ้ามี) ยังแสดงสถานะ "คืนแล้ว" ตามประวัติเดิมได้ปกติ
+        // FIX (รอบนี้): เอาปุ่ม "ลบ" ออกทั้งหมด — ผู้ใช้ต้องการไม่ให้ลบข้อมูลใด ๆ
+        // ออกจาก Firebase เลย (ทั้งการจอง/มัดจำ/รายงาน/ตารางสนาม) เพื่อให้ดูสรุปผล
+        // ย้อนหลังได้ครบเสมอ รายการที่ยัง 'pending' ยังกดหักเก็บมัดจำได้ตามปกติ
+        // (เป็นการเปลี่ยนสถานะ ไม่ใช่การลบ) ส่วนรายการที่ประมวลผลแล้ว (forfeit/refunded)
+        // จะไม่มีปุ่มดำเนินการใด ๆ อีก เพราะถือว่าจบขั้นตอนแล้วและเก็บเป็นประวัติถาวร
         const actions = r.status==='pending'
           ? `<button class="btn-reject" onclick="processRefund('${r.id}','forfeit')">หักเก็บมัดจำ</button>`
-          : `<button class="btn-reject" onclick="deleteRefund('${r.id}')">ลบ</button>`;
+          : `<span style="color:#9ca3af;font-size:13px;">— บันทึกถาวร —</span>`;
         const rName  = escapeHtml(r.fullname||'-');
         const rPhone = escapeHtml(r.phone||'-');
         const rField = escapeHtml(r.field||'-');
@@ -1520,11 +1501,9 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
         .catch(err => { hideLoading(); showToast(err.message,'error'); });
     }
  
-    function deleteRefund(refundId) {
-      if (!confirm('ยืนยันการลบรายการนี้?')) return;
-      showLoading();
-      database.ref('refunds/'+refundId).remove().then(()=>{ hideLoading(); showToast('ลบรายการแล้ว','success'); }).catch(err=>{ hideLoading(); showToast(err.message,'error'); });
-    }
+    // FIX (รอบนี้): ฟังก์ชัน deleteRefund() ที่เคยลบ refund record ออกจาก Firebase
+    // ถาวรถูกเอาออกทั้งหมด เพื่อไม่ให้ข้อมูลมัดจำหายไปจากประวัติ/รายงานย้อนหลัง
+    // (ดูหมายเหตุ FIX ใน renderRefunds() ด้านบนที่เอาปุ่ม "ลบ" ออกไปด้วยกัน)
  
     function openAddRefundModal() {
       document.getElementById('refundForm').reset();
@@ -1958,6 +1937,13 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
       // ตกไปอยู่กลุ่ม "รอตรวจสอบ" อย่างผิด ๆ ทั้งที่ผ่านการอนุมัติไปแล้ว
       const APPROVED_GROUP = ['approved', 'remaining_payment_pending', 'playing', 'completed'];
  
+      // FIX (รอบนี้): rejectBooking()/cancelApprovedBooking() ไม่ลบ booking ออกจากระบบ
+      // อีกต่อไป (เปลี่ยนเป็นสถานะ 'rejected' แทน เพื่อเก็บประวัติไว้) ดังนั้น 'data'
+      // ด้านบนนี้จะมี booking สถานะ 'rejected' ปนอยู่ด้วยแล้วโดยธรรมชาติ ต้องแยกออกมา
+      // ก่อนคำนวณส่วนอื่น ๆ ไม่ให้ไปปนกับ "รอตรวจสอบ" หรือ "อนุมัติแล้ว"
+      const rejectedInRange = data.filter(b => b.bookingStatus === 'rejected');
+      const activeData = data.filter(b => b.bookingStatus !== 'rejected');
+ 
       // ===== 1. รายรับทั้งหมด =====
       // FIX: มัดจำที่ได้รับแล้ว (booking ผ่านการอนุมัติ) ต้องถูกนับเข้า fullIncome ด้วย
       // เดิมโค้ดนับแค่ยอดคงเหลือ (remaining) ที่จ่ายแล้ว กับมัดจำที่ถูก "หักเก็บ" (forfeit)
@@ -1967,7 +1953,7 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
       let fullIncome=0, approvedIncome=0, pendingIncome=0;
       let approvedCount=0, pendingCount=0;
  
-      data.forEach(b => {
+      activeData.forEach(b => {
         if (APPROVED_GROUP.includes(b.bookingStatus)) {
           fullIncome += getBookingDeposit(b);
         }
@@ -2028,7 +2014,11 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
         return true;
       });
       const cancelledByCustomer = allCancellationLog.filter(r => inRange(r.date, r.createdAt));
-      const cancelCount = cancelledByStaff.length + cancelledByCustomer.length;
+      // FIX (รอบนี้): รวม rejectedInRange (booking สถานะ 'rejected' ที่ยังอยู่ในระบบจริง
+      // เพราะไม่ลบแล้ว) เข้ามานับเป็น "ยกเลิก" ด้วย — cancelledByStaff ตอนนี้จะเหลือแค่
+      // refund record ที่ไม่มี booking คู่กันอยู่แล้วจริง ๆ (กรณีเก่าก่อนเวอร์ชันนี้ หรือ
+      // manual entry) จึงไม่ซ้ำกับ rejectedInRange
+      const cancelCount = rejectedInRange.length + cancelledByStaff.length + cancelledByCustomer.length;
  
       const s = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
       s('rptFullIncome',    '฿' + fullIncome.toLocaleString());
@@ -2040,16 +2030,19 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
       s('rptPendingIncome',  pendingCount + ' รายการ');
       s('rptPendingCount',  '฿' + pendingIncome.toLocaleString());
       s('rptCancelCount',   cancelCount + ' รายการ');
-      s('rptBookingCount',  data.length + ' รายการ');
+      s('rptBookingCount',  activeData.length + ' รายการ');
  
       // ===== 2. รายการจองทั้งหมด + ลูกค้า =====
-      const uniqueCustomers = new Set(data.map(b => b.userId || b.fullname || b.username).filter(Boolean));
-      s('rptTotalBookings',  data.length);
+      // FIX (รอบนี้): ใช้ activeData (ไม่รวม rejected) เพื่อให้ตัวเลข "รายการจองทั้งหมด"
+      // และ "ลูกค้าทั้งหมด" มีความหมายเดิมเหมือนก่อนหน้านี้ (นับเฉพาะการจองที่เกิดขึ้นจริง
+      // ไม่รวมรายการที่ถูกปฏิเสธ/ยกเลิก ซึ่งมีการ์ด "ยกเลิก" แยกไว้ให้ดูต่างหากอยู่แล้ว)
+      const uniqueCustomers = new Set(activeData.map(b => b.userId || b.fullname || b.username).filter(Boolean));
+      s('rptTotalBookings',  activeData.length);
       s('rptTotalCustomers', uniqueCustomers.size);
  
       // ===== 3. สนามที่ใช้มากที่สุด =====
       const fieldCount = {};
-      data.forEach(b => { if(b.field) fieldCount[b.field] = (fieldCount[b.field]||0) + 1; });
+      activeData.forEach(b => { if(b.field) fieldCount[b.field] = (fieldCount[b.field]||0) + 1; });
       const topFields = Object.entries(fieldCount).sort((a,b) => b[1]-a[1]);
       const maxCount  = topFields.length > 0 ? topFields[0][1] : 1;
  
