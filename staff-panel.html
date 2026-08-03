@@ -1959,21 +1959,18 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
       const APPROVED_GROUP = ['approved', 'remaining_payment_pending', 'playing', 'completed'];
  
       // ===== 1. รายรับทั้งหมด =====
-      // FIX: เดิมการ์ด "รายรับทั้งหมด" นับจาก totalPrice (ราคาเต็มของสนาม) ของ
-      // ทุก booking ในช่วงเวลา ไม่ว่าจะจ่ายจริงไปเท่าไหร่แล้วก็ตาม ทำให้ตัวเลขไม่ตรง
-      // กับเงินที่ร้านได้รับจริง ณ ขณะนั้น (เช่น ลูกค้าโอนมัดจำมา 300 แต่ระบบนับเป็น 1,000
-      // ทันที) เปลี่ยนมาใช้ getActualReceivedAmount() ซึ่งนับตามสถานะการจ่ายจริง:
-      // มัดจำนับเมื่อ staff อนุมัติ booking แล้วเท่านั้น ส่วนค่าคงเหลือนับเมื่อ
-      // staff กดยืนยันรับเงินแล้วเท่านั้น (remainingStatus === 'paid') — เป็นค่าที่
-      // อัปเดตตามเวลาจริงเสมอ เพราะ allBookings ถูก sync แบบ real-time อยู่แล้ว
-      // FIX (รอบนี้): ยอดค่ามัดจำในรายรับทั้งหมด เปลี่ยนมานับจากหน้า "คืนมัดจำ" แทน
-      // นับก็ต่อเมื่อ staff กด "หักเก็บมัดจำ" (สถานะ 'forfeit' ใน node 'refunds') เท่านั้น
-      // ไม่นับจากการอนุมัติการจองในหน้า "จัดการการจอง" อีกต่อไป — ค่าคงเหลือยังนับเหมือนเดิม
-      // เมื่อ remainingStatus === 'paid' เพราะเป็นเงินที่ staff ยืนยันรับจริงหน้าสนามแล้ว
+      // FIX: มัดจำที่ได้รับแล้ว (booking ผ่านการอนุมัติ) ต้องถูกนับเข้า fullIncome ด้วย
+      // เดิมโค้ดนับแค่ยอดคงเหลือ (remaining) ที่จ่ายแล้ว กับมัดจำที่ถูก "หักเก็บ" (forfeit)
+      // เท่านั้น ทำให้ booking ที่ยัง active อยู่ (ไม่ได้ยกเลิก) แต่จ่ายมัดจำไปแล้ว
+      // ไม่ถูกนับมัดจำก้อนนั้นเข้ารายรับทั้งหมดเลย (เช่น มัดจำ 300 + ค่าคงเหลือ 700
+      // ที่จ่ายแล้ว ควรรวมเป็น 1,000 แต่เดิมนับได้แค่ 700)
       let fullIncome=0, approvedIncome=0, pendingIncome=0;
       let approvedCount=0, pendingCount=0;
  
       data.forEach(b => {
+        if (APPROVED_GROUP.includes(b.bookingStatus)) {
+          fullIncome += getBookingDeposit(b);
+        }
         if (b.remainingStatus === 'paid') {
           const dep = getBookingDeposit(b);
           const remaining = (b.remainingAmount != null) ? b.remainingAmount : Math.max((b.totalPrice||0) - dep, 0);
@@ -2011,11 +2008,25 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
       // 1) 'refunds' : ปฏิเสธ/ยกเลิกโดย staff (ผ่าน createRefundRecord())
       // 2) 'cancellation_log' : ลูกค้ายกเลิกเอง (ผ่าน cancelBooking() ใน app.js)
       // ไม่มีทางซ้ำกันเพราะคนละ flow กันโดยสิ้นเชิง จึงบวกรวมกันได้ตรง ๆ
+      // FIX (รอบนี้): refunds ที่ถูกสร้างตอน "อนุมัติ" (approveBooking) หรือ
+      // "ยกเลิกการจองที่อนุมัติแล้ว" (cancelApprovedBooking) เป็นแค่รายการติดตาม
+      // การคืนมัดจำหลังลูกค้าเล่นเสร็จ ไม่ใช่การยกเลิกจริงเสมอไป — ต้องเช็คว่า booking
+      // ตัวนั้นยังมีอยู่ใน allBookings หรือไม่ ถ้ายังมีอยู่ (bookingId ตรงกัน) แปลว่า
+      // booking ยัง active อยู่ (แค่รออนุมัติ/รอเล่น/กำลังเล่น) ไม่ควรนับเป็นยกเลิก
+      // มีแต่ refund ที่ booking ถูกลบออกจากระบบไปแล้วจริง (ผ่าน rejectBooking()
+      // ที่ .remove() booking ทันที) เท่านั้นที่ควรนับเป็นยกเลิก
       const inRange = (dateField, createdAtField) => {
         const d = dateField || (createdAtField ? createdAtField.split('T')[0] : '');
         return d && d >= startStr && d <= todayStr;
       };
-      const cancelledByStaff = allRefunds.filter(r => inRange(r.date, r.createdAt));
+      const cancelledByStaff = allRefunds.filter(r => {
+        if (!inRange(r.date, r.createdAt)) return false;
+        if (r.bookingId && r.bookingId !== 'manual') {
+          const stillExists = allBookings.some(b => b.id === r.bookingId);
+          if (stillExists) return false; // booking ยัง active อยู่ ไม่ใช่การยกเลิก
+        }
+        return true;
+      });
       const cancelledByCustomer = allCancellationLog.filter(r => inRange(r.date, r.createdAt));
       const cancelCount = cancelledByStaff.length + cancelledByCustomer.length;
  
