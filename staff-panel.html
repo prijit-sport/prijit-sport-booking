@@ -1976,10 +1976,26 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
       // มัดจำวันที่ 9 ยอดจะไปโผล่อยู่ในรายงานวันที่ 9 แทนที่จะเป็นวันที่ 10 ที่จอง
       // เปลี่ยนมาใช้ r.date (วันที่เล่นจริงของ booking นั้น) เป็นตัวกรองแทน ให้สัมพันธ์กับ
       // หน้า "คืนมัดจำ" และตาราง "รายการจองในช่วงเวลา" ที่ใช้วันที่เล่นเป็นมาตรฐานเดียวกันหมด
+      //
+      // FIX (รอบนี้ 2): เดิมจุดนี้บวก fullIncome ซ้ำสอง — ถ้า booking ยังอยู่ในระบบและ
+      // สถานะยังอยู่ในกลุ่ม APPROVED_GROUP (เช่น กด "อนุมัติ" แล้วสร้าง refund record
+      // แบบ pending รอไว้ ต่อมากด "หักเก็บมัดจำ" ในแท็บคืนมัดจำ ซึ่งแค่เปลี่ยนสถานะของ
+      // refund record เป็น forfeit เท่านั้น ไม่ได้แตะ booking เลย) มัดจำก้อนเดียวกันจะถูก
+      // นับไปแล้วรอบแรกในลูป activeData ด้านบน (เพราะ bookingStatus ยัง approved อยู่)
+      // แล้วมานับซ้ำอีกทีตรงนี้จาก refund record ทำให้ยอดรวมเพี้ยนเป็น 2 เท่า
+      // (ตัวอย่างจริง: มัดจำ 300 → ปรากฏเป็น 600 ในหน้ารายงาน)
+      // แก้โดยข้าม refund ที่ bookingId ยังมี booking ตัวจริงอยู่และสถานะยังอยู่ใน
+      // APPROVED_GROUP ไป เพราะถือว่าถูกนับไปแล้วในลูปแรก มีแต่ refund ที่ booking ถูก
+      // เปลี่ยนเป็น rejected/ไม่มีอยู่แล้วจริง (หรือเป็นรายการ manual) เท่านั้นที่นับตรงนี้
       const forfeitedDeposits = allRefunds.filter(r => {
         if (r.status !== 'forfeit') return false;
         const d = r.date || (r.createdAt ? r.createdAt.split('T')[0] : '');
-        return d && d >= startStr && d <= todayStr;
+        if (!(d && d >= startStr && d <= todayStr)) return false;
+        if (r.bookingId && r.bookingId !== 'manual') {
+          const stillCountedInLoop = allBookings.some(b => b.id === r.bookingId && APPROVED_GROUP.includes(b.bookingStatus));
+          if (stillCountedInLoop) return false; // กันนับซ้ำ — มัดจำก้อนนี้ถูกนับไปแล้วในลูป activeData ด้านบน
+        }
+        return true;
       });
       forfeitedDeposits.forEach(r => { fullIncome += (r.deposit || 0); });
  
