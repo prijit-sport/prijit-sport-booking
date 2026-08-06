@@ -1,4 +1,4 @@
- 
+
 const CONFIG = {
   DEBUG_MODE: false,
   FIREBASE_RETRY_MAX: 50,
@@ -1120,10 +1120,9 @@ function generateBookingCard(booking) {
   // และต้องไม่มีการต่อเวลา (extendedTo) ผูกอยู่กับ booking นี้ เพราะช่วงต่อเวลาอ้างอิง
   // เวลาสิ้นสุดของ booking เดิมอยู่ ถ้าให้แก้ไขต่อจะทำให้ช่วงเวลาไม่ต่อเนื่องกัน
   //
-  // FIX (รอบนี้): เอาปุ่ม "❌ ยกเลิกการจอง" ออกทั้งหมด (ผู้ใช้แจ้งว่าไม่ได้ใช้ฟังก์ชัน
-  // นี้แล้ว) — เดิมปุ่มแก้ไขและปุ่มยกเลิกวางเรียงกันแบบ inline-block ชิดซ้าย ตอนนี้
-  // เหลือปุ่มแก้ไขปุ่มเดียว จึงเปลี่ยนให้แสดงกึ่งกลางแทนที่ตำแหน่งเดิมของปุ่มยกเลิก
-  // (width:100% + text-align:center บน wrapper) แทนการ inline ชิดซ้ายแบบเดิม
+  // FIX (รอบนี้): นำปุ่ม "❌ ยกเลิกการจอง" กลับมาตามที่ผู้ใช้ร้องขอ (ก่อนหน้านี้เคยถอด
+  // ออกไปพร้อมย้ายปุ่มแก้ไขมาไว้กึ่งกลาง) กลับไปใช้ layout เดิม: ปุ่มแก้ไข + ปุ่มยกเลิก
+  // วางเรียงกันแบบ inline-block ชิดซ้าย เหมือนตำแหน่งเดิมก่อนการแก้ไขครั้งก่อน
   let editButton = '';
   let bookingHasNotStarted = false;
   try {
@@ -1135,9 +1134,15 @@ function generateBookingCard(booking) {
   } catch(e) {}
   const editableStatuses = ['pending_payment', 'pending', 'approved'];
   if (bookingHasNotStarted && editableStatuses.includes(safeBooking.bookingStatus) && !booking.extendedTo) {
-    editButton = `<div style="text-align:center;margin-top:10px;">
-      <button class="edit-booking-btn" id="edit-btn-${safeBooking.id}" data-booking-id="${safeBooking.id}" style="background:#3b82f6;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;">✏️ แก้ไขการจอง (เปลี่ยนเวลา/สนาม)</button>
-    </div>`;
+    editButton = `<button class="edit-booking-btn" id="edit-btn-${safeBooking.id}" data-booking-id="${safeBooking.id}" style="background:#3b82f6;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;margin-top:10px;margin-right:8px;">✏️ แก้ไขการจอง (เปลี่ยนเวลา/สนาม)</button>`;
+  }
+ 
+  // ========== ปุ่มยกเลิกการจอง ==========
+  // FIX (รอบนี้): คืนปุ่มนี้กลับมาตามคำขอของผู้ใช้ — เงื่อนไขการแสดงผลเหมือนเดิมทุกประการ
+  // กับก่อนที่จะถูกถอดออก (แสดงเมื่อสถานะยังเป็น pending/pending_payment/approved)
+  let cancelButton = '';
+  if (['pending','pending_payment','approved'].includes(safeBooking.bookingStatus)) {
+    cancelButton = `<button class="cancel-btn" id="cancel-btn-${safeBooking.id}" data-booking-id="${safeBooking.id}" style="background:#ef4444;color:white;padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;margin-top:10px;">❌ ยกเลิกการจอง</button>`;
   }
  
   return `
@@ -1167,6 +1172,7 @@ function generateBookingCard(booking) {
       ${waitingBanner}
       ${playingBanner}
       ${editButton}
+      ${cancelButton}
       <div style="margin-top:15px;padding-top:15px;border-top:1px solid #e5e7eb;">
         <p style="margin:0;color:#9ca3af;font-size:12px;">📋 จองเมื่อ: ${fmtDateTime(safeBooking.createdAt)}</p>
       </div>
@@ -1187,8 +1193,14 @@ function initializeBookingCardEvents() {
       if (bookingId) requestBookingExtension(bookingId);
     });
   });
-  // FIX (รอบนี้): เอา listener ของ '.cancel-btn' ออก เพราะปุ่มยกเลิกการจองถูกถอดออก
-  // จาก generateBookingCard() แล้ว (ไม่มี element .cancel-btn ให้ผูก listener อีกต่อไป)
+  // FIX (รอบนี้): คืน listener ของ '.cancel-btn' กลับมา เพราะปุ่มยกเลิกการจอง
+  // ถูกนำกลับมาใน generateBookingCard() แล้วตามคำขอของผู้ใช้
+  document.querySelectorAll('.cancel-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const bookingId = this.getAttribute('data-booking-id');
+      if (bookingId) cancelBooking(bookingId);
+    });
+  });
   document.querySelectorAll('.edit-booking-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       const bookingId = this.getAttribute('data-booking-id');
@@ -1283,12 +1295,50 @@ function submitRemainingPayment(bookingId, remainingAmount) {
   reader.readAsDataURL(file);
 }
  
-// FIX (รอบนี้): ฟังก์ชัน cancelBooking() เดิมถูกลบออกทั้งหมด ตามที่ผู้ใช้แจ้งว่า
-// ไม่ได้ใช้ฟังก์ชันยกเลิกการจองแล้ว (เปลี่ยนไปใช้ปุ่ม "✏️ แก้ไขการจอง" แทน) — เดิมฟังก์ชันนี้
-// เรียกจากปุ่ม .cancel-btn ซึ่งถูกถอดออกจาก generateBookingCard() ไปแล้วเช่นกัน
-// (ดู FIX ด้านบนที่ initializeBookingCardEvents() และ generateBookingCard())
-// ตัวแปร isCancelling ที่เคยใช้คุมสถานะปุ่มยังคงประกาศไว้เฉย ๆ เพื่อไม่ให้กระทบจุดอื่น
-// ที่อาจอ้างอิงถึง (ปัจจุบันไม่มีจุดใดเรียกใช้แล้ว)
+// FIX (รอบนี้): คืนฟังก์ชัน cancelBooking() กลับมาตามคำขอของผู้ใช้ ให้ทำงานเหมือนเดิม
+// ทุกประการ — ลบ booking ออกจาก 'bookings' จริง พร้อมเคลียร์ availability/index/lock
+// ที่เกี่ยวข้อง และบันทึก log การยกเลิกไว้ที่ 'cancellation_log' ก่อนลบเสมอ เพื่อให้
+// หน้ารายงานฝั่ง staff ยังนับจำนวน "ยกเลิก" ได้ครบเหมือนเดิม
+function cancelBooking(bookingId) {
+  if (isCancelling) return;
+  if (!confirm("⚠️ ต้องการยกเลิกการจองนี้ใช่หรือไม่?\n\nข้อมูลการจองจะถูกลบออกจากระบบทันที")) return;
+  isCancelling = true;
+  const cancelBtn = document.getElementById(`cancel-btn-${bookingId}`);
+  const originalButtonText = cancelBtn ? cancelBtn.textContent : '❌ ยกเลิก';
+  if (cancelBtn) { cancelBtn.textContent = '⏳ กำลังยกเลิก...'; cancelBtn.disabled = true; }
+  database.ref('bookings/' + bookingId).once('value').then((snapshot) => {
+    const booking = snapshot.val();
+    if (!booking) throw new Error('ไม่พบข้อมูลการจอง');
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) throw new Error('กรุณา Login ก่อนยกเลิกการจอง');
+    if (booking.userId !== firebaseUser.uid) throw new Error('คุณไม่มีสิทธิ์ยกเลิกการจองนี้');
+    const uniqueKey = `${booking.field}_${booking.date}_${booking.time}`;
+    const logEntry = {
+      bookingId,
+      userId: firebaseUser.uid,
+      field: booking.field || '',
+      date: booking.date || '',
+      time: booking.time || '',
+      reason: 'ลูกค้ายกเลิกเอง',
+      createdAt: new Date().toISOString()
+    };
+    return Promise.all([
+      database.ref('cancellation_log').push(logEntry).catch(() => {}), // ไม่ให้การบันทึก log ล้มเหลวขวางการยกเลิกจริง
+      database.ref('availability/' + booking.field + '/' + booking.date + '/' + booking.time).remove(),
+      database.ref('user_bookings/' + firebaseUser.uid + '/' + bookingId).remove(),
+      database.ref('bookings/' + bookingId).remove(),
+      database.ref('booking_locks/' + uniqueKey).remove()
+    ]);
+  }).then(() => {
+    alert("✅ ยกเลิกการจองเรียบร้อยแล้ว");
+    updateBookingList();
+  }).catch((error) => {
+    alert("❌ " + error.message);
+  }).finally(() => {
+    isCancelling = false;
+    if (cancelBtn) { cancelBtn.textContent = originalButtonText; cancelBtn.disabled = false; }
+  });
+}
  
 // ========== DOM READY ==========
 document.addEventListener("DOMContentLoaded", () => {
