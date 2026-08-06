@@ -949,12 +949,12 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
           </div></div>`;
       }
  
-      if (currentBooking.bookingStatus !== 'approved') {
-        html += `<div class="modal-actions">
-          <button class="btn-approve" onclick="approveBookingFromModal()">✅ อนุมัติการจอง</button>
-          <button class="btn-reject" onclick="rejectBookingFromModal()">❌ ปฏิเสธการจอง</button>
-        </div>`;
-      } else {
+      // FIX (รอบนี้): เอาปุ่ม "✅ อนุมัติการจอง" / "❌ ปฏิเสธการจอง" ออกจาก modal
+      // รายละเอียดการจองตามที่ผู้ใช้ร้องขอ (ปุ่มซ้ำกับที่มีอยู่แล้วในตารางรายการจองหลัก
+      // ผ่าน getActionButtons() — staff ยังกดอนุมัติ/ปฏิเสธจากตารางได้ตามปกติ เพียงแต่
+      // จะไม่มีปุ่มซ้ำโผล่ใน modal นี้อีก) ส่วนปุ่ม "ยกเลิกการจอง (คืนมัดจำ)" สำหรับ
+      // booking ที่อนุมัติแล้ว ยังคงไว้เหมือนเดิม เพราะไม่มีปุ่มลักษณะนี้ซ้ำอยู่ในตารางหลัก
+      if (currentBooking.bookingStatus === 'approved') {
         html += `<div class="modal-actions">
           <button class="btn-reject" onclick="cancelApprovedBooking()">❌ ยกเลิกการจอง (คืนมัดจำ)</button>
         </div>`;
