@@ -352,6 +352,23 @@
       <h2 class="section-title">ตรวจสอบการจอง</h2>
       <div class="content-card">
         <div class="section-header">รายการจองของคุณ</div>
+ 
+        <!-- FIX: เพิ่มแท็บ "กำลังจะถึง" / "ประวัติ" เพื่อไม่ให้รายการจองยาวเกินไป
+             เมื่อลูกค้ามีประวัติสะสมเยอะ (ตอนนี้ระบบไม่ลบ booking ที่ completed/rejected
+             ออกจาก Firebase แล้ว เก็บถาวรไว้ดูย้อนหลังได้) แท็บนี้ควบคุมทั้งหมดผ่าน
+             switchBookingTab() ใน app.js ซ่อนไว้ก่อนโดย default จนกว่าจะ login สำเร็จ
+             (ดู updateBookingList() ใน app.js ที่จะ .style.display ให้เอง) -->
+        <div id="bookingTabsBar" style="display:none;gap:10px;margin-bottom:18px;">
+          <button id="bookingTabUpcoming" onclick="switchBookingTab('upcoming')"
+                  style="flex:1;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif;background:#22c55e;color:white;">
+            📅 กำลังจะถึง
+          </button>
+          <button id="bookingTabHistory" onclick="switchBookingTab('history')"
+                  style="flex:1;padding:12px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif;background:rgba(255,255,255,0.15);color:#e5e7eb;">
+            🗂️ ประวัติ
+          </button>
+        </div>
+ 
         <div id="bookingList" style="min-height:200px;">
           <p style="text-align:center;color:#ffffff;padding:40px;">ยังไม่มีรายการจอง</p>
         </div>

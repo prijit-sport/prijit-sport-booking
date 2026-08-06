@@ -934,11 +934,107 @@ function uploadSlipAndCreateBooking() {
   reader.readAsDataURL(uploadedSlipFile);
 }
  
+// ===== แท็บ "กำลังจะถึง" / "ประวัติ" ในหน้ารายการจองของลูกค้า =====
+// FIX: เดิมหน้านี้แสดง booking ทุกรายการรวมกันเป็นการ์ดเต็มยาวเรียงต่อกันเรื่อย ๆ
+// ทำให้ลูกค้าที่มีประวัติจองสะสมมาก (โดยเฉพาะตอนนี้ที่ระบบไม่ลบ booking สถานะ
+// completed/rejected ออกจาก Firebase อีกต่อไป — เก็บถาวรไว้ดูรายงานย้อนหลังได้)
+// ต้องเลื่อนดูยาวมากและหารายการที่ยัง active อยู่ยาก จึงแยกเป็น 2 แท็บ:
+//   - "กำลังจะถึง": pending / pending_payment / approved / remaining_payment_pending /
+//     playing — แสดงเป็นการ์ดเต็มแบบเดิม (มีปุ่มต่อเวลา/จ่ายเพิ่ม/แก้ไข/ยกเลิก)
+//   - "ประวัติ": completed / rejected / cancelled — แสดงเป็นการ์ดกระชับแถวเดียว
+//     ไม่มีปุ่มดำเนินการใด ๆ (เพราะจบขั้นตอนไปแล้ว)
+let allUserBookings = [];
+let currentBookingTab = 'upcoming';
+const BOOKING_UPCOMING_STATUSES = ['pending', 'pending_payment', 'approved', 'remaining_payment_pending', 'playing'];
+const BOOKING_HISTORY_STATUSES = ['completed', 'rejected', 'cancelled'];
+ 
+function switchBookingTab(tab) {
+  currentBookingTab = tab;
+  const upBtn = document.getElementById('bookingTabUpcoming');
+  const histBtn = document.getElementById('bookingTabHistory');
+  if (upBtn) {
+    upBtn.style.background = tab === 'upcoming' ? '#22c55e' : 'rgba(255,255,255,0.15)';
+    upBtn.style.color = tab === 'upcoming' ? 'white' : '#e5e7eb';
+  }
+  if (histBtn) {
+    histBtn.style.background = tab === 'history' ? '#22c55e' : 'rgba(255,255,255,0.15)';
+    histBtn.style.color = tab === 'history' ? 'white' : '#e5e7eb';
+  }
+  renderBookingListTabs();
+}
+ 
+function renderBookingListTabs() {
+  const bookingListDiv = document.getElementById('bookingList');
+  if (!bookingListDiv) return;
+ 
+  if (currentBookingTab === 'upcoming') {
+    const upcoming = allUserBookings.filter(b => BOOKING_UPCOMING_STATUSES.includes(b.bookingStatus));
+    if (upcoming.length === 0) {
+      bookingListDiv.innerHTML = `<div style="text-align:center;padding:40px;"><p style="color:#6b7280;font-size:1.1em;">⚽ ยังไม่มีรายการจองที่กำลังจะถึง</p><p style="color:#9ca3af;margin-top:10px;">เริ่มจองสนามได้เลย!</p></div>`;
+      return;
+    }
+    // เรียงตามวันที่เล่นใกล้สุดก่อน (ต่างจากแท็บประวัติที่เรียงล่าสุดไปเก่า)
+    upcoming.sort((a, b) => {
+      const da = a.date || '', db = b.date || '';
+      if (da !== db) return da.localeCompare(db);
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+    bookingListDiv.innerHTML = upcoming.map(booking => generateBookingCard(booking)).join('');
+    initializeBookingCardEvents();
+  } else {
+    const history = allUserBookings.filter(b => BOOKING_HISTORY_STATUSES.includes(b.bookingStatus));
+    if (history.length === 0) {
+      bookingListDiv.innerHTML = `<div style="text-align:center;padding:40px;"><p style="color:#6b7280;font-size:1.1em;">🗂️ ยังไม่มีประวัติการจอง</p></div>`;
+      return;
+    }
+    history.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    bookingListDiv.innerHTML = history.map(booking => generateHistoryBookingCard(booking)).join('');
+  }
+}
+ 
+// การ์ดกระชับสำหรับแท็บ "ประวัติ" — แถวเดียว ไม่มีปุ่มดำเนินการ เพราะจบขั้นตอนแล้ว
+function generateHistoryBookingCard(booking) {
+  const name  = SecurityUtils.escapeHtml(booking.fullname || booking.username || '-');
+  const field = SecurityUtils.escapeHtml(booking.field || 'ไม่ระบุสนาม');
+  const time  = SecurityUtils.escapeHtml(booking.time || '-');
+  const totalPrice = parseInt(booking.totalPrice) || 0;
+ 
+  let statusText = 'ไม่ทราบสถานะ', statusColor = '#6b7280', statusBg = '#f3f4f6';
+  if (booking.bookingStatus === 'completed') { statusText = 'เล่นเสร็จแล้ว ✔️'; statusColor = '#6b7280'; statusBg = '#f3f4f6'; }
+  else if (booking.bookingStatus === 'rejected') { statusText = 'ปฏิเสธ/ยกเลิก ❌'; statusColor = '#ef4444'; statusBg = '#fee2e2'; }
+  else if (booking.bookingStatus === 'cancelled') { statusText = 'ยกเลิกแล้ว'; statusColor = '#6b7280'; statusBg = '#f3f4f6'; }
+ 
+  const fmtDate = (ds) => {
+    if (!ds) return '-';
+    try {
+      const d = new Date(ds);
+      if (isNaN(d.getTime())) return '-';
+      const day = String(d.getDate()).padStart(2,'0');
+      const month = String(d.getMonth()+1).padStart(2,'0');
+      const year = d.getFullYear() + 543;
+      return `${day}/${month}/${year}`;
+    } catch(e) { return '-'; }
+  };
+ 
+  return `
+    <div class="booking-card" style="background:white;border-radius:10px;padding:14px 16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,0.08);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;opacity:0.9;">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+        <span style="font-weight:700;color:#1f2937;min-width:64px;">${field}</span>
+        <span style="color:#6b7280;font-size:13px;">📅 ${fmtDate(booking.date)}</span>
+        <span style="color:#6b7280;font-size:13px;">⏰ ${time}</span>
+        <span style="color:#6b7280;font-size:13px;">💰 ${totalPrice.toLocaleString()} บาท</span>
+      </div>
+      <span style="background:${statusBg};color:${statusColor};padding:5px 12px;border-radius:16px;font-weight:600;font-size:12px;white-space:nowrap;">${statusText}</span>
+    </div>`;
+}
+ 
 function updateBookingList() {
   const bookingListDiv = document.getElementById('bookingList');
+  const tabsBar = document.getElementById('bookingTabsBar');
   if (!bookingListDiv) return;
   const user = auth.currentUser;
   if (!user) {
+    if (tabsBar) tabsBar.style.display = 'none';
     bookingListDiv.innerHTML = `<div style="text-align:center;padding:40px;"><p style="color:#6b7280;font-size:1.1em;margin-bottom:20px;">กรุณา Login เพื่อดูรายการจอง</p><button onclick="openLoginModal()" style="background:#22c55e;color:white;padding:12px 24px;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:1em;">🔐 เข้าสู่ระบบ</button></div>`;
     return;
   }
@@ -951,6 +1047,8 @@ function updateBookingList() {
   // ของตัวเอง แล้วค่อยไปอ่าน 'bookings/{id}' ทีละรายการ ซึ่งอนุญาตเฉพาะเจ้าของ/staff
   database.ref('user_bookings/' + user.uid).once('value').then((idsSnapshot) => {
     if (!idsSnapshot.exists()) {
+      if (tabsBar) tabsBar.style.display = 'none';
+      allUserBookings = [];
       bookingListDiv.innerHTML = `<div style="text-align:center;padding:40px;"><p style="color:#6b7280;font-size:1.1em;">⚽ ยังไม่มีรายการจอง</p><p style="color:#9ca3af;margin-top:10px;">เริ่มจองสนามได้เลย!</p></div>`;
       return;
     }
@@ -973,18 +1071,25 @@ function updateBookingList() {
       const bookings = [];
       results.forEach(({ id, snap }) => {
         const booking = snap ? snap.val() : null;
-        // booking อาจเป็น null ได้ถ้าถูกลบไปแล้ว (เช่น auto-delete หลัง completed 24 ชม.
-        // หรือ orphan index ที่เพิ่งเคลียร์ไปด้านบน) — ข้ามรายการที่หายไปแบบเงียบ ๆ
+        // booking อาจเป็น null ได้ถ้าถูกลบไปแล้ว (เช่น orphan index ที่เพิ่งเคลียร์ไปด้านบน)
+        // — ข้ามรายการที่หายไปแบบเงียบ ๆ
         if (!booking) return;
         booking.id = id;
-        if (booking.bookingStatus !== 'rejected') bookings.push(booking);
+        // FIX: เดิมกรอง bookingStatus 'rejected' ทิ้งไปเลย ไม่ให้ลูกค้าเห็น ตอนนี้
+        // เก็บไว้ทั้งหมด แล้วให้แท็บ "ประวัติ" เป็นคนกรองแสดงแทน (ดู renderBookingListTabs())
+        bookings.push(booking);
       });
-      if (bookings.length === 0) { bookingListDiv.innerHTML = '<p style="text-align:center;color:#666;">ยังไม่มีรายการจอง</p>'; return; }
-      bookings.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      bookingListDiv.innerHTML = bookings.map(booking => generateBookingCard(booking)).join('');
-      initializeBookingCardEvents();
+      allUserBookings = bookings;
+      if (bookings.length === 0) {
+        if (tabsBar) tabsBar.style.display = 'none';
+        bookingListDiv.innerHTML = '<p style="text-align:center;color:#666;">ยังไม่มีรายการจอง</p>';
+        return;
+      }
+      if (tabsBar) tabsBar.style.display = 'flex';
+      renderBookingListTabs();
     });
   }).catch((error) => {
+    if (tabsBar) tabsBar.style.display = 'none';
     bookingListDiv.innerHTML = `<div style="text-align:center;padding:40px;color:#ef4444;"><p>❌ โหลดข้อมูลไม่สำเร็จ</p><p style="color:#6b7280;font-size:0.9em;">${error.message}</p><button onclick="updateBookingList()" style="margin-top:20px;background:#22c55e;color:white;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;">🔄 ลองใหม่</button></div>`;
   });
 }
