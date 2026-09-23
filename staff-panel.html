@@ -984,7 +984,7 @@ if (userData && (userData.role === 'staff' || userData.role === 'admin')) {
         const fullBooking = { id: bookingId, ...snap.val() };
         const dep = getBookingDeposit(fullBooking);
         // สร้าง refund เสมอถ้ามีมัดจำ (ไม่ต้องเช็ค depositSlipUrl)
-        if (dep > 0) createRefundRecord(fullBooking, 'อนุมัติการจอง — รอคืนมัดจำหลังลูกค้าเล่นเสร็จ', 'pending');
+        if (dep > 0) createRefundRecord(fullBooking, 'อนุมัติการจอง — หักเก็บค่ามัดจำ', 'pending');
         showToast('อนุมัติการจองเรียบร้อยแล้ว','success');
       }).catch(err => { hideLoading(); showToast(err.message,'error'); });
     }
