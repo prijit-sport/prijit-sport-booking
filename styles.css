@@ -322,7 +322,7 @@ body.modal-open {
   align-items: center;
   gap: 10px;
 }
-#userInfo > span:first-child {
+#userNameBox {
   background: rgba(0, 0, 0, 0.75);
   border: 2px solid rgb(252, 255, 54);
   padding: 4px 14px;
@@ -1709,7 +1709,7 @@ section > * {
   .user-section {
     font-size: 16px;
   }
-  #userInfo > span:first-child {
+  #userNameBox {
     max-width: 45vw;
     overflow: hidden;
     text-overflow: ellipsis;

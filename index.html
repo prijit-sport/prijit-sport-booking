@@ -37,78 +37,73 @@
     <link rel="icon" type="image/jpeg" href="f6.jpg">
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="dns-prefetch" href="https://www.gstatic.com">
-    <link rel="preload" href="styles.css?v=2" as="style">
+    <link rel="preload" href="styles.css?v=3" as="style">
     <link rel="preload" href="app.js" as="script">
     <link rel="preload" href="f6.jpg" as="image" fetchpriority="high">
-    <link rel="stylesheet" href="styles.css?v=2" media="all">
+    <link rel="stylesheet" href="styles.css?v=3" media="all">
  
-    <!-- ✅ FIX: navbar login/logout ชิดขวา + ชื่อผู้ใช้อ่านง่าย + กันชื่อยาวทับเมนู -->
+    <!-- ✅ FIX: navbar — login/logout ชิดขวา, ชื่อผู้ใช้อยู่ใต้ logout, เมนูกลางอยู่ที่เดิมไม่ขยับ -->
     <style>
       .navbar .nav-container .user-section {
         margin-left: auto !important;
         color: #ffffff !important;
         flex-shrink: 0;
       }
+ 
+      /* ซ้อนแนวตั้ง: logout อยู่บน ชื่อผู้ใช้อยู่ล่าง ชิดขวา */
       .navbar #userInfo {
-        align-items: center;
-        gap: 10px;
-        white-space: nowrap;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 6px;
+        text-align: right;
       }
-      .navbar #userInfo > span:first-child {
-        display: inline-block;
-        max-width: 220px;               /* ชื่อยาวเกินนี้จะถูกตัดเป็น ... */
+      .navbar #userInfo > * {
+        display: block;
+        width: fit-content;
+        margin-left: auto;
+      }
+ 
+      .navbar .logout-btn {
+        color: #ffffff !important;
+        font-weight: bold !important;
+        margin-left: auto !important;
+      }
+ 
+      .navbar #userNameBox {
+        max-width: 180px;               /* ชื่อยาวเกินนี้จะถูกตัดเป็น ... */
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        vertical-align: middle;
         background: rgba(0, 0, 0, 0.75) !important;
         border: 2px solid rgb(252, 255, 54) !important;
-        padding: 4px 14px !important;
+        padding: 2px 12px !important;
         border-radius: 50px !important;
         color: #ffffff !important;
-        font-size: 18px;
+        font-size: 15px;
+        line-height: 1.5;
       }
       .navbar #currentUser {
         color: #ffffff !important;
         font-weight: bold !important;
       }
-      .navbar .logout-btn {
-        color: #ffffff !important;
-        font-weight: bold !important;
-        margin-left: 8px;
-        flex-shrink: 0;
-      }
  
-      /* เดสก์ท็อป: เมนูไม่ลอยแล้ว แต่แบ่งพื้นที่กับชื่อผู้ใช้ จึงไม่ซ้อนกัน */
-      @media (min-width: 769px) {
-        .nav-container > .nav-links {
-          position: static !important;
-          transform: none !important;
-          flex: 1 1 auto;
-          justify-content: center;
-          flex-wrap: wrap;
-          min-width: 0;
-        }
-      }
- 
-      /* จอขนาดกลาง (แล็ปท็อปเล็ก): ลดความกว้างชื่อลงอีก */
+      /* จอขนาดกลาง: พื้นที่ข้างเมนูแคบลง ลดความกว้างชื่อลง */
       @media (min-width: 769px) and (max-width: 1100px) {
-        .navbar #userInfo > span:first-child {
-          max-width: 140px;
-          font-size: 15px;
-          padding: 4px 10px !important;
+        .navbar #userNameBox {
+          max-width: 110px;
+          font-size: 13px;
+          padding: 2px 8px !important;
         }
         .navbar .logout-btn {
           font-size: 15px;
         }
       }
  
-      /* มือถือ: เมนูอยู่ใน hamburger อยู่แล้ว ให้ชื่อกว้างได้ประมาณครึ่งจอ */
+      /* มือถือ: เมนูอยู่ใน hamburger ให้ชื่อกว้างได้ประมาณครึ่งจอ */
       @media (max-width: 768px) {
-        .navbar #userInfo > span:first-child {
+        .navbar #userNameBox {
           max-width: 45vw;
-          font-size: 15px;
-          padding: 4px 10px !important;
+          font-size: 14px;
         }
       }
     </style>
@@ -204,8 +199,8 @@
         <div class="user-section">
           <span class="login-btn" id="loginNavBtn">login</span>
           <div id="userInfo" style="display:none;">
-            <span>👤 <span id="currentUser"></span></span>
             <span class="logout-btn" id="logoutBtn">logout</span>
+            <span id="userNameBox">👤 <span id="currentUser"></span></span>
           </div>
         </div>
       </div>
@@ -675,7 +670,3 @@
   </body>
 </html>
  
-
-
-
-
