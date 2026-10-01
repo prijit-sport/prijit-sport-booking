@@ -37,10 +37,81 @@
     <link rel="icon" type="image/jpeg" href="f6.jpg">
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="dns-prefetch" href="https://www.gstatic.com">
-    <link rel="preload" href="styles.css" as="style">
+    <link rel="preload" href="styles.css?v=2" as="style">
     <link rel="preload" href="app.js" as="script">
     <link rel="preload" href="f6.jpg" as="image" fetchpriority="high">
-    <link rel="stylesheet" href="styles.css" media="all">
+    <link rel="stylesheet" href="styles.css?v=2" media="all">
+ 
+    <!-- ✅ FIX: navbar login/logout ชิดขวา + ชื่อผู้ใช้อ่านง่าย + กันชื่อยาวทับเมนู -->
+    <style>
+      .navbar .nav-container .user-section {
+        margin-left: auto !important;
+        color: #ffffff !important;
+        flex-shrink: 0;
+      }
+      .navbar #userInfo {
+        align-items: center;
+        gap: 10px;
+        white-space: nowrap;
+      }
+      .navbar #userInfo > span:first-child {
+        display: inline-block;
+        max-width: 220px;               /* ชื่อยาวเกินนี้จะถูกตัดเป็น ... */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+        background: rgba(0, 0, 0, 0.75) !important;
+        border: 2px solid rgb(252, 255, 54) !important;
+        padding: 4px 14px !important;
+        border-radius: 50px !important;
+        color: #ffffff !important;
+        font-size: 18px;
+      }
+      .navbar #currentUser {
+        color: #ffffff !important;
+        font-weight: bold !important;
+      }
+      .navbar .logout-btn {
+        color: #ffffff !important;
+        font-weight: bold !important;
+        margin-left: 8px;
+        flex-shrink: 0;
+      }
+ 
+      /* เดสก์ท็อป: เมนูไม่ลอยแล้ว แต่แบ่งพื้นที่กับชื่อผู้ใช้ จึงไม่ซ้อนกัน */
+      @media (min-width: 769px) {
+        .nav-container > .nav-links {
+          position: static !important;
+          transform: none !important;
+          flex: 1 1 auto;
+          justify-content: center;
+          flex-wrap: wrap;
+          min-width: 0;
+        }
+      }
+ 
+      /* จอขนาดกลาง (แล็ปท็อปเล็ก): ลดความกว้างชื่อลงอีก */
+      @media (min-width: 769px) and (max-width: 1100px) {
+        .navbar #userInfo > span:first-child {
+          max-width: 140px;
+          font-size: 15px;
+          padding: 4px 10px !important;
+        }
+        .navbar .logout-btn {
+          font-size: 15px;
+        }
+      }
+ 
+      /* มือถือ: เมนูอยู่ใน hamburger อยู่แล้ว ให้ชื่อกว้างได้ประมาณครึ่งจอ */
+      @media (max-width: 768px) {
+        .navbar #userInfo > span:first-child {
+          max-width: 45vw;
+          font-size: 15px;
+          padding: 4px 10px !important;
+        }
+      }
+    </style>
   </head>
   <body>
     <!-- Login/Register Modal -->
@@ -482,6 +553,17 @@
 })();
 </script>
  
+<script>
+// ✅ FIX: ชี้เมาส์ที่ชื่อผู้ใช้แล้วแสดงชื่อเต็ม (กรณีชื่อยาวถูกตัดเป็น ...)
+(function(){
+  const nameEl = document.getElementById('currentUser');
+  if (!nameEl) return;
+  const sync = () => { nameEl.parentElement.title = nameEl.textContent.trim(); };
+  new MutationObserver(sync).observe(nameEl, { childList: true, characterData: true, subtree: true });
+  sync();
+})();
+</script>
+ 
     <!-- Toast Container -->
     <div id="toast-container"></div>
  
@@ -593,3 +675,7 @@
   </body>
 </html>
  
+
+
+
+
